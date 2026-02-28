@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "494874337134",
+    "project_id": "my-alfenzo",
+    "storage_bucket": "my-alfenzo.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:494874337134:android:0d58806ec3d37cab046b7f",
+        "android_client_info": {
+          "package_name": "com.alfennzo.partner"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAkAx2VHIWiz_8DUOZWUhqjmZa5dep5peQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

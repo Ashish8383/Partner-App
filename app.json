@@ -1,29 +1,103 @@
 {
   "expo": {
-    "name": "AlfennzoPartner",
-    "slug": "AlfennzoPartner",
+    "name": "Alfennzo Partner",
+    "slug": "alfennzo-partner",
     "version": "1.0.0",
     "orientation": "portrait",
+    "jsEngine": "hermes",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#FFFFFF"
     },
+
+    "assetBundlePatterns": [
+      "assets/**/*"
+    ],
+
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.alfennzo.partner",
+      "buildNumber": "1.0.0",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
+      },
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "splash": {
+        "image": "./assets/splash-icon.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#FFFFFF",
+        "tabletImage": "./assets/splash-icon.png"
+      }
     },
+
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#FF8C42"
       },
-      "edgeToEdgeEnabled": true
+      "package": "com.alfennzo.partner",
+      "versionCode": 1,
+      "permissions": [
+        "INTERNET",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "WAKE_LOCK",
+        "com.google.android.c2dm.permission.RECEIVE"
+      ],
+      "googleServicesFile": "./google-services.json",
+      "splash": {
+        "image": "./assets/splash-icon.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#FFFFFF",
+        "mdpi":    "./assets/splash-icon.png",
+        "hdpi":    "./assets/splash-icon.png",
+        "xhdpi":   "./assets/splash-icon.png",
+        "xxhdpi":  "./assets/splash-icon.png",
+        "xxxhdpi": "./assets/splash-icon.png"
+      }
     },
+
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "config": {
+        "notification": {
+          "vapidPublicKey": "BMatJJCXZzF7wkxqn4zzdWuRqYH1-dYw8nVUNNKKD09Cdm1db4owTnlJA9vYyOvXjsZ_gOH_iOiQijL2DWEP1vQ"
+        }
+      }
+    },
+
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/adaptive-icon.png",
+          "color": "#FF8C42",
+          "mode": "production",
+          "sounds": [
+            "./assets/notification.wav"
+          ]
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#FFFFFF",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200
+        }
+      ]
+    ],
+
+    "extra": {
+      "eas": {
+        "projectId": "d788a5f1-2db0-430f-88ce-bad30521bc19"
+      }
     }
   }
 }
