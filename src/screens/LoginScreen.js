@@ -163,6 +163,7 @@ const LoginScreen = ({ navigation }) => {
         backgroundColor="#FFFFFF"
         translucent={false}
       />
+      
 
       <KeyboardAvoidingView
         style={styles.flex}
