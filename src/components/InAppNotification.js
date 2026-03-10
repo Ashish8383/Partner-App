@@ -9,10 +9,12 @@ import {
   useColorScheme,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context'; // ← ADD THIS
 
 const InAppNotification = ({ title, body, onPress, onDismiss }) => {
+  const insets = useSafeAreaInsets(); // ← gets real status bar height per device
   const translateY = useRef(new Animated.Value(-150)).current;
-  const colorScheme = useColorScheme(); // ← detects dark/light mode
+  const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
   const theme = {
@@ -48,6 +50,7 @@ const InAppNotification = ({ title, body, onPress, onDismiss }) => {
       style={[
         styles.container,
         {
+          top: insets.top + 8,
           transform: [{ translateY }],
           backgroundColor: theme.background,
           shadowColor: theme.shadowColor,
@@ -88,7 +91,6 @@ const InAppNotification = ({ title, body, onPress, onDismiss }) => {
   );
 };
 
-// ✅ Progress bar shows how long before auto dismiss
 const ProgressBar = ({ isDark }) => {
   const width = useRef(new Animated.Value(100)).current;
 
@@ -121,7 +123,7 @@ const ProgressBar = ({ isDark }) => {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: 10,
+    // ⚠️ `top` is now set dynamically via insets.top — removed hardcoded `top: 10`
     left: 12,
     right: 12,
     zIndex: 9999,

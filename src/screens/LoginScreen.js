@@ -1,15 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   Image,
   TextInput,
-  TouchableOpacity,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
   ActivityIndicator,
   Dimensions,
   StatusBar,
@@ -21,21 +19,18 @@ import { MaterialIcons, Feather } from '@expo/vector-icons';
 import { getDeviceInfo, determineLoginType } from '../utils/deviceInfo';
 import { getFCMToken } from '../utils/fcmToken';
 import { authAPI } from '../utils/api';
+import { decryptData } from '../utils/decrypt';
+import SpringButton from '../components/SpringButton';
+import ToastMessage from '../components/ToastMessage';
+
 
 // ─── Responsive Helpers ───────────────────────────────────────────────────────
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-// Tablet detection: iPad / Android tablet (width >= 768)
-const IS_TABLET = SCREEN_WIDTH >= 768;
-
-// Scale relative to standard 375px phone design
+const IS_TABLET  = SCREEN_WIDTH >= 768;
 const BASE_WIDTH = 375;
-const scale = SCREEN_WIDTH / BASE_WIDTH;
+const scale      = SCREEN_WIDTH / BASE_WIDTH;
 
-/**
- * normalize(size) — scales font sizes with a tablet cap so text
- * never grows disproportionately large on big screens.
- */
 const normalize = (size) => {
   if (IS_TABLET) {
     return Math.round(PixelRatio.roundToNearestPixel(size * 1.22));
@@ -51,9 +46,12 @@ const rs = (size) => {
 
 const CONTENT_MAX_WIDTH = IS_TABLET ? 500 : SCREEN_WIDTH;
 
-const LOGO_URL = 'https://cdn.alfennzo.com/PartnerConsole/public/logo.png';
+const HERO_IMAGE_RATIO = 370 / 380;
+const HERO_WIDTH       = SCREEN_WIDTH;
+const HERO_HEIGHT      = Math.round(HERO_WIDTH / HERO_IMAGE_RATIO);
 
-const LoginScreen = ({ navigation }) => {
+// ─── Screen ───────────────────────────────────────────────────────────────────
+const LoginScreen = () => {
   const [identifier, setIdentifier]           = useState('');
   const [password, setPassword]               = useState('');
   const [loading, setLoading]                 = useState(false);
@@ -61,10 +59,16 @@ const LoginScreen = ({ navigation }) => {
   const [rememberMe, setRememberMe]           = useState(false);
   const [deviceInfo, setDeviceInfo]           = useState(null);
   const [fcmToken, setFcmToken]               = useState(null);
-  const [logoError, setLogoError]             = useState(false);
 
-  const insets = useSafeAreaInsets();
-  const login  = useStore((state) => state.login);
+  const toastRef  = useRef(null);
+  const insets    = useSafeAreaInsets();
+  const login     = useStore((state) => state.login);
+  const setProfile = useStore((state) => state.setProfile);
+
+  // Helper: replaces all Alert.alert calls
+  const showToast = (message, type = 'info', duration = 3500) => {
+    toastRef.current?.show({ message, type, duration });
+  };
 
   useEffect(() => {
     const loadDeviceData = async () => {
@@ -72,7 +76,6 @@ const LoginScreen = ({ navigation }) => {
       setDeviceInfo(info);
       const token = await getFCMToken();
       setFcmToken(token);
-      console.log('📱 FCM Token in LoginScreen:', token);
     };
 
     loadDeviceData();
@@ -80,7 +83,6 @@ const LoginScreen = ({ navigation }) => {
     const tokenRefreshInterval = setInterval(async () => {
       const freshToken = await getFCMToken();
       setFcmToken(freshToken);
-      console.log('FCM token refreshed:', freshToken);
     }, 60 * 60 * 1000);
 
     return () => clearInterval(tokenRefreshInterval);
@@ -88,7 +90,7 @@ const LoginScreen = ({ navigation }) => {
 
   const handleLogin = async () => {
     if (!identifier || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+      showToast('Please fill in all fields', 'warning');
       return;
     }
 
@@ -98,7 +100,7 @@ const LoginScreen = ({ navigation }) => {
       const freshToken    = await getFCMToken();
       const finalFcmToken = freshToken || fcmToken;
       const loginType     = determineLoginType(identifier);
-
+console.log(finalFcmToken,"fcm token")
       const loginPayload = {
         [loginType]: identifier,
         password:    password,
@@ -115,30 +117,42 @@ const LoginScreen = ({ navigation }) => {
         },
       };
 
-      console.log('Login Payload:', JSON.stringify(loginPayload, null, 2));
-
       const response = await authAPI.login(loginPayload);
-      console.log('Login Response:', response);
 
-      if (response && response.status === true) {
-        const { data } = response;
+      if (response.status === 200) {
+        const { data } = response.data;
         if (data) {
           const userData = {
-            id:           data.decryptedId || data.Id,
+            id:           data.Id,
             restaurantId: data.decryptedId,
             encryptedId:  data.Id,
             phone:        identifier,
           };
+
+          // 1. Save auth state first so the token is available for the next call
           await login(userData, data.accessToken, data.refreshToken);
-          Alert.alert('Success', response.message || 'Login successful!');
+
+          // 2. Fetch full profile using restaurantId, decrypt, then store name + logo
+          try {
+            const profileRes      = await authAPI.getProfile(userData.id);
+            const encryptedPayload = profileRes?.data?.data;          // encrypted string
+            if (encryptedPayload) {
+              const profileData = decryptData(encryptedPayload);       // → plain object
+              await setProfile(profileData);
+            }
+          } catch (profileErr) {
+            // Non-fatal — user is still logged in, profile data will be missing
+            console.warn('getProfile / decrypt failed:', profileErr?.message);
+          }
+
+          showToast(response.message || 'Login successful!', 'success');
         } else {
-          Alert.alert('Login Failed', 'Invalid response structure');
+          showToast('Invalid response structure', 'error');
         }
       } else {
-        Alert.alert('Login Failed', response.message || 'Invalid credentials');
+        showToast(response.message || 'Invalid credentials', 'error');
       }
     } catch (error) {
-      console.error('Login error details:', error);
       let errorMessage = 'Login failed. Please try again.';
       if (error.response) {
         errorMessage =
@@ -150,252 +164,250 @@ const LoginScreen = ({ navigation }) => {
       } else {
         errorMessage = error.message || 'An unexpected error occurred';
       }
-      Alert.alert('Login Failed', errorMessage);
+      showToast(errorMessage, 'error');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <>
+    <View style={styles.root}>
+      {/* ── Green status-bar background (Android) ── */}
       <StatusBar
-        barStyle="dark-content"
-        backgroundColor="#FFFFFF"
+        barStyle="light-content"
+        backgroundColor="#03954E"
         translucent={false}
       />
-      
+
+      {/* iOS: fill safe-area top with green */}
+      {Platform.OS === 'ios' && (
+        <View style={[styles.iosStatusBar, { height: insets.top }]} />
+      )}
 
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        keyboardVerticalOffset={0}
       >
         <ScrollView
           style={styles.flex}
-          contentContainerStyle={[
-            styles.scrollContent,
-            {
-              paddingTop:    insets.top + rs(20),
-              paddingBottom: insets.bottom + rs(32),
-            },
-          ]}
+          contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           bounces={false}
         >
-          <View style={styles.card}>
+          {/* ── Hero / Banner Image ── */}
+          <View style={styles.heroContainer}>
+            <Image
+              source={require('../../assets/login.webp')}
+              style={styles.heroImage}
+              resizeMode="contain"
+            />
+          </View>
 
-            <View style={styles.logoSection}>
-              {!logoError ? (
-                <Image
-                  source={{ uri: LOGO_URL }}
-                  style={styles.logoImage}
-                  resizeMode="contain"
-                  onError={() => {
-                    console.warn('Logo failed to load from CDN');
-                    setLogoError(true);
-                  }}
-                />
-              ) : (
-                <View style={styles.logoImage} />
-              )}
+          {/* ── Form Card ── */}
+          <View style={styles.formCard}>
+
+            {/* Username / Phone */}
+            <View style={styles.inputWrapper}>
+              <MaterialIcons
+                name="person-outline"
+                size={normalize(22)}
+                color="#4a4848"
+                style={styles.inputIcon}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Username or Phone number"
+                placeholderTextColor="#7c7c7cbf"
+                value={identifier}
+                onChangeText={setIdentifier}
+                keyboardType="default"
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="next"
+                editable={!loading}
+                allowFontScaling={false}
+                textContentType="username"
+              />
             </View>
 
-            <View style={styles.formSection}>
-
-              <Text style={styles.loginTitle} allowFontScaling={false}>
-                Log In
-              </Text>
-
-              <View style={styles.inputWrapper}>
-                <MaterialIcons
-                  name="person-outline"
-                  size={normalize(22)}
-                  color="#AAAAAA"
-                  style={styles.inputIcon}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Username or Phone"
-                  placeholderTextColor="#BBBBBB"
-                  value={identifier}
-                  onChangeText={setIdentifier}
-                  keyboardType="default"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  returnKeyType="next"
-                  editable={!loading}
-                  allowFontScaling={false}
-                  textContentType="username"
-                />
-              </View>
-
-              <View style={styles.inputWrapper}>
-                <Feather
-                  name="lock"
-                  size={normalize(20)}
-                  color="#AAAAAA"
-                  style={styles.inputIcon}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Password"
-                  placeholderTextColor="#BBBBBB"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={secureTextEntry}
-                  returnKeyType="done"
-                  onSubmitEditing={handleLogin}
-                  editable={!loading}
-                  allowFontScaling={false}
-                  textContentType="password"
-                />
-                <TouchableOpacity
-                  onPress={() => setSecureTextEntry(!secureTextEntry)}
-                  style={styles.eyeButton}
-                  disabled={loading}
-                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                >
-                  <Feather
-                    name={secureTextEntry ? 'eye-off' : 'eye'}
-                    size={normalize(20)}
-                    color="#AAAAAA"
-                  />
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.rowBetween}>
-                <TouchableOpacity
-                  style={styles.rememberRow}
-                  onPress={() => setRememberMe(!rememberMe)}
-                  activeOpacity={0.7}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
-                    {rememberMe && (
-                      <MaterialIcons
-                        name="check"
-                        size={normalize(11)}
-                        color="#FFFFFF"
-                      />
-                    )}
-                  </View>
-                  <Text style={styles.rememberText} allowFontScaling={false}>
-                    Remember me
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={() => Alert.alert('Info', 'Contact your administrator')}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Text style={styles.forgotText} allowFontScaling={false}>
-                    Forgot password?
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              <TouchableOpacity
-                style={[styles.loginButton, loading && styles.loginButtonDisabled]}
-                onPress={handleLogin}
+            {/* Password */}
+            <View style={styles.inputWrapper}>
+              <Feather
+                name="lock"
+                size={normalize(20)}
+                color="#4a4848"
+                style={styles.inputIcon}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Password"
+                placeholderTextColor="#7c7c7cbf"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={secureTextEntry}
+                returnKeyType="done"
+                onSubmitEditing={handleLogin}
+                editable={!loading}
+                allowFontScaling={false}
+                textContentType="password"
+              />
+              {/* Eye toggle with spring */}
+              <SpringButton
+                onPress={() => setSecureTextEntry(!secureTextEntry)}
+                style={styles.eyeButton}
                 disabled={loading}
-                activeOpacity={0.85}
               >
-                {loading ? (
-                  <ActivityIndicator color="#FFFFFF" size="small" />
-                ) : (
-                  <Text style={styles.loginButtonText} allowFontScaling={false}>
-                    Log In
-                  </Text>
-                )}
-              </TouchableOpacity>
+                <Feather
+                  name={secureTextEntry ? 'eye-off' : 'eye'}
+                  size={normalize(20)}
+                  color="#7c7c7c"
+                />
+              </SpringButton>
+            </View>
 
-              <Text style={styles.termsText} allowFontScaling={false}>
-                By continuing, I accept the{' '}
-                <Text
-                  style={styles.termsLink}
-                  onPress={() => Alert.alert('Terms', 'Terms & Conditions')}
-                >
-                  Terms &amp; Conditions
+            {/* Remember me + Forgot password */}
+            <View style={styles.rowBetween}>
+
+              <SpringButton
+                onPress={() => setRememberMe(!rememberMe)}
+                style={styles.rememberRow}
+              >
+                <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
+                  {rememberMe && (
+                    <MaterialIcons
+                      name="check"
+                      size={normalize(11)}
+                      color="#FFFFFF"
+                    />
+                  )}
+                </View>
+                <Text style={styles.rememberText} allowFontScaling={false}>
+                  Remember me
                 </Text>
-                {' '}and{' '}
-                <Text
-                  style={styles.termsLink}
-                  onPress={() => Alert.alert('Privacy', 'Privacy Policy')}
-                >
-                  Privacy Policy
+              </SpringButton>
+
+              <SpringButton
+                onPress={() =>
+                  showToast('Contact your administrator to reset your password', 'info')
+                }
+              >
+                <Text style={styles.forgotText} allowFontScaling={false}>
+                  Forgot Password?
                 </Text>
-              </Text>
+              </SpringButton>
 
             </View>
+
+            {/* ── Continue — spaghetti spring button ── */}
+            <SpringButton
+              onPress={handleLogin}
+              disabled={loading}
+              style={styles.loginButton}
+            >
+              {loading ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <Text style={styles.loginButtonText} allowFontScaling={false}>
+                  Continue
+                </Text>
+              )}
+            </SpringButton>
+
+            {/* Terms */}
+            <Text
+              style={[styles.termsText, { paddingBottom: insets.bottom + rs(16) }]}
+              allowFontScaling={false}
+            >
+              By clicking on continue, I accept the{' '}
+              <Text
+                style={styles.termsLink}
+                onPress={() => showToast('Terms & Conditions apply', 'info')}
+              >
+                Terms &amp; Conditions
+              </Text>
+              {' '}&amp;{'\n'}
+              <Text
+                style={styles.termsLink}
+                onPress={() => showToast('Privacy Policy applies', 'info')}
+              >
+                Privacy Policy
+              </Text>
+            </Text>
+
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </>
+
+      {/* ── Toast — overlays everything, outside ScrollView ── */}
+      <ToastMessage ref={toastRef} />
+    </View>
   );
 };
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
 
-  flex: {
+  root: {
     flex:            1,
     backgroundColor: '#FFFFFF',
   },
 
-  scrollContent: {
-    flexGrow:          1,
-    alignItems:        'center',
-    paddingHorizontal: rs(24),
+  flex: {
+    flex: 1,
   },
 
-  card: {
-    width:    '100%',
-    maxWidth: CONTENT_MAX_WIDTH,
+  scrollContent: {
+    flexGrow:          1,
+    paddingHorizontal: 0,
+  },
+
+  // ── iOS status bar fill ───────────────────────────────────────────────────
+  iosStatusBar: {
+    backgroundColor: '#03954E',
+    width:           '100%',
+  },
+
+  // ── Hero banner ───────────────────────────────────────────────────────────
+  heroContainer: {
+    width:            HERO_WIDTH,
+    height:           HERO_HEIGHT,
+    alignSelf:        'stretch',
+    marginHorizontal: 0,
+  },
+
+  heroImage: {
+    width:       SCREEN_WIDTH,
+    height:      '100%',
+    marginLeft:  0,
+    marginRight: 0,
+  },
+
+  // ── Form card ─────────────────────────────────────────────────────────────
+  formCard: {
+    flex:              1,
+    backgroundColor:   '#FFFFFF',
+    paddingHorizontal: rs(24),
+    paddingTop:        rs(28),
     ...(IS_TABLET && {
-      backgroundColor:   '#FFFFFF',
-      borderRadius:      rs(24),
-      paddingHorizontal: rs(40),
-      paddingVertical:   rs(40),
-      shadowColor:       '#000000',
-      shadowOffset:      { width: 0, height: 6 },
-      shadowOpacity:     0.08,
-      shadowRadius:      20,
-      elevation:         8,
-      marginVertical:    rs(20),
+      alignSelf:     'center',
+      width:         CONTENT_MAX_WIDTH,
+      borderRadius:  rs(24),
+      shadowColor:   '#000',
+      shadowOffset:  { width: 0, height: -4 },
+      shadowOpacity: 0.06,
+      shadowRadius:  12,
+      elevation:     6,
     }),
   },
 
-  // ── Logo ─────────────────────────────────────────────────────────────────
-  logoSection: {
-    alignItems:   'center',
-    marginBottom: rs(36),
-    marginTop:    rs(8),
-  },
-
-  logoImage: {
-    width:  rs(200),
-    height: rs(90),
-    // No tint — display the CDN image as-is
-  },
-
-  // ── Form ─────────────────────────────────────────────────────────────────
-  formSection: {
-    width: '100%',
-  },
-
-  loginTitle: {
-    fontSize:     normalize(28),
-    fontWeight:   '700',
-    color:        '#1A1A1A',
-    marginBottom: rs(22),
-  },
-
-  // Input
+  // ── Inputs ────────────────────────────────────────────────────────────────
   inputWrapper: {
     flexDirection:     'row',
     alignItems:        'center',
     borderWidth:       1.5,
-    borderColor:       '#E0E0E0',
+    borderColor:       '#7c7c7c',
     borderRadius:      rs(14),
     height:            rs(54),
     backgroundColor:   '#FFFFFF',
@@ -408,7 +420,7 @@ const styles = StyleSheet.create({
   input: {
     flex:               1,
     fontSize:           normalize(15),
-    color:              '#1A1A1A',
+    color:              '#151313',
     height:             '100%',
     paddingVertical:    0,
     includeFontPadding: false,
@@ -417,16 +429,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: rs(14),
     justifyContent:    'center',
     alignItems:        'center',
-    height:            '100%',
+    height:            rs(44),
   },
 
-  // Remember me row
+  // ── Remember / forgot row ─────────────────────────────────────────────────
   rowBetween: {
     flexDirection:  'row',
     justifyContent: 'space-between',
     alignItems:     'center',
     marginBottom:   rs(28),
-    marginTop:      rs(4),
+    marginTop:      rs(2),
   },
   rememberRow: {
     flexDirection: 'row',
@@ -444,8 +456,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   checkboxChecked: {
-    backgroundColor: '#2E8B2E',
-    borderColor:     '#2E8B2E',
+    backgroundColor: '#03954E',
+    borderColor:     '#03954E',
   },
   rememberText: {
     fontSize: normalize(14),
@@ -453,26 +465,23 @@ const styles = StyleSheet.create({
   },
   forgotText: {
     fontSize:   normalize(14),
-    color:      '#555555',
+    color:      '#03954E',
     fontWeight: '500',
   },
 
-  // Login button
+  // ── Continue button ───────────────────────────────────────────────────────
   loginButton: {
-    backgroundColor: '#2E8B2E',
+    backgroundColor: '#03954E',
     height:          rs(54),
-    borderRadius:    rs(14),
+    borderRadius:    rs(13),
     justifyContent:  'center',
     alignItems:      'center',
     marginBottom:    rs(20),
-    shadowColor:     '#2E8B2E',
+    shadowColor:     '#03954E',
     shadowOffset:    { width: 0, height: 4 },
-    shadowOpacity:   0.30,
-    shadowRadius:    8,
+    shadowOpacity:   0.35,
+    shadowRadius:    10,
     elevation:       6,
-  },
-  loginButtonDisabled: {
-    opacity: 0.65,
   },
   loginButtonText: {
     color:         '#FFFFFF',
@@ -481,12 +490,12 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
 
-  // Terms
+  // ── Terms ─────────────────────────────────────────────────────────────────
   termsText: {
     fontSize:   normalize(13),
     color:      '#555555',
     textAlign:  'left',
-    lineHeight: normalize(21),
+    lineHeight: normalize(22),
   },
   termsLink: {
     color:      '#1A9EDE',

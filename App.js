@@ -7,6 +7,8 @@ import { COLORS } from './src/constants/theme';
 import * as Notifications from 'expo-notifications';
 import { setupNotificationChannel, playCustomSound } from './src/utils/fcmToken';
 import InAppNotification from './src/components/InAppNotification';
+import { ThemeProvider } from './src/theme/themeContext';
+import { loadSound } from './src/utils/sound';
 
 export default function App() {
   const loadPersistedState = useStore((state) => state.loadPersistedState);
@@ -14,6 +16,8 @@ export default function App() {
 
   useEffect(() => {
     loadPersistedState();
+    loadSound("accept", require('./assets/slide.mp3'));
+    loadSound("order_auto_sound", require('./assets/notification.wav'));
   }, []);
 
   useEffect(() => {
@@ -23,40 +27,38 @@ export default function App() {
     init();
   }, []);
 
-useEffect(() => {
-  const foregroundSub = Notifications.addNotificationReceivedListener(async (notification) => {
-    const { title, body } = notification.request.content;
+  useEffect(() => {
+    const foregroundSub = Notifications.addNotificationReceivedListener(async (notification) => {
+      const { title, body } = notification.request.content;
 
-    // ✅ Sound plays ONCE here only
-    await playCustomSound();
+      // ✅ Sound plays ONCE here only
+      await playCustomSound();
 
-    
-    // ✅ Show in-app popup
-    setInAppNotif({ title, body });
-  });
 
-  return () => foregroundSub.remove();
-}, []);
+      // ✅ Show in-app popup
+      setInAppNotif({ title, body });
+    });
+
+    return () => foregroundSub.remove();
+  }, []);
 
   return (
-    <SafeAreaProvider>
-      <View style={{ flex: 1 }}>
-        <StatusBar backgroundColor={COLORS.primary} barStyle="light-content" />
-        <AppNavigator />
+    <ThemeProvider>
+      <SafeAreaProvider>
+        <View style={{ flex: 1 }}>
+          <StatusBar backgroundColor={COLORS.primary} barStyle="light-content" />
+          <AppNavigator />
 
-        {/* ✅ In-app notification banner */}
-        {inAppNotif && (
-          <InAppNotification
-            title={inAppNotif.title}
-            body={inAppNotif.body}
-            onPress={() => {
-              // navigate to orders screen if needed
-              console.log('Notification tapped');
-            }}
-            onDismiss={() => setInAppNotif(null)}
-          />
-        )}
-      </View>
-    </SafeAreaProvider>
+          {/* ✅ In-app notification banner */}
+          {inAppNotif && (
+            <InAppNotification
+              title={inAppNotif.title}
+              body={inAppNotif.body}
+              onDismiss={() => setInAppNotif(null)}
+            />
+          )}
+        </View>
+      </SafeAreaProvider>
+    </ThemeProvider>
   );
 }

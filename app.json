@@ -7,20 +7,17 @@
     "jsEngine": "hermes",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#FFFFFF"
     },
-
     "assetBundlePatterns": [
       "assets/**/*"
     ],
-
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.alfennzo.partner",
+      "bundleIdentifier": "com.alfennzo.partner.dev.sandbox_partner",
       "buildNumber": "1.0.0",
       "infoPlist": {
         "UIBackgroundModes": [
@@ -35,13 +32,12 @@
         "tabletImage": "./assets/splash-icon.png"
       }
     },
-
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FF8C42"
       },
-      "package": "com.alfennzo.partner",
+      "package": "com.alfennzo.partner.dev.sandbox_partner",
       "versionCode": 1,
       "permissions": [
         "INTERNET",
@@ -55,14 +51,13 @@
         "image": "./assets/splash-icon.png",
         "resizeMode": "contain",
         "backgroundColor": "#FFFFFF",
-        "mdpi":    "./assets/splash-icon.png",
-        "hdpi":    "./assets/splash-icon.png",
-        "xhdpi":   "./assets/splash-icon.png",
-        "xxhdpi":  "./assets/splash-icon.png",
+        "mdpi": "./assets/splash-icon.png",
+        "hdpi": "./assets/splash-icon.png",
+        "xhdpi": "./assets/splash-icon.png",
+        "xxhdpi": "./assets/splash-icon.png",
         "xxxhdpi": "./assets/splash-icon.png"
       }
     },
-
     "web": {
       "favicon": "./assets/favicon.png",
       "config": {
@@ -71,7 +66,6 @@
         }
       }
     },
-
     "plugins": [
       [
         "expo-notifications",
@@ -91,9 +85,9 @@
           "image": "./assets/splash-icon.png",
           "imageWidth": 200
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
-
     "extra": {
       "eas": {
         "projectId": "d788a5f1-2db0-430f-88ce-bad30521bc19"
