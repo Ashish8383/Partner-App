@@ -1,7 +1,7 @@
 import axios from 'axios';
 import useStore from '../store/useStore';
 
-const API_BASE_URL = 'https://sandbox.alfennzo.com/api/v1';
+const API_BASE_URL = 'https://sandbox.safeqr.in/api/v1';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -21,26 +21,45 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// Routes that should NEVER trigger auto-logout on 401
+const SKIP_AUTH_URLS = ['/restaurant/login', '/restaurant/logout', '/restaurant/updateFcmToken'];
+
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error.response?.status === 401) await useStore.getState().logout();
+    const url = error.config?.url ?? '';
+    const is401 = error.response?.status === 401;
+    const isAuthRoute = SKIP_AUTH_URLS.some((r) => url.includes(r));
+
+    if (is401 && !isAuthRoute) {
+      await useStore.getState().logout();
+    }
     return Promise.reject(error);
   }
 );
 
 export const authAPI = {
-  login:  (loginData) => api.post('/restaurant/login', loginData),
-  logout: ()          => api.post('/restaurant/logout'),
+  login: (loginData) => api.post('/restaurant/login', loginData),
+
+  // ── deviceFingerprint sent so backend can invalidate this specific device ──
+  logout: () => {
+    const deviceFingerprint = useStore.getState().deviceFingerprint ?? '';
+    return api.post('/restaurant/logout', { deviceFingerprint });
+  },
+
   getProfile: (restaurantId) =>
     api.get('/restaurant/zxwyqohytzecats/1bf370ed4805a68bc295ef2143484170:2788bb54abac0ace8e476fb92487add368d5eb895916312b94c900632c8c50e3:bd7a7d687e0765719b7d33c30e10ded8e032875e8888d383ca2ef898135aba17', {
       params: { restaurantId },
     }),
 };
 
+// ─── Restaurant API ───────────────────────────────────────────────────────────
+export const restaurantAPI = {
+  // payload: { fcmToken, deviceFingerprint, Id }
+  updateFcmToken: (data) => api.post('/restaurant/updateFcmToken', data),
+};
+
 // ─── Base fetcher ─────────────────────────────────────────────────────────────
-// filter is serialised to JSON and sent as a single query param so the backend
-// can parse it consistently — matches how the web dashboard sends date ranges.
 const fetchOrders = (Id, params, filter) =>
   api.get('/restaurant/getAllOrder', {
     params: {
@@ -52,12 +71,9 @@ const fetchOrders = (Id, params, filter) =>
   });
 
 export const ordersAPI = {
-
-  // ── Original mixed fetcher (kept for backward compat) ──────────────────────
   getAllOrders: (params = {}, filter = {}, Id = '') =>
     fetchOrders(Id, params, filter),
 
-  // ── Live: not accepted, not delivered, not cancelled ───────────────────────
   getLiveOrders: (params = {}, Id = '', extra = {}) =>
     fetchOrders(Id, params, {
       AcceptOrder: false,
@@ -66,7 +82,6 @@ export const ordersAPI = {
       ...extra,
     }),
 
-  // ── Pending: accepted but not yet delivered / cancelled ────────────────────
   getPendingOrders: (params = {}, Id = '', extra = {}) =>
     fetchOrders(Id, params, {
       AcceptOrder: true,
@@ -75,24 +90,14 @@ export const ordersAPI = {
       ...extra,
     }),
 
-  // ── History: delivered, with optional date range ───────────────────────────
-  // extra = { startDate: ISO string, endDate: ISO string }
-  // Spread into filter so backend receives it via JSON.parse(filter),
-  // same format as the web dashboard's getTodayRange() call.
   getHistoryOrders: (params = {}, Id = '', extra = {}) =>
     fetchOrders(Id, params, {
       isDelivered: true,
       ...extra,
     }),
 
-  // ── Accept an order — payload: { OrderId, Id } ────────────────────────────
-  acceptOrder: (data) =>
-    api.post('/restaurant/AcceptOrder', data),
-
-  // ── Mark order delivered — payload: { OrderId, Id } ──────────────────────
-  deliverOrder: (data) =>
-    api.post('/restaurant/updateDeliverStatus', data),
-
+  acceptOrder:  (data) => api.post('/restaurant/AcceptOrder', data),
+  deliverOrder: (data) => api.post('/restaurant/updateDeliverStatus', data),
 };
 
 export default api;

@@ -1,259 +1,375 @@
-import React from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   Image,
-  TouchableOpacity,
   ScrollView,
+  Linking,
+  Animated,
+  Dimensions,
+  PixelRatio,
+  StatusBar,
+  Platform,
 } from 'react-native';
-import { COLORS, SIZES, SHADOWS } from '../constants/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import useStore from '../store/useStore';
 import LogoutButton from '../components/LogoutButton';
+import HapticTouchable from '../components/GlobalHaptic';
+import { useNavigation } from '@react-navigation/native';
 
-const ProfileScreen = () => {
-  const user = useStore((state) => state.user);
+// ─── Responsive ───────────────────────────────────────────────────────────────
+const { width: SW } = Dimensions.get('window');
+const BASE = 390;
+const sc   = SW / BASE;
+const rs   = (n) => Math.round(n * Math.min(sc, 1.35));
+const nz   = (n) => Math.round(PixelRatio.roundToNearestPixel(n * Math.min(sc, 1.35)));
 
-  const stats = [
-    { label: 'Total Orders', value: '156' },
-    { label: 'Rating', value: '4.8' },
-    { label: 'Earnings', value: '$2,450' },
-  ];
+// ─── Brand palette ────────────────────────────────────────────────────────────
+const G1 = '#03954E';   // primary green
+const G2 = '#027A40';   // dark green
+const G3 = '#E8F7EF';   // soft green tint
+const BG = '#F6F7F9';
+const WH = '#FFFFFF';
+const TX = '#111827';
+const SB = '#6B7280';
+const BD = '#E5E7EB';
+const RD = '#EF4444';
 
+// ─── Utility: animated fade-slide row ────────────────────────────────────────
+const FadeRow = ({ delay = 0, children }) => {
+  const anim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(anim, {
+      toValue: 1, duration: 420, delay,
+      useNativeDriver: true,
+    }).start();
+  }, []);
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.profileImageContainer}>
-          {user?.avatar ? (
-            <Image source={{ uri: user.avatar }} style={styles.profileImage} />
-          ) : (
-            <View style={styles.profileImagePlaceholder}>
-              <Text style={styles.profileImageText}>
-                {user?.name?.charAt(0) || 'U'}
-              </Text>
-            </View>
-          )}
-        </View>
-        <Text style={styles.userName}>{user?.name || 'Partner Name'}</Text>
-        <Text style={styles.userPhone}>{user?.phone || '+1234567890'}</Text>
-        <Text style={styles.userEmail}>{user?.email || 'partner@alfennzo.com'}</Text>
-      </View>
-
-      <View style={styles.statsContainer}>
-        {stats.map((stat, index) => (
-          <View key={index} style={styles.statItem}>
-            <Text style={styles.statValue}>{stat.value}</Text>
-            <Text style={styles.statLabel}>{stat.label}</Text>
-          </View>
-        ))}
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Personal Information</Text>
-        
-        <View style={styles.infoCard}>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Full Name</Text>
-            <Text style={styles.infoValue}>{user?.name || 'John Doe'}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Phone Number</Text>
-            <Text style={styles.infoValue}>{user?.phone || '+1234567890'}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Email</Text>
-            <Text style={styles.infoValue}>{user?.email || 'john@example.com'}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Member Since</Text>
-            <Text style={styles.infoValue}>January 2024</Text>
-          </View>
-        </View>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Vehicle Information</Text>
-        
-        <View style={styles.infoCard}>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Vehicle Type</Text>
-            <Text style={styles.infoValue}>Motorcycle</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>License Plate</Text>
-            <Text style={styles.infoValue}>ABC-1234</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Insurance Valid</Text>
-            <Text style={styles.infoValue}>Yes</Text>
-          </View>
-        </View>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Settings</Text>
-        
-        <View style={styles.infoCard}>
-          <TouchableOpacity style={styles.menuItem}>
-            <Text style={styles.menuItemText}>Notification Settings</Text>
-            <Text style={styles.menuItemArrow}>›</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem}>
-            <Text style={styles.menuItemText}>Payment Methods</Text>
-            <Text style={styles.menuItemArrow}>›</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem}>
-            <Text style={styles.menuItemText}>Privacy Policy</Text>
-            <Text style={styles.menuItemArrow}>›</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem}>
-            <Text style={styles.menuItemText}>Terms & Conditions</Text>
-            <Text style={styles.menuItemArrow}>›</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem}>
-            <Text style={styles.menuItemText}>Help & Support</Text>
-            <Text style={styles.menuItemArrow}>›</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <View style={styles.logoutContainer}>
-        <LogoutButton variant="full" />
-      </View>
-    </ScrollView>
+    <Animated.View style={{
+      opacity: anim,
+      transform: [{
+        translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }),
+      }],
+    }}>
+      {children}
+    </Animated.View>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  header: {
-    backgroundColor: COLORS.primary,
+// ─── Section card wrapper ────────────────────────────────────────────────────
+const Card = ({ children, style }) => (
+  <View style={[c.card, style]}>{children}</View>
+);
+
+// ─── Row item ────────────────────────────────────────────────────────────────
+const RowItem = ({
+  icon, iconBg, label, sublabel,
+  right, onPress, noBorder, danger,
+}) => (
+  <HapticTouchable
+    onPress={onPress}
+    activeOpacity={onPress ? 0.7 : 1}
+    style={[c.row, noBorder && c.rowNoBorder]}
+    disabled={!onPress}
+  >
+    <View style={[c.rowIconWrap, { backgroundColor: iconBg || G3 }]}>
+      {icon}
+    </View>
+    <View style={c.rowMid}>
+      <Text style={[c.rowLabel, danger && { color: RD }]}>{label}</Text>
+      {sublabel ? <Text style={c.rowSub}>{sublabel}</Text> : null}
+    </View>
+    <View style={c.rowRight}>{right}</View>
+  </HapticTouchable>
+);
+
+// ─── Main Screen ──────────────────────────────────────────────────────────────
+export default function ProfileScreen() {
+  const insets        = useSafeAreaInsets();
+  const navigation    = useNavigation();
+  const user          = useStore((s) => s.user);
+  const restaurantName = useStore((s) => s.restaurantName);
+  const restaurantLogo = useStore((s) => s.restaurantLogo);
+
+
+
+  // Pulsing ring behind avatar
+  const [logoError, setLogoError] = useState(false);
+  const pulse = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1.12, duration: 1200, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1.00, duration: 1200, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+
+
+
+  // ── External links ────────────────────────────────────────────────────────
+  const openPrivacyPolicy  = () => Linking.openURL('https://www.alfennzo.com/privacy-policy');
+  const openTerms          = () => Linking.openURL('https://www.alfennzo.com/terms-and-conditions');
+  const openSupport        = () => Linking.openURL('tel:9319702754');
+
+  // ── Avatar helpers ────────────────────────────────────────────────────────
+  const initials = (name = '') =>
+    name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase() || 'U';
+
+  const displayName = restaurantName || user?.name || 'Partner';
+  const logoUri     = restaurantLogo  || user?.avatar || null;
+
+  return (
+    <View style={st.screen}>
+      <StatusBar barStyle="light-content" backgroundColor={G2} translucent={false} />
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={st.scroll}
+        bounces={Platform.OS === 'ios'}
+      >
+        {/* ── Hero header ── */}
+        <LinearGradient
+          colors={[G2, G1, '#05B85F']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[st.hero, { paddingTop: insets.top + rs(32) }]}
+        >
+          {/* Decorative circles */}
+          <View style={st.deco1} />
+          <View style={st.deco2} />
+
+          {/* Avatar */}
+          <Animated.View style={[st.pulseRing, { transform: [{ scale: pulse }] }]} />
+          <View style={st.avatarWrap}>
+            {logoUri && !logoError ? (
+              <Image
+                source={{ uri: logoUri }}
+                style={st.avatar}
+                resizeMode="cover"
+                onError={() => setLogoError(true)}
+              />
+            ) : (
+              <LinearGradient colors={[WH, '#E8F7EF']} style={st.avatarPlaceholder}>
+                <Text style={st.avatarInitials}>{initials(displayName)}</Text>
+              </LinearGradient>
+            )}
+            {/* Green online dot */}
+            <View style={st.onlineDot} />
+          </View>
+
+          <Text style={st.heroName}>{displayName}</Text>
+          {user?.phone ? (
+            <View style={st.heroBadge}>
+              <Feather name="phone" size={nz(11)} color={WH} style={{ marginRight: rs(4) }} />
+              <Text style={st.heroBadgeText}>{user.phone}</Text>
+            </View>
+          ) : null}
+          {user?.email ? (
+            <View style={[st.heroBadge, { marginTop: rs(4) }]}>
+              <Feather name="mail" size={nz(11)} color={WH} style={{ marginRight: rs(4) }} />
+              <Text style={st.heroBadgeText}>{user.email}</Text>
+            </View>
+          ) : null}
+
+        </LinearGradient>
+
+        {/* ── Sections ── */}
+        <View style={st.body}>
+
+
+          {/* Restaurant info */}
+          {(restaurantName || restaurantLogo) ? (
+            <FadeRow delay={120}>
+              <Text style={st.sectionTitle}>Restaurant</Text>
+              <Card>
+                <View style={c.restaurantRow}>
+                  {restaurantLogo && !logoError ? (
+                    <Image
+                      source={{ uri: restaurantLogo }}
+                      style={c.restaurantLogo}
+                      resizeMode="contain"
+                      onError={() => setLogoError(true)}
+                    />
+                  ) : (
+                    <View style={c.restaurantLogoPlaceholder}>
+                      <Feather name="home" size={nz(22)} color={G1} />
+                    </View>
+                  )}
+                  <View style={{ flex: 1, marginLeft: rs(12) }}>
+                    <Text style={c.restaurantName}>{restaurantName || 'Your Restaurant'}</Text>
+                    <View style={c.restaurantBadge}>
+                      <View style={c.activeDot} />
+                      <Text style={c.restaurantBadgeText}>Active Partner</Text>
+                    </View>
+                  </View>
+                </View>
+              </Card>
+            </FadeRow>
+          ) : null}
+
+          {/* Notifications */}
+          <FadeRow delay={180}>
+            <Text style={st.sectionTitle}>Preferences</Text>
+            <Card>
+              <RowItem
+                icon={<Feather name="bell" size={nz(16)} color={G1} />}
+                iconBg={G3}
+                label="Manage Notifications"
+                sublabel="Order alerts, promotions & more"
+                noBorder
+                onPress={() => navigation.navigate('NotificationSettings')}
+                right={<Feather name="chevron-right" size={nz(16)} color={SB} />}
+              />
+            </Card>
+          </FadeRow>
+
+          {/* Support & Legal */}
+          <FadeRow delay={240}>
+            <Text style={st.sectionTitle}>Support & Legal</Text>
+            <Card>
+              <RowItem
+                icon={<Feather name="headphones" size={nz(16)} color="#8B5CF6" />}
+                iconBg="#F3EFFB"
+                label="Help & Support"
+                
+                onPress={openSupport}
+                right={<Feather name="chevron-right" size={nz(16)} color={SB} />}
+              />
+              <RowItem
+                icon={<Feather name="shield" size={nz(16)} color="#0EA5E9" />}
+                iconBg="#EFF8FE"
+                label="Privacy Policy"
+                
+                onPress={openPrivacyPolicy}
+                right={<Feather name="external-link" size={nz(14)} color={SB} />}
+              />
+              <RowItem
+                icon={<MaterialCommunityIcons name="file-document-outline" size={nz(16)} color="#F59E0B" />}
+                iconBg="#FFFBEB"
+                label="Terms & Conditions"
+                
+                onPress={openTerms}
+                noBorder
+                right={<Feather name="external-link" size={nz(14)} color={SB} />}
+              />
+            </Card>
+          </FadeRow>
+
+          {/* Logout */}
+          <FadeRow delay={300}>
+            <View style={st.logoutWrap}>
+              <LogoutButton variant="full" />
+            </View>
+          </FadeRow>
+
+          <View style={{ height: rs(32) + insets.bottom }} />
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
+const st = StyleSheet.create({
+  screen:  { flex: 1, backgroundColor: BG },
+  scroll:  { paddingBottom: rs(12) },
+
+  // hero
+  hero: {
     alignItems: 'center',
-    paddingVertical: 30,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-    ...SHADOWS.medium,
+    paddingBottom: rs(28),
+    borderBottomLeftRadius: rs(32),
+    borderBottomRightRadius: rs(32),
+    overflow: 'hidden',
+    minHeight: rs(240),
   },
-  profileImageContainer: {
-    marginBottom: 15,
+  deco1: {
+    position: 'absolute', width: rs(200), height: rs(200),
+    borderRadius: rs(100), backgroundColor: 'rgba(255,255,255,0.06)',
+    top: -rs(60), left: -rs(60),
   },
-  profileImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    borderWidth: 3,
-    borderColor: COLORS.white,
+  deco2: {
+    position: 'absolute', width: rs(160), height: rs(160),
+    borderRadius: rs(80), backgroundColor: 'rgba(255,255,255,0.05)',
+    bottom: rs(60), right: -rs(40),
   },
-  profileImagePlaceholder: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: COLORS.white,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: COLORS.primaryDark,
+  pulseRing: {
+    position: 'absolute',
+    width: rs(114), height: rs(114), borderRadius: rs(57),
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    top: rs(24),
+    shadowColor: 'transparent',
+    elevation: 0,
   },
-  profileImageText: {
-    fontSize: 40,
-    color: COLORS.primary,
-    fontWeight: 'bold',
+  avatarWrap:   { position: 'relative', marginBottom: rs(14) },
+  avatar:       { width: rs(96), height: rs(96), borderRadius: rs(48), borderWidth: rs(3), borderColor: WH },
+  avatarPlaceholder: {
+    width: rs(96), height: rs(96), borderRadius: rs(48),
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: rs(3), borderColor: WH,
   },
-  userName: {
-    fontSize: SIZES.large,
-    fontWeight: 'bold',
-    color: COLORS.white,
-    marginBottom: 5,
+  avatarInitials: { fontSize: nz(34), fontWeight: '800', color: G1 },
+  onlineDot: {
+    position: 'absolute', bottom: rs(4), right: rs(4),
+    width: rs(16), height: rs(16), borderRadius: rs(8),
+    backgroundColor: '#4ADE80', borderWidth: rs(2), borderColor: WH,
   },
-  userPhone: {
-    fontSize: SIZES.font,
-    color: COLORS.white,
-    opacity: 0.9,
-    marginBottom: 2,
-  },
-  userEmail: {
-    fontSize: SIZES.font,
-    color: COLORS.white,
-    opacity: 0.9,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    backgroundColor: COLORS.white,
-    marginHorizontal: 20,
-    marginTop: -20,
-    borderRadius: 15,
-    paddingVertical: 15,
-    ...SHADOWS.medium,
-  },
-  statItem: {
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: SIZES.large,
-    fontWeight: 'bold',
-    color: COLORS.primary,
-  },
-  statLabel: {
-    fontSize: SIZES.small,
-    color: COLORS.textLight,
-    marginTop: 5,
-  },
-  section: {
-    marginTop: 20,
-    paddingHorizontal: 20,
-  },
-  sectionTitle: {
-    fontSize: SIZES.medium,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: 10,
-  },
-  infoCard: {
-    backgroundColor: COLORS.white,
-    borderRadius: 15,
-    padding: 15,
-    ...SHADOWS.light,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.lightGray,
-  },
-  infoLabel: {
-    fontSize: SIZES.font,
-    color: COLORS.textLight,
-  },
-  infoValue: {
-    fontSize: SIZES.font,
-    color: COLORS.text,
-    fontWeight: '500',
-  },
-  menuItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.lightGray,
-  },
-  menuItemText: {
-    fontSize: SIZES.font,
-    color: COLORS.text,
-  },
-  menuItemArrow: {
-    fontSize: SIZES.large,
-    color: COLORS.primary,
-  },
-  logoutContainer: {
-    paddingHorizontal: 20,
-    marginVertical: 30,
-  },
+
+  heroName:  { fontSize: nz(22), fontWeight: '800', color: WH, letterSpacing: -0.3, marginBottom: rs(6) },
+  heroBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: rs(20), paddingHorizontal: rs(12), paddingVertical: rs(4) },
+  heroBadgeText: { fontSize: nz(12), color: WH, fontWeight: '500' },
+
+
+
+  // body
+  body:          { paddingHorizontal: rs(16), paddingTop: rs(22) },
+  sectionTitle:  { fontSize: nz(12), fontWeight: '700', color: SB, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: rs(8), marginLeft: rs(4) },
+  logoutWrap:    { marginTop: rs(8), marginBottom: rs(4) },
 });
 
-export default ProfileScreen;
+// ─── Card & row styles ────────────────────────────────────────────────────────
+const c = StyleSheet.create({
+  card: {
+    backgroundColor: WH, borderRadius: rs(18),
+    marginBottom: rs(16),
+    shadowColor: 'transparent', shadowOpacity: 0, elevation: 0,
+    overflow: 'hidden',
+  },
+
+  // info rows
+  infoRow: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', paddingVertical: rs(13),
+    paddingHorizontal: rs(16),
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: BD,
+  },
+  infoRowLast:  { borderBottomWidth: 0 },
+  infoLabel:    { fontSize: nz(13), color: SB, fontWeight: '500', flex: 1 },
+  infoValue:    { fontSize: nz(13), color: TX, fontWeight: '600', flex: 2, textAlign: 'right' },
+
+  // settings rows
+  row: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingVertical: rs(13), paddingHorizontal: rs(14),
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: BD,
+  },
+  rowNoBorder:   { borderBottomWidth: 0 },
+  rowIconWrap:   { width: rs(36), height: rs(36), borderRadius: rs(10), alignItems: 'center', justifyContent: 'center', marginRight: rs(12) },
+  rowMid:        { flex: 1 },
+  rowLabel:      { fontSize: nz(14), fontWeight: '600', color: TX },
+  rowSub:        { fontSize: nz(11), color: SB, marginTop: rs(2), fontWeight: '400' },
+  rowRight:      { marginLeft: rs(8), alignItems: 'center', justifyContent: 'center' },
+
+  // restaurant
+  restaurantRow: { flexDirection: 'row', alignItems: 'center', padding: rs(14) },
+  restaurantLogo: { width: rs(52), height: rs(52), borderRadius: rs(12), backgroundColor: G3 },
+  restaurantLogoPlaceholder: { width: rs(52), height: rs(52), borderRadius: rs(12), backgroundColor: G3, alignItems: 'center', justifyContent: 'center' },
+  restaurantName: { fontSize: nz(15), fontWeight: '700', color: TX, marginBottom: rs(4) },
+  restaurantBadge: { flexDirection: 'row', alignItems: 'center' },
+  activeDot:      { width: rs(7), height: rs(7), borderRadius: rs(4), backgroundColor: '#4ADE80', marginRight: rs(5) },
+  restaurantBadgeText: { fontSize: nz(12), color: G1, fontWeight: '600' },
+});

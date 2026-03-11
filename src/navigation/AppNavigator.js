@@ -5,31 +5,44 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import * as SplashScreen from 'expo-splash-screen';
 
-import LoginScreen from '../screens/LoginScreen';
-import HomeScreen from '../screens/HomeScreen';
-import OrderHistoryScreen from '../screens/OrderHistoryScreen';
-import BottomTabs from '../components/BottomTabs';
-import useStore from '../store/useStore';
+import LoginScreen          from '../screens/LoginScreen';
+import HomeScreen           from '../screens/HomeScreen';
+import ProductScreen        from '../screens/ProductScreen';
+import ProfileScreen        from '../screens/ProfileScreen';
+import BottomTabs           from '../components/BottomTabs';
+import useStore             from '../store/useStore';
+import NotificationScreen from '../screens/Notification';
 
 const Tab   = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
 SplashScreen.preventAutoHideAsync();
 
-// ── 2-tab navigator: Home + List ─────────────────────────────────────────────
+// ── Bottom tabs ───────────────────────────────────────────────────────────────
 const MainTabs = () => (
   <Tab.Navigator
     tabBar={(props) => <BottomTabs {...props} />}
     screenOptions={{ headerShown: false }}
   >
-    <Tab.Screen name="Home" component={HomeScreen} />
-    <Tab.Screen name="List" component={OrderHistoryScreen} />
-    <Tab.Screen name="Settings" component={OrderHistoryScreen} />
+    <Tab.Screen name="Home"     component={HomeScreen}    />
+    <Tab.Screen name="List"     component={ProductScreen} />
+    <Tab.Screen name="Settings" component={ProfileScreen} />
   </Tab.Navigator>
 );
 
+const AuthStack = () => (
+  <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Screen name="Main"                 component={MainTabs}          />
+    <Stack.Screen
+      name="NotificationSettings"
+      component={NotificationScreen}
+      options={{ animation: 'slide_from_right' }}   // smooth right-to-left slide
+    />
+  </Stack.Navigator>
+);
+
 // ── Root navigator ────────────────────────────────────────────────────────────
-const AppNavigator = () => {
+const AppNavigator = ({ onStateChange }) => {
   const isAuthenticated    = useStore((state) => state.isAuthenticated);
   const loadPersistedState = useStore((state) => state.loadPersistedState);
   const [appReady, setAppReady] = useState(false);
@@ -55,11 +68,11 @@ const AppNavigator = () => {
 
   return (
     <View style={styles.root} onLayout={onRootLayout}>
-      <NavigationContainer>
+      <NavigationContainer onStateChange={onStateChange}>
         <Stack.Navigator screenOptions={{ headerShown: false, animationEnabled: false }}>
           {!isAuthenticated
             ? <Stack.Screen name="Login" component={LoginScreen} />
-            : <Stack.Screen name="Main"  component={MainTabs}   />
+            : <Stack.Screen name="Auth"  component={AuthStack}   />
           }
         </Stack.Navigator>
       </NavigationContainer>

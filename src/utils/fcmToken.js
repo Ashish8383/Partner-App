@@ -3,13 +3,29 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { Audio } from 'expo-av';
 
-// fcmToken.js
+// ─── Shared permission check ──────────────────────────────────────────────────
+const isNotificationPermitted = async () => {
+  try {
+    const { status } = await Notifications.getPermissionsAsync();
+    return status === 'granted';
+  } catch {
+    return false;
+  }
+};
 
-let soundInstance = null; // ← track sound instance
+// ─── Sound ────────────────────────────────────────────────────────────────────
+let soundInstance = null;
 
 export const playCustomSound = async () => {
+  // ✅ Bail out immediately if user has not granted notification permission
+  const permitted = await isNotificationPermitted();
+  if (!permitted) {
+    console.log('🔕 Sound skipped — notifications not permitted');
+    return;
+  }
+
   try {
-    // ✅ Stop if already playing
+    // Stop any currently playing instance
     if (soundInstance) {
       await soundInstance.stopAsync();
       await soundInstance.unloadAsync();
@@ -42,81 +58,110 @@ export const playCustomSound = async () => {
   }
 };
 
-// ✅ NO playCustomSound here — only return values
+// ─── Notification handler ─────────────────────────────────────────────────────
 Notifications.setNotificationHandler({
   handleNotification: async (notification) => {
+    // ✅ If not permitted, suppress everything
+    const permitted = await isNotificationPermitted();
+    if (!permitted) {
+      return {
+        shouldShowBanner: false,
+        shouldShowSound:  false,
+        shouldSetBadge:   false,
+        shouldShowList:   false,
+      };
+    }
+
     const isLocal = notification.request.trigger?.type !== 'push';
     if (isLocal) {
       return {
         shouldShowBanner: false,
-        shouldShowSound: false,
-        shouldSetBadge: false,
-        shouldShowList: false,
+        shouldShowSound:  false,
+        shouldSetBadge:   false,
+        shouldShowList:   false,
         priority: Notifications.AndroidNotificationPriority.HIGH,
       };
     }
 
     return {
-      shouldShowBanner: false, // ← in-app popup handles this
-      shouldShowSound: false,  // ← expo-av handles this
-      shouldSetBadge: true,
-      shouldShowList: true,
+      shouldShowBanner: false, // in-app popup handles this
+      shouldShowSound:  false, // expo-av handles this
+      shouldSetBadge:   true,
+      shouldShowList:   true,
       priority: Notifications.AndroidNotificationPriority.HIGH,
     };
   },
 });
 
+// ─── Channel setup ────────────────────────────────────────────────────────────
 export const setupNotificationChannel = async () => {
   console.log('🚀 setupNotificationChannel started');
 
-  if (Platform.OS !== 'android') {
-    console.log('⏭️ Skipping - not android');
-    return;
-  }
+  if (Platform.OS !== 'android') return;
 
   try {
-    console.log('🗑️ Deleting old channels...');
-    await Notifications.deleteNotificationChannelAsync('default').catch(() => {});
-    await Notifications.deleteNotificationChannelAsync('orders').catch(() => {});
-    console.log('✅ Old channels deleted');
+    await Notifications.deleteNotificationChannelAsync('high_importance_channel').catch(() => {});
+    await Notifications.deleteNotificationChannelAsync('order_notifications').catch(() => {});
+    await Notifications.deleteNotificationChannelAsync('urgent_notifications').catch(() => {});
 
-    const defaultChannel = await Notifications.setNotificationChannelAsync('default', {
-      name: 'Default Notifications',
-      importance: Notifications.AndroidImportance.MAX,
-      sound: 'notification.wav',
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#FF8C42',
-      enableVibrate: true,
-      enableLights: true,
-      bypassDnd: true,
-      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
-    });
+    const defaultChannel = await Notifications.setNotificationChannelAsync(
+      'high_importance_channel',
+      {
+        name: 'Default Notifications',
+        importance: Notifications.AndroidImportance.MAX,
+        sound: 'notification.wav',
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#FF8C42',
+        enableVibrate: true,
+        enableLights: true,
+        bypassDnd: true,
+        lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+      }
+    );
     console.log('✅ Default channel created:', defaultChannel?.id);
-    console.log('🔊 Default channel sound:', defaultChannel?.sound);
 
-    const ordersChannel = await Notifications.setNotificationChannelAsync('orders', {
-      name: 'Order Notifications',
-      importance: Notifications.AndroidImportance.MAX,
-      sound: 'notification.wav',
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#FF8C42',
-      enableVibrate: true,
-      enableLights: true,
-      bypassDnd: true,
-      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
-    });
-    console.log('✅ Orders channel created:', ordersChannel?.id);
-    console.log('🔊 Orders channel sound:', ordersChannel?.sound);
+    await Notifications.setNotificationChannelAsync(
+      'order_notifications',
+      {
+        name: 'Order Notifications',
+        importance: Notifications.AndroidImportance.MAX,
+        sound: 'notification.wav',
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#FF8C42',
+        enableVibrate: true,
+        enableLights: true,
+        bypassDnd: true,
+        lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+      }
+    );
+
+    const urgentChannel = await Notifications.setNotificationChannelAsync(
+      'urgent_notifications',
+      {
+        name: 'Urgent Notifications',
+        importance: Notifications.AndroidImportance.MAX,
+        sound: 'notification.wav',
+        vibrationPattern: [0, 500, 500, 500],
+        lightColor: '#FF0000',
+        enableVibrate: true,
+        enableLights: true,
+        bypassDnd: true,
+        lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+      }
+    );
+    console.log('✅ Urgent channel created:', urgentChannel?.id);
 
     const channels = await Notifications.getNotificationChannelsAsync();
-    console.log('📱 All active channels:', channels.map(c => `${c.id} → sound: ${c.sound}`));
-
+    console.log(
+      '📱 All active channels:',
+      channels.map((c) => `${c.id} → sound: ${c.sound}`)
+    );
   } catch (error) {
-    console.error('❌ Error:', error.message);
-    console.error('❌ Stack:', error.stack);
+    console.error('❌ Channel setup error:', error.message);
   }
 };
 
+// ─── Get FCM token ────────────────────────────────────────────────────────────
 export const getFCMToken = async () => {
   try {
     if (!Device.isDevice) {
@@ -138,7 +183,7 @@ export const getFCMToken = async () => {
     }
 
     const tokenData = await Notifications.getDevicePushTokenAsync();
-    const fcmToken = tokenData.data;
+    const fcmToken  = tokenData.data;
 
     console.log('✅ FCM Token obtained:', fcmToken.substring(0, 20) + '...');
     console.log('📱 Token type:', tokenData.type);
