@@ -1,36 +1,23 @@
 import { create } from 'zustand';
 import { storage } from '../utils/storage';
-import { authAPI, restaurantAPI } from '../utils/api';
+import { authAPI} from '../utils/api';
 
 const useStore = create((set, get) => ({
-  // ── Auth state ────────────────────────────────────────────────────────────
   isAuthenticated: false,
   isHydrated: false,
   user: null,
   token: null,
   refreshToken: null,
-
-  // ── Profile state ─────────────────────────────────────────────────────────
   restaurantName: null,
   restaurantLogo: null,
-
-  // ── Internal flags ────────────────────────────────────────────────────────
-  _isLoggingOut: false,   // re-entry guard — prevents logout loop
-
-  // ── Device / FCM ──────────────────────────────────────────────────────────
-  fcmToken:             null,   // stored at login, reused everywhere
-  deviceFingerprint:    null,   // stored at login, reused everywhere
-  notificationsEnabled: false,  // synced with device permission
-  pendingToast: null,           // { message, type } — read once on next screen mount
-
-  // ── Theme ─────────────────────────────────────────────────────────────────
+  _isLoggingOut: false,  
+  fcmToken: null,   
+  deviceFingerprint: null,   
+  notificationsEnabled: false,  
+  pendingToast: null, 
   themeMode: 'system',
-
-  // ── Orders ────────────────────────────────────────────────────────────────
   liveOrders: [],
   orderHistory: [],
-
-  // ── Actions ───────────────────────────────────────────────────────────────
 
   login: async (userData, token, refreshToken = null) => {
     await storage.setItem('user', userData);
@@ -41,16 +28,15 @@ const useStore = create((set, get) => ({
 
   setProfile: async (profileData) => {
     const restaurantName = profileData?.restaurantName ?? null;
-    const restaurantLogo = profileData?.Logo           ?? null;
+    const restaurantLogo = profileData?.Logo ?? null;
     await storage.setItem('restaurantName', restaurantName);
     await storage.setItem('restaurantLogo', restaurantLogo);
     set({ restaurantName, restaurantLogo });
   },
 
-  // ── Store FCM token + device fingerprint once at login ───────────────────
   setFcmToken: async (token) => {
     if (token === null || token === undefined) return;
-    await storage.setItem('fcmToken', token);  // '' = disabled, string = active
+    await storage.setItem('fcmToken', token); 
     set({ fcmToken: token });
   },
 
@@ -72,15 +58,17 @@ const useStore = create((set, get) => ({
     if (get()._isLoggingOut) return;
     set({ _isLoggingOut: true });
 
-    const { deviceFingerprint} = get();
-    try {
-      await authAPI.logout({ deviceFingerprint: deviceFingerprint ?? '' });
-      console.log('[Auth] Logout success');
-    } catch {
+    if (global.fcmTokenRefreshInterval) {
+      clearInterval(global.fcmTokenRefreshInterval);
+      global.fcmTokenRefreshInterval = null;
     }
 
+    const { deviceFingerprint } = get();
+    try {
+      await authAPI.logout({ deviceFingerprint: deviceFingerprint ?? '' });
+    } catch {
+    }
     set({ pendingToast: { message: 'Logged out successfully', type: 'success' } });
-
     await storage.removeItem('user');
     await storage.removeItem('token');
     await storage.removeItem('refreshToken');
@@ -89,7 +77,6 @@ const useStore = create((set, get) => ({
     await storage.removeItem('fcmToken');
     await storage.removeItem('deviceFingerprint');
     await storage.removeItem('notificationsEnabled');
-
     set({
       _isLoggingOut: false,
       isAuthenticated: false,
@@ -107,15 +94,15 @@ const useStore = create((set, get) => ({
 
   loadPersistedState: async () => {
     try {
-      const user           = await storage.getItem('user');
-      const token          = await storage.getItem('token');
-      const refreshToken   = await storage.getItem('refreshToken');
-      const savedTheme     = await storage.getItem('themeMode');
+      const user = await storage.getItem('user');
+      const token = await storage.getItem('token');
+      const refreshToken = await storage.getItem('refreshToken');
+      const savedTheme = await storage.getItem('themeMode');
       const restaurantName = await storage.getItem('restaurantName');
       const restaurantLogo = await storage.getItem('restaurantLogo');
-      const fcmToken            = await storage.getItem('fcmToken');
-      const deviceFingerprint      = await storage.getItem('deviceFingerprint');
-      const notificationsEnabled   = await storage.getItem('notificationsEnabled');
+      const fcmToken = await storage.getItem('fcmToken');
+      const deviceFingerprint = await storage.getItem('deviceFingerprint');
+      const notificationsEnabled = await storage.getItem('notificationsEnabled');
 
 
       if (user && token) {
@@ -124,8 +111,8 @@ const useStore = create((set, get) => ({
           user, token, refreshToken,
           restaurantName: restaurantName ?? null,
           restaurantLogo: restaurantLogo ?? null,
-          fcmToken:          fcmToken          ?? null,
-          deviceFingerprint:    deviceFingerprint    ?? null,
+          fcmToken: fcmToken ?? null,
+          deviceFingerprint: deviceFingerprint ?? null,
           notificationsEnabled: notificationsEnabled ?? false,
         });
       }
@@ -137,8 +124,7 @@ const useStore = create((set, get) => ({
     }
   },
 
-  // ── Order actions ─────────────────────────────────────────────────────────
-  setLiveOrders:   (orders)  => set({ liveOrders: orders }),
+  setLiveOrders: (orders) => set({ liveOrders: orders }),
   setOrderHistory: (history) => set({ orderHistory: history }),
 
   addLiveOrder: (order) =>

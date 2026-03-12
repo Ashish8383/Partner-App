@@ -1,12 +1,3 @@
-/**
- * NotificationScreen
- *
- * – On mount: checks device permission → syncs switch accordingly
- * – Toggle ON  → opens device notification settings
- * – Toggle OFF → opens device notification settings
- * – On app foreground (return from settings) → re-syncs switch automatically
- */
-
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, Switch,
@@ -23,13 +14,11 @@ import { getFCMToken } from '../utils/fcmToken';
 import useStore from '../store/useStore';
 import api from '../utils/api';
 
-// ─── Responsive ───────────────────────────────────────────────────────────────
 const { width: SW } = Dimensions.get('window');
 const sc = SW / 390;
 const rs = (n) => Math.round(n * Math.min(sc, 1.35));
 const nz = (n) => Math.round(PixelRatio.roundToNearestPixel(n * Math.min(sc, 1.35)));
 
-// ─── Palette ──────────────────────────────────────────────────────────────────
 const G1 = '#03954E';
 const G2 = '#027A40';
 const G3 = '#E8F7EF';
@@ -37,8 +26,6 @@ const BG = '#F6F7F9';
 const WH = '#FFFFFF';
 const TX = '#111827';
 const SB = '#6B7280';
-
-// ─── Slide-in animation wrapper ───────────────────────────────────────────────
 const SlideIn = ({ delay = 0, children }) => {
   const anim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -58,7 +45,6 @@ const SlideIn = ({ delay = 0, children }) => {
   );
 };
 
-// ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function NotificationScreen() {
   const insets       = useSafeAreaInsets();
   const navigation   = useNavigation();
@@ -71,33 +57,26 @@ export default function NotificationScreen() {
   const [isEnabled, setIsEnabled] = useState(false);
   const [syncing,   setSyncing]   = useState(true);
 
-  // ── Animated switch track ─────────────────────────────────────────────────
   const switchAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(switchAnim, {
       toValue: isEnabled ? 1 : 0, duration: 260, useNativeDriver: false,
     }).start();
   }, [isEnabled]);
-  const trackColor = switchAnim.interpolate({ inputRange: [0, 1], outputRange: ['#D1D5DB', G1] });
-
-  // ── Helper: register FCM token with backend ──────────────────────────────
   const updateFcmToken = useCallback(async (token) => {
     try {
       const payload = {
         fcmToken:          token,
-        deviceFingerprint: storedFingerprint ?? '',   // ← from store, set at login
+        deviceFingerprint: storedFingerprint ?? '',  
         Id:                restaurantId,
       };
 
-      const res = await api.post('/restaurant/updateFcmToken', payload);
-      console.log('[FCM] ✅ Registered:', res?.data);
+      await api.post('/restaurant/updateFcmToken', payload);
     } catch (err) {
-      console.warn('[FCM] ❌ updateFcmToken failed:', err?.response?.status, err?.response?.data);
     }
   }, [restaurantId, storedFingerprint]);
 
   const syncPermission = useCallback(async () => {
-    // ── Skip entirely if user is not logged in ────────────────────────────
     if (!useStore.getState().isAuthenticated) return;
 
     setSyncing(true);
@@ -105,33 +84,26 @@ export default function NotificationScreen() {
       const { status } = await Notifications.getPermissionsAsync();
       const granted = status === 'granted';
       setIsEnabled(granted);
-      await setNotificationsEnabled(granted); // ← persist for App.js to read
+      await setNotificationsEnabled(granted); 
 
       if (granted) {
-        // ── Use stored token; only fetch new if missing ───────────────────
         const token = storedFcmToken ?? useStore.getState().fcmToken ?? await getFCMToken();
         if (token) {
           await updateFcmToken(token);
         } else {
-          console.warn('[FCM] Could not obtain token');
         }
       } else {
-        // ── Disabled: clear token in store + storage, notify backend ─────
-        await storeFcmToken('');          // clears store & storage
-        await updateFcmToken('');         // sends { fcmToken: '' } to server
-        console.log('[FCM] Token cleared — notifications disabled');
+        await storeFcmToken('');        
+        await updateFcmToken('');        
       }
     } catch (e) {
-      console.warn('Permission sync error:', e?.message);
     } finally {
       setSyncing(false);
     }
   }, [storedFcmToken, updateFcmToken, setNotificationsEnabled, storeFcmToken]);
 
-  // On mount
   useEffect(() => { syncPermission(); }, [syncPermission]);
 
-  // Re-sync when user returns from device Settings
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') syncPermission();
@@ -139,8 +111,6 @@ export default function NotificationScreen() {
     return () => sub.remove();
   }, [syncPermission]);
 
-  // ── Toggle → open device settings ────────────────────────────────────────
-  // syncPermission (via AppState) will auto-call updateFcmToken on return
   const handleToggle = useCallback(() => {
     if (Platform.OS === 'ios') {
       Linking.openURL('app-settings:');
@@ -152,8 +122,6 @@ export default function NotificationScreen() {
   return (
     <View style={s.screen}>
       <StatusBar barStyle="light-content" backgroundColor={G2} translucent={false} />
-
-      {/* ── Header — paddingTop handles safe area so gradient fills edge-to-edge ── */}
       <LinearGradient
         colors={[G2, G1]}
         start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
@@ -166,17 +134,13 @@ export default function NotificationScreen() {
         <View style={{ width: rs(40) }} />
       </LinearGradient>
 
-      {/* ── Content ── */}
       <View style={[s.body, { paddingBottom: rs(40) + insets.bottom }]}>
-
-        {/* ── Big toggle card ── */}
         <SlideIn delay={60}>
           <LinearGradient
             colors={isEnabled ? [G2, G1] : ['#9CA3AF', '#6B7280']}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
             style={s.masterCard}
           >
-            {/* Left: icon + text */}
             <View style={s.masterLeft}>
               <View style={s.masterIconWrap}>
                 <Feather
@@ -198,7 +162,6 @@ export default function NotificationScreen() {
                 </Text>
               </View>
             </View>
-            {/* Right: switch */}
             <Switch
               value={isEnabled}
               onValueChange={handleToggle}
@@ -210,11 +173,9 @@ export default function NotificationScreen() {
           </LinearGradient>
         </SlideIn>
 
-        {/* ── Info card ── */}
         <SlideIn delay={140}>
           <View style={s.infoCard}>
 
-            {/* What you'll receive */}
             <View style={s.infoHeader}>
               <Feather name="info" size={nz(14)} color={G1} style={{ marginRight: rs(6) }} />
               <Text style={s.infoHeaderText}>
@@ -245,25 +206,18 @@ export default function NotificationScreen() {
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: BG },
 
-  // header
   header:      { flexDirection: 'row', alignItems: 'center', paddingHorizontal: rs(12), paddingBottom: rs(14) },
   backBtn:     { width: rs(40), height: rs(40), borderRadius: rs(20), alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.18)' },
   headerTitle: { flex: 1, textAlign: 'center', fontSize: nz(17), fontWeight: '700', color: WH, letterSpacing: -0.2 },
-
   body: { flex: 1, paddingHorizontal: rs(16), paddingTop: rs(20), gap: rs(14) },
-
-  // master card
   masterCard:    { borderRadius: rs(20), padding: rs(18), flexDirection: 'row', alignItems: 'center', gap: rs(12), shadowColor: G2, shadowOffset: { width: 0, height: rs(4) }, shadowOpacity: 0.25, shadowRadius: rs(12), elevation: 6 },
   masterLeft:    { flex: 1, flexDirection: 'row', alignItems: 'center', gap: rs(14) },
   masterIconWrap:{ width: rs(52), height: rs(52), borderRadius: rs(16), backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
   masterTitle:   { fontSize: nz(16), fontWeight: '800', color: WH, marginBottom: rs(3) },
   masterSub:     { fontSize: nz(12), color: 'rgba(255,255,255,0.82)', lineHeight: nz(17) },
-
-  // info card
   infoCard: { backgroundColor: WH, borderRadius: rs(18), padding: rs(16), shadowColor: '#000', shadowOffset: { width: 0, height: rs(2) }, shadowOpacity: 0.06, shadowRadius: rs(8), elevation: 3 },
   infoHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: rs(14) },
   infoHeaderText: { fontSize: nz(13), fontWeight: '700', color: TX },
@@ -271,13 +225,9 @@ const s = StyleSheet.create({
   infoIconWrap: { width: rs(30), height: rs(30), borderRadius: rs(8), alignItems: 'center', justifyContent: 'center' },
   infoRowText:  { flex: 1, fontSize: nz(13), fontWeight: '500', color: TX },
   infoRowTextDim: { color: SB },
-
-  // token strip
   tokenStrip: { flexDirection: 'row', alignItems: 'center', backgroundColor: G3, borderRadius: rs(12), paddingHorizontal: rs(14), paddingVertical: rs(10) },
   tokenDot:   { width: rs(7), height: rs(7), borderRadius: rs(4), backgroundColor: G1, marginRight: rs(8) },
   tokenText:  { flex: 1, fontSize: nz(11), fontWeight: '600', color: G2 },
-
-  // settings hint
   settingsHint:     { flexDirection: 'row', alignItems: 'center', backgroundColor: WH, borderRadius: rs(14), paddingHorizontal: rs(14), paddingVertical: rs(13), shadowColor: '#000', shadowOffset: { width: 0, height: rs(1) }, shadowOpacity: 0.04, shadowRadius: rs(4), elevation: 1 },
   settingsHintText: { flex: 1, fontSize: nz(13), color: SB, fontWeight: '500' },
 });

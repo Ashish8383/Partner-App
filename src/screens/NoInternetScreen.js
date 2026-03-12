@@ -1,19 +1,8 @@
-/**
- * OfflineScreen
- *
- * Usage in App.js:
- *   import { useNetInfo } from '@react-native-community/netinfo';
- *   const netInfo = useNetInfo();
- *   if (netInfo.isConnected === false) return <OfflineScreen />;
- *
- * Install:  expo install @react-native-community/netinfo
- */
-
 import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, StyleSheet,
   Animated, Dimensions, PixelRatio,
-  StatusBar, Platform,
+  StatusBar
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -42,7 +31,6 @@ export default function OfflineScreen({ onRetry }) {
     setRetrying(false);
   };
 
-  // ── Animations ─────────────────────────────────────────────────────────────
   const fadeAnim  = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.85)).current;
   const pulse1    = useRef(new Animated.Value(1)).current;
@@ -50,13 +38,10 @@ export default function OfflineScreen({ onRetry }) {
   const pulse3    = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    // Fade + scale in
     Animated.parallel([
       Animated.timing(fadeAnim,  { toValue: 1, duration: 400, useNativeDriver: true }),
       Animated.spring(scaleAnim, { toValue: 1, damping: 14, stiffness: 120, useNativeDriver: true }),
     ]).start();
-
-    // Ripple rings — staggered loop
     const ripple = (anim, delay) =>
       Animated.loop(
         Animated.sequence([
@@ -79,8 +64,6 @@ export default function OfflineScreen({ onRetry }) {
       <StatusBar barStyle="dark-content" backgroundColor={BG} />
 
       <Animated.View style={[s.content, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}>
-
-        {/* ── Icon with ripple rings ── */}
         <View style={s.iconWrap}>
           {[pulse1, pulse2, pulse3].map((anim, i) => (
             <Animated.View
@@ -96,11 +79,8 @@ export default function OfflineScreen({ onRetry }) {
           </View>
         </View>
 
-        {/* ── Text ── */}
         <Text style={s.title}>No Internet</Text>
         <Text style={s.sub}>Check your connection and try again</Text>
-
-        {/* ── Info pills ── */}
         <View style={s.pills}>
           {['Wi-Fi', 'Mobile Data', 'Airplane Mode'].map((label) => (
             <View key={label} style={s.pill}>
@@ -109,7 +89,6 @@ export default function OfflineScreen({ onRetry }) {
           ))}
         </View>
 
-        {/* ── Retry button ── */}
         <HapticTouchable
           onPress={handleRetry}
           disabled={retrying}
@@ -134,7 +113,7 @@ const ICON_SIZE = rs(80);
 
 const s = StyleSheet.create({
   root: {
-    position:        'absolute', // ← overlay on top of everything
+    position:        'absolute', 
     top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: BG,
     alignItems:      'center',
@@ -147,7 +126,6 @@ const s = StyleSheet.create({
     paddingHorizontal: rs(32),
   },
 
-  // ripple
   iconWrap: {
     width:  RING_SIZE,
     height: RING_SIZE,
@@ -191,7 +169,6 @@ const s = StyleSheet.create({
     marginBottom: rs(24),
   },
 
-  // pills
   pills: {
     flexDirection:  'row',
     gap:            rs(8),
@@ -213,7 +190,6 @@ const s = StyleSheet.create({
     fontWeight: '500',
   },
 
-  // retry
   retryBtn: {
     flexDirection:     'row',
     alignItems:        'center',
@@ -236,7 +212,6 @@ const s = StyleSheet.create({
     color:      '#FFFFFF',
   },
 
-  // card
   card: {
     flexDirection:     'row',
     alignItems:        'center',

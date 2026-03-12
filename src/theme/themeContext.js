@@ -2,7 +2,6 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useColorScheme } from 'react-native';
 import { storage } from '../utils/storage';
 
-// Define theme colors
 const lightTheme = {
   background: '#FFFFFF',
   card: '#FFFFFF',
@@ -81,7 +80,6 @@ export const ThemeProvider = ({ children }) => {
         setThemeMode(savedTheme);
       }
     } catch (error) {
-      console.warn('Error loading theme:', error);
     } finally {
       setIsLoading(false);
     }
@@ -92,7 +90,6 @@ export const ThemeProvider = ({ children }) => {
     try {
       await storage.setItem('themeMode', mode);
     } catch (error) {
-      console.warn('Error saving theme:', error);
     }
   };
 
@@ -126,7 +123,6 @@ export const ThemeProvider = ({ children }) => {
 export const useTheme = () => {
   const context = useContext(ThemeContext);
   if (!context) {
-    throw new Error('useTheme must be used within a ThemeProvider');
   }
   return context;
 };

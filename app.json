@@ -4,25 +4,37 @@
     "slug": "alfennzo-partner",
     "version": "1.0.0",
     "orientation": "portrait",
-    "jsEngine": "hermes",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
+    "scheme": "alfennzo",
+    "assetBundlePatterns": [
+      "assets/**/*"
+    ],
+    "newArchEnabled": true,
+    "updates": {
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#FFFFFF"
     },
-    "assetBundlePatterns": [
-      "assets/**/*"
-    ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.alfennzo.partner.dev.sandbox_partner",
-      "buildNumber": "1.0.0",
+      "bundleIdentifier": "com.alfennzo.partner",
+      "buildNumber": "1",
+      "jsEngine": "hermes",
       "infoPlist": {
         "UIBackgroundModes": [
+          "remote-notification",
           "remote-notification"
-        ]
+        ],
+        "ITSAppUsesNonExemptEncryption": false
       },
       "googleServicesFile": "./GoogleService-Info.plist",
       "splash": {
@@ -33,12 +45,15 @@
       }
     },
     "android": {
+      "package": "com.alfennzo.partner",
+      "versionCode": 1,
+      "jsEngine": "hermes",
+      "edgeToEdgeEnabled": true,
+      "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FF8C42"
       },
-      "package": "com.alfennzo.partner.dev.sandbox_partner",
-      "versionCode": 1,
       "permissions": [
         "INTERNET",
         "RECEIVE_BOOT_COMPLETED",
@@ -50,12 +65,7 @@
       "splash": {
         "image": "./assets/splash-icon.png",
         "resizeMode": "contain",
-        "backgroundColor": "#FFFFFF",
-        "mdpi": "./assets/splash-icon.png",
-        "hdpi": "./assets/splash-icon.png",
-        "xhdpi": "./assets/splash-icon.png",
-        "xxhdpi": "./assets/splash-icon.png",
-        "xxxhdpi": "./assets/splash-icon.png"
+        "backgroundColor": "#FFFFFF"
       }
     },
     "web": {
@@ -74,7 +84,7 @@
           "color": "#FF8C42",
           "mode": "production",
           "sounds": [
-            "./assets/notification.wav"
+            "./assets/notification.mp3"
           ]
         }
       ],

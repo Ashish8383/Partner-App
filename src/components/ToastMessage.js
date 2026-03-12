@@ -17,7 +17,6 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const IS_TABLET = SCREEN_WIDTH >= 768;
 const scaleW    = SCREEN_WIDTH / 375;
@@ -31,7 +30,6 @@ const rs = (size) => {
   return Math.round(size * Math.min(scaleW, 1.3));
 };
 
-// ─── Toast config ─────────────────────────────────────────────────────────────
 const TOAST_CONFIG = {
   success: { bg: '#03954E', icon: 'check-circle', iconColor: '#FFFFFF' },
   error:   { bg: '#E53935', icon: 'error',        iconColor: '#FFFFFF' },
@@ -39,7 +37,6 @@ const TOAST_CONFIG = {
   warning: { bg: '#F59E0B', icon: 'warning',      iconColor: '#FFFFFF' },
 };
 
-// ─── Component ────────────────────────────────────────────────────────────────
 const ToastMessage = forwardRef((_, ref) => {
   const insets = useSafeAreaInsets();
 
@@ -135,7 +132,6 @@ const ToastMessage = forwardRef((_, ref) => {
 ToastMessage.displayName = 'ToastMessage';
 export default ToastMessage;
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: {
     position:          'absolute',

@@ -6,10 +6,7 @@ import { getFCMToken } from './fcmToken';
 
 export const getDeviceInfo = async () => {
   try {
-    // Get device fingerprint
     const deviceFingerprint = await getDeviceFingerprint();
-
-    // Get FCM token
     const fcmToken = await getFCMToken();
 
     return {
@@ -32,7 +29,6 @@ export const getDeviceInfo = async () => {
       }
     };
   } catch (error) {
-    console.error('Error getting device info:', error);
     return {
       fcmToken: null,
       deviceFingerprint: 'unknown-' + Date.now(),
@@ -52,20 +48,16 @@ export const getDeviceInfo = async () => {
 export const getDeviceFingerprint = async () => {
   try {
     if (Platform.OS === 'ios') {
-      // For iOS, use identifierForVendor
       return await Application.getIosIdForVendorAsync() || 'ios-' + Date.now();
     } else {
-      // For Android, use Android ID
       return Application.androidId || 'android-' + Date.now();
     }
   } catch (error) {
-    // Fallback fingerprint
     return Platform.OS + '-' + Date.now() + '-' + Math.random().toString(36).substring(7);
   }
 };
 
 export const determineLoginType = (input) => {
-  // Check if input is phone number (contains only digits and optional +, -, space)
   const phoneRegex = /^[\+\d\s-]{10,}$/;
   const isPhone = phoneRegex.test(input.replace(/[\s-]/g, ''));
 

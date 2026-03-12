@@ -1,6 +1,5 @@
 import axios from 'axios';
 import useStore from '../store/useStore';
-
 const API_BASE_URL = 'https://sandbox.safeqr.in/api/v1';
 
 const api = axios.create({
@@ -20,8 +19,6 @@ api.interceptors.request.use(
   },
   (error) => Promise.reject(error)
 );
-
-// Routes that should NEVER trigger auto-logout on 401
 const SKIP_AUTH_URLS = ['/restaurant/login', '/restaurant/logout', '/restaurant/updateFcmToken'];
 
 api.interceptors.response.use(
@@ -40,26 +37,31 @@ api.interceptors.response.use(
 
 export const authAPI = {
   login: (loginData) => api.post('/restaurant/login', loginData),
-
-  // ── deviceFingerprint sent so backend can invalidate this specific device ──
   logout: () => {
     const deviceFingerprint = useStore.getState().deviceFingerprint ?? '';
     return api.post('/restaurant/logout', { deviceFingerprint });
   },
-
   getProfile: (restaurantId) =>
     api.get('/restaurant/zxwyqohytzecats/1bf370ed4805a68bc295ef2143484170:2788bb54abac0ace8e476fb92487add368d5eb895916312b94c900632c8c50e3:bd7a7d687e0765719b7d33c30e10ded8e032875e8888d383ca2ef898135aba17', {
       params: { restaurantId },
     }),
 };
 
-// ─── Restaurant API ───────────────────────────────────────────────────────────
+
+export const getLogedinDevices = async (data) => {
+  const response = await api.post('/restaurant/get-device-sessions', data);
+  return response.data;
+};
+
+export const logoutfromdevice = async (data) => {
+  const response = await api.post('/restaurant/logout-from-specific-device', data);
+  return response.data;
+};
+
 export const restaurantAPI = {
-  // payload: { fcmToken, deviceFingerprint, Id }
   updateFcmToken: (data) => api.post('/restaurant/updateFcmToken', data),
 };
 
-// ─── Base fetcher ─────────────────────────────────────────────────────────────
 const fetchOrders = (Id, params, filter) =>
   api.get('/restaurant/getAllOrder', {
     params: {

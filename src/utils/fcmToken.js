@@ -3,7 +3,6 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { Audio } from 'expo-av';
 
-// ─── Shared permission check ──────────────────────────────────────────────────
 const isNotificationPermitted = async () => {
   try {
     const { status } = await Notifications.getPermissionsAsync();
@@ -13,19 +12,15 @@ const isNotificationPermitted = async () => {
   }
 };
 
-// ─── Sound ────────────────────────────────────────────────────────────────────
 let soundInstance = null;
 
 export const playCustomSound = async () => {
-  // ✅ Bail out immediately if user has not granted notification permission
   const permitted = await isNotificationPermitted();
   if (!permitted) {
-    console.log('🔕 Sound skipped — notifications not permitted');
     return;
   }
 
   try {
-    // Stop any currently playing instance
     if (soundInstance) {
       await soundInstance.stopAsync();
       await soundInstance.unloadAsync();
@@ -38,30 +33,25 @@ export const playCustomSound = async () => {
     });
 
     const { sound } = await Audio.Sound.createAsync(
-      require('../../assets/notification.wav'),
+      require('../../assets/notification.mp3'),
       { shouldPlay: true, volume: 1.0 }
     );
 
     soundInstance = sound;
-    console.log('🔊 Playing custom sound...');
     await sound.playAsync();
 
     sound.setOnPlaybackStatusUpdate((status) => {
       if (status.didJustFinish) {
         sound.unloadAsync();
         soundInstance = null;
-        console.log('✅ Sound finished');
       }
     });
   } catch (error) {
-    console.error('❌ Sound play error:', error.message);
   }
 };
 
-// ─── Notification handler ─────────────────────────────────────────────────────
 Notifications.setNotificationHandler({
   handleNotification: async (notification) => {
-    // ✅ If not permitted, suppress everything
     const permitted = await isNotificationPermitted();
     if (!permitted) {
       return {
@@ -84,8 +74,8 @@ Notifications.setNotificationHandler({
     }
 
     return {
-      shouldShowBanner: false, // in-app popup handles this
-      shouldShowSound:  false, // expo-av handles this
+      shouldShowBanner: false,
+      shouldShowSound:  false, 
       shouldSetBadge:   true,
       shouldShowList:   true,
       priority: Notifications.AndroidNotificationPriority.HIGH,
@@ -93,10 +83,7 @@ Notifications.setNotificationHandler({
   },
 });
 
-// ─── Channel setup ────────────────────────────────────────────────────────────
 export const setupNotificationChannel = async () => {
-  console.log('🚀 setupNotificationChannel started');
-
   if (Platform.OS !== 'android') return;
 
   try {
@@ -104,12 +91,12 @@ export const setupNotificationChannel = async () => {
     await Notifications.deleteNotificationChannelAsync('order_notifications').catch(() => {});
     await Notifications.deleteNotificationChannelAsync('urgent_notifications').catch(() => {});
 
-    const defaultChannel = await Notifications.setNotificationChannelAsync(
+    await Notifications.setNotificationChannelAsync(
       'high_importance_channel',
       {
         name: 'Default Notifications',
         importance: Notifications.AndroidImportance.MAX,
-        sound: 'notification.wav',
+        sound: 'notification.mp3',
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#FF8C42',
         enableVibrate: true,
@@ -118,14 +105,12 @@ export const setupNotificationChannel = async () => {
         lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
       }
     );
-    console.log('✅ Default channel created:', defaultChannel?.id);
-
     await Notifications.setNotificationChannelAsync(
       'order_notifications',
       {
         name: 'Order Notifications',
         importance: Notifications.AndroidImportance.MAX,
-        sound: 'notification.wav',
+        sound: 'notification.mp3',
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#FF8C42',
         enableVibrate: true,
@@ -140,7 +125,7 @@ export const setupNotificationChannel = async () => {
       {
         name: 'Urgent Notifications',
         importance: Notifications.AndroidImportance.MAX,
-        sound: 'notification.wav',
+        sound: 'notification.mp3',
         vibrationPattern: [0, 500, 500, 500],
         lightColor: '#FF0000',
         enableVibrate: true,
@@ -149,23 +134,14 @@ export const setupNotificationChannel = async () => {
         lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
       }
     );
-    console.log('✅ Urgent channel created:', urgentChannel?.id);
-
-    const channels = await Notifications.getNotificationChannelsAsync();
-    console.log(
-      '📱 All active channels:',
-      channels.map((c) => `${c.id} → sound: ${c.sound}`)
-    );
+    await Notifications.getNotificationChannelsAsync();
   } catch (error) {
-    console.error('❌ Channel setup error:', error.message);
   }
 };
 
-// ─── Get FCM token ────────────────────────────────────────────────────────────
 export const getFCMToken = async () => {
   try {
     if (!Device.isDevice) {
-      console.log('Must use physical device for push notifications');
       return null;
     }
 
@@ -178,19 +154,13 @@ export const getFCMToken = async () => {
     }
 
     if (finalStatus !== 'granted') {
-      console.log('❌ Push notification permission not granted');
       return null;
     }
 
     const tokenData = await Notifications.getDevicePushTokenAsync();
     const fcmToken  = tokenData.data;
-
-    console.log('✅ FCM Token obtained:', fcmToken.substring(0, 20) + '...');
-    console.log('📱 Token type:', tokenData.type);
-
     return fcmToken;
   } catch (error) {
-    console.error('❌ Push token error:', error);
     return null;
   }
 };

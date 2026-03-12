@@ -11,26 +11,23 @@ import {
   PixelRatio,
   StatusBar,
   Platform,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import useStore from '../store/useStore';
-import LogoutButton from '../components/LogoutButton';
 import HapticTouchable from '../components/GlobalHaptic';
 import { useNavigation } from '@react-navigation/native';
-
-// ─── Responsive ───────────────────────────────────────────────────────────────
 const { width: SW } = Dimensions.get('window');
 const BASE = 390;
 const sc   = SW / BASE;
 const rs   = (n) => Math.round(n * Math.min(sc, 1.35));
 const nz   = (n) => Math.round(PixelRatio.roundToNearestPixel(n * Math.min(sc, 1.35)));
-
-// ─── Brand palette ────────────────────────────────────────────────────────────
-const G1 = '#03954E';   // primary green
-const G2 = '#027A40';   // dark green
-const G3 = '#E8F7EF';   // soft green tint
+const G1 = '#03954E';
+const G2 = '#027A40';
+const G3 = '#E8F7EF';
 const BG = '#F6F7F9';
 const WH = '#FFFFFF';
 const TX = '#111827';
@@ -38,7 +35,6 @@ const SB = '#6B7280';
 const BD = '#E5E7EB';
 const RD = '#EF4444';
 
-// ─── Utility: animated fade-slide row ────────────────────────────────────────
 const FadeRow = ({ delay = 0, children }) => {
   const anim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -59,12 +55,10 @@ const FadeRow = ({ delay = 0, children }) => {
   );
 };
 
-// ─── Section card wrapper ────────────────────────────────────────────────────
 const Card = ({ children, style }) => (
   <View style={[c.card, style]}>{children}</View>
 );
 
-// ─── Row item ────────────────────────────────────────────────────────────────
 const RowItem = ({
   icon, iconBg, label, sublabel,
   right, onPress, noBorder, danger,
@@ -85,8 +79,66 @@ const RowItem = ({
     <View style={c.rowRight}>{right}</View>
   </HapticTouchable>
 );
+const CustomLogoutButton = () => {
+  const [isLoading, setIsLoading] = useState(false);
+  const logout = useStore((s) => s.logout);
 
-// ─── Main Screen ──────────────────────────────────────────────────────────────
+  const handleLogout = useCallback(() => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            setIsLoading(true);
+            try {
+              await logout();
+            } catch (error) {
+              Alert.alert('Error', 'Failed to logout. Please try again.');
+            } finally {
+              setIsLoading(false);
+            }
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  }, [logout]);
+
+  return (
+    <HapticTouchable
+      onPress={handleLogout}
+      disabled={isLoading}
+      style={st.logoutButton}
+      activeOpacity={0.8}
+    >
+      <LinearGradient
+        colors={['#FEE2E2', '#FECACA']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={st.logoutGradient}
+      >
+        {isLoading ? (
+          <ActivityIndicator size="small" color={RD} />
+        ) : (
+          <>
+            <View style={st.logoutIconContainer}>
+              <Feather name="log-out" size={nz(18)} color={RD} />
+            </View>
+            <Text style={st.logoutText}>Logout</Text>
+          </>
+        )}
+      </LinearGradient>
+    </HapticTouchable>
+  );
+};
+
 export default function ProfileScreen() {
   const insets        = useSafeAreaInsets();
   const navigation    = useNavigation();
@@ -94,9 +146,6 @@ export default function ProfileScreen() {
   const restaurantName = useStore((s) => s.restaurantName);
   const restaurantLogo = useStore((s) => s.restaurantLogo);
 
-
-
-  // Pulsing ring behind avatar
   const [logoError, setLogoError] = useState(false);
   const pulse = useRef(new Animated.Value(1)).current;
   useEffect(() => {
@@ -108,14 +157,10 @@ export default function ProfileScreen() {
     ).start();
   }, []);
 
-
-
-  // ── External links ────────────────────────────────────────────────────────
   const openPrivacyPolicy  = () => Linking.openURL('https://www.alfennzo.com/privacy-policy');
   const openTerms          = () => Linking.openURL('https://www.alfennzo.com/terms-and-conditions');
   const openSupport        = () => Linking.openURL('tel:9319702754');
 
-  // ── Avatar helpers ────────────────────────────────────────────────────────
   const initials = (name = '') =>
     name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase() || 'U';
 
@@ -131,18 +176,15 @@ export default function ProfileScreen() {
         contentContainerStyle={st.scroll}
         bounces={Platform.OS === 'ios'}
       >
-        {/* ── Hero header ── */}
         <LinearGradient
           colors={[G2, G1, '#05B85F']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={[st.hero, { paddingTop: insets.top + rs(32) }]}
         >
-          {/* Decorative circles */}
           <View style={st.deco1} />
           <View style={st.deco2} />
 
-          {/* Avatar */}
           <Animated.View style={[st.pulseRing, { transform: [{ scale: pulse }] }]} />
           <View style={st.avatarWrap}>
             {logoUri && !logoError ? (
@@ -157,7 +199,6 @@ export default function ProfileScreen() {
                 <Text style={st.avatarInitials}>{initials(displayName)}</Text>
               </LinearGradient>
             )}
-            {/* Green online dot */}
             <View style={st.onlineDot} />
           </View>
 
@@ -174,14 +215,9 @@ export default function ProfileScreen() {
               <Text style={st.heroBadgeText}>{user.email}</Text>
             </View>
           ) : null}
-
         </LinearGradient>
 
-        {/* ── Sections ── */}
         <View style={st.body}>
-
-
-          {/* Restaurant info */}
           {(restaurantName || restaurantLogo) ? (
             <FadeRow delay={120}>
               <Text style={st.sectionTitle}>Restaurant</Text>
@@ -210,11 +246,17 @@ export default function ProfileScreen() {
               </Card>
             </FadeRow>
           ) : null}
-
-          {/* Notifications */}
           <FadeRow delay={180}>
             <Text style={st.sectionTitle}>Preferences</Text>
             <Card>
+              <RowItem
+                icon={<Feather name="clock" size={nz(16)} color={G1} />}
+                iconBg={G3}
+                label="Order History"
+                sublabel="View all past orders"
+                onPress={() => navigation.navigate('OrderHistory')}
+                right={<Feather name="chevron-right" size={nz(16)} color={SB} />}
+              />
               <RowItem
                 icon={<Feather name="bell" size={nz(16)} color={G1} />}
                 iconBg={G3}
@@ -226,8 +268,6 @@ export default function ProfileScreen() {
               />
             </Card>
           </FadeRow>
-
-          {/* Support & Legal */}
           <FadeRow delay={240}>
             <Text style={st.sectionTitle}>Support & Legal</Text>
             <Card>
@@ -235,7 +275,6 @@ export default function ProfileScreen() {
                 icon={<Feather name="headphones" size={nz(16)} color="#8B5CF6" />}
                 iconBg="#F3EFFB"
                 label="Help & Support"
-                
                 onPress={openSupport}
                 right={<Feather name="chevron-right" size={nz(16)} color={SB} />}
               />
@@ -243,7 +282,6 @@ export default function ProfileScreen() {
                 icon={<Feather name="shield" size={nz(16)} color="#0EA5E9" />}
                 iconBg="#EFF8FE"
                 label="Privacy Policy"
-                
                 onPress={openPrivacyPolicy}
                 right={<Feather name="external-link" size={nz(14)} color={SB} />}
               />
@@ -251,19 +289,23 @@ export default function ProfileScreen() {
                 icon={<MaterialCommunityIcons name="file-document-outline" size={nz(16)} color="#F59E0B" />}
                 iconBg="#FFFBEB"
                 label="Terms & Conditions"
-                
                 onPress={openTerms}
                 noBorder
                 right={<Feather name="external-link" size={nz(14)} color={SB} />}
               />
             </Card>
           </FadeRow>
-
-          {/* Logout */}
           <FadeRow delay={300}>
-            <View style={st.logoutWrap}>
-              <LogoutButton variant="full" />
+            <View style={st.logoutSection}>
+              <Text style={st.sectionTitle}>Account</Text>
+              <Card>
+                <CustomLogoutButton />
+              </Card>
             </View>
+          </FadeRow>
+
+          <FadeRow delay={360}>
+            <Text style={st.versionText}>Version 1.0.0</Text>
           </FadeRow>
 
           <View style={{ height: rs(32) + insets.bottom }} />
@@ -273,12 +315,9 @@ export default function ProfileScreen() {
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
 const st = StyleSheet.create({
   screen:  { flex: 1, backgroundColor: BG },
   scroll:  { paddingBottom: rs(12) },
-
-  // hero
   hero: {
     alignItems: 'center',
     paddingBottom: rs(28),
@@ -318,20 +357,44 @@ const st = StyleSheet.create({
     width: rs(16), height: rs(16), borderRadius: rs(8),
     backgroundColor: '#4ADE80', borderWidth: rs(2), borderColor: WH,
   },
-
   heroName:  { fontSize: nz(22), fontWeight: '800', color: WH, letterSpacing: -0.3, marginBottom: rs(6) },
   heroBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: rs(20), paddingHorizontal: rs(12), paddingVertical: rs(4) },
   heroBadgeText: { fontSize: nz(12), color: WH, fontWeight: '500' },
-
-
-
-  // body
   body:          { paddingHorizontal: rs(16), paddingTop: rs(22) },
   sectionTitle:  { fontSize: nz(12), fontWeight: '700', color: SB, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: rs(8), marginLeft: rs(4) },
-  logoutWrap:    { marginTop: rs(8), marginBottom: rs(4) },
+  logoutSection: { marginTop: rs(8), marginBottom: rs(4) },
+  logoutButton: { width: '100%' },
+  logoutGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: rs(14),
+    paddingHorizontal: rs(16),
+    borderRadius: rs(12),
+  },
+  logoutIconContainer: {
+    width: rs(36),
+    height: rs(36),
+    borderRadius: rs(10),
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: rs(12),
+  },
+  logoutText: {
+    fontSize: nz(16),
+    fontWeight: '600',
+    color: RD,
+    marginRight: rs(8),
+  },
+  versionText: {
+    fontSize: nz(11),
+    color: '#9CA3AF',
+    textAlign: 'center',
+    marginTop: rs(16),
+    marginBottom: rs(8),
+  },
 });
 
-// ─── Card & row styles ────────────────────────────────────────────────────────
 const c = StyleSheet.create({
   card: {
     backgroundColor: WH, borderRadius: rs(18),
@@ -339,19 +402,6 @@ const c = StyleSheet.create({
     shadowColor: 'transparent', shadowOpacity: 0, elevation: 0,
     overflow: 'hidden',
   },
-
-  // info rows
-  infoRow: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'center', paddingVertical: rs(13),
-    paddingHorizontal: rs(16),
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: BD,
-  },
-  infoRowLast:  { borderBottomWidth: 0 },
-  infoLabel:    { fontSize: nz(13), color: SB, fontWeight: '500', flex: 1 },
-  infoValue:    { fontSize: nz(13), color: TX, fontWeight: '600', flex: 2, textAlign: 'right' },
-
-  // settings rows
   row: {
     flexDirection: 'row', alignItems: 'center',
     paddingVertical: rs(13), paddingHorizontal: rs(14),
@@ -363,8 +413,6 @@ const c = StyleSheet.create({
   rowLabel:      { fontSize: nz(14), fontWeight: '600', color: TX },
   rowSub:        { fontSize: nz(11), color: SB, marginTop: rs(2), fontWeight: '400' },
   rowRight:      { marginLeft: rs(8), alignItems: 'center', justifyContent: 'center' },
-
-  // restaurant
   restaurantRow: { flexDirection: 'row', alignItems: 'center', padding: rs(14) },
   restaurantLogo: { width: rs(52), height: rs(52), borderRadius: rs(12), backgroundColor: G3 },
   restaurantLogoPlaceholder: { width: rs(52), height: rs(52), borderRadius: rs(12), backgroundColor: G3, alignItems: 'center', justifyContent: 'center' },

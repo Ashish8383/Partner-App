@@ -4,7 +4,6 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import * as SplashScreen from 'expo-splash-screen';
-
 import LoginScreen          from '../screens/LoginScreen';
 import HomeScreen           from '../screens/HomeScreen';
 import ProductScreen        from '../screens/ProductScreen';
@@ -12,13 +11,13 @@ import ProfileScreen        from '../screens/ProfileScreen';
 import BottomTabs           from '../components/BottomTabs';
 import useStore             from '../store/useStore';
 import NotificationScreen from '../screens/Notification';
+import OrderHistoryScreen from '../screens/OrderHistoryScreen';
 
 const Tab   = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
 SplashScreen.preventAutoHideAsync();
 
-// ── Bottom tabs ───────────────────────────────────────────────────────────────
 const MainTabs = () => (
   <Tab.Navigator
     tabBar={(props) => <BottomTabs {...props} />}
@@ -36,12 +35,12 @@ const AuthStack = () => (
     <Stack.Screen
       name="NotificationSettings"
       component={NotificationScreen}
-      options={{ animation: 'slide_from_right' }}   // smooth right-to-left slide
+      options={{ animation: 'slide_from_right' }}   
     />
+    <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} />
   </Stack.Navigator>
 );
 
-// ── Root navigator ────────────────────────────────────────────────────────────
 const AppNavigator = ({ onStateChange }) => {
   const isAuthenticated    = useStore((state) => state.isAuthenticated);
   const loadPersistedState = useStore((state) => state.loadPersistedState);
@@ -52,7 +51,6 @@ const AppNavigator = ({ onStateChange }) => {
       try {
         await loadPersistedState();
       } catch (e) {
-        console.warn('Failed to load persisted auth state:', e);
       } finally {
         setAppReady(true);
       }

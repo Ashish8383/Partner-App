@@ -1,5 +1,5 @@
 export const COLORS = {
-  primary: '#FF6B00', // Orange theme
+  primary: '#FF6B00', 
   primaryLight: '#FFA500',
   primaryDark: '#CC5500',
   secondary: '#FFFFFF',

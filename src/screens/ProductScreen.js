@@ -1,6 +1,3 @@
-/**
- * npx expo install react-native-pager-view react-native-tab-view
- */
 
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import {
@@ -16,13 +13,10 @@ import HapticTouchable from '../components/GlobalHaptic';
 import useStore from '../store/useStore';
 import api from '../utils/api';
 
-// ─── Responsive helpers ───────────────────────────────────────────────────────
 const { width: SW } = Dimensions.get('window');
 const scale = SW / 390;
 const nz = (s) => Math.round(PixelRatio.roundToNearestPixel(s * Math.min(scale, 1.35)));
 const rs = (s) => Math.round(s * Math.min(scale, 1.3));
-
-// ─── Constants ────────────────────────────────────────────────────────────────
 const GREEN = '#03954E';
 const CREAM = '#FAFAF5';
 
@@ -37,7 +31,6 @@ const PILL_POSITIONS  = [0, PILL_W];
 const CARD_W          = (SW - rs(16) * 2 - rs(12)) / 2;
 const SEARCH_H        = rs(48);
 
-// ─── Category → Emoji map ─────────────────────────────────────────────────────
 const EMOJI_MAP = {
   'pizza': '🍕', 'beverages': '🧋', 'hot beverages': '☕',
   'burgers': '🍔', 'pasta': '🍝', 'desserts': '🍰',
@@ -50,13 +43,11 @@ const EMOJI_MAP = {
 };
 const getEmoji = (name = '') => EMOJI_MAP[name.toLowerCase()] ?? '🍽️';
 
-// ─── API ──────────────────────────────────────────────────────────────────────
 const menuAPI = {
   getAllMenu:  (Id)   => api.get('/menu/getAllMenu', { params: { Id } }),
   liveStatus: (data) => api.post('/menu/liveStatus', data),
 };
 
-// ─── Data normaliser ──────────────────────────────────────────────────────────
 const normaliseMenu = (menuCategories = []) => {
   const categories = [{ id: '__all__', label: 'All', emoji: '🍽️', categoryId: null }];
   const products   = [];
@@ -88,7 +79,6 @@ const normaliseMenu = (menuCategories = []) => {
   return { categories, products };
 };
 
-// ─── Skeleton ─────────────────────────────────────────────────────────────────
 const SkeletonBox = ({ style }) => {
   const anim = useRef(new Animated.Value(0.4)).current;
   useEffect(() => {
@@ -119,7 +109,6 @@ const sk = StyleSheet.create({
   btn:   { height: rs(36), borderRadius: rs(18) },
 });
 
-// ─── Category Pill ────────────────────────────────────────────────────────────
 const CategoryPill = React.memo(({ item, isActive, onPress }) => (
   <HapticTouchable onPress={onPress} activeOpacity={0.78} style={[cp.pill, isActive && cp.pillActive]}>
     <View style={[cp.emojiWrap, isActive && cp.emojiWrapActive]}>
@@ -138,7 +127,6 @@ const cp = StyleSheet.create({
   labelActive:     { color: GREEN, fontWeight: '700' },
 });
 
-// ─── Toggle Button ────────────────────────────────────────────────────────────
 const ToggleBtn = React.memo(({ isOn, loading, onToggle }) => {
   const anim = useRef(new Animated.Value(isOn ? 1 : 0)).current;
   useEffect(() => {
@@ -160,7 +148,6 @@ const tb2 = StyleSheet.create({
   label: { fontSize: nz(13), fontWeight: '700', color: '#FFFFFF', letterSpacing: 0.3 },
 });
 
-// ─── Veg / Non-Veg indicator ──────────────────────────────────────────────────
 const VegDot = ({ isVeg }) => (
   <View style={[pd.vegBox, { borderColor: isVeg ? GREEN : '#E53935' }]}>
     <View style={[pd.vegDot, { backgroundColor: isVeg ? GREEN : '#E53935' }]} />
@@ -171,7 +158,6 @@ const pd = StyleSheet.create({
   vegDot: { width: rs(7), height: rs(7), borderRadius: rs(4) },
 });
 
-// ─── Product Card ─────────────────────────────────────────────────────────────
 const ProductCard = React.memo(({ item, restaurantId, onToggle, onToast }) => {
   const [toggling, setToggling] = useState(false);
 
@@ -262,7 +248,6 @@ const pc = StyleSheet.create({
   statusText:      { fontSize: nz(11), fontWeight: '600' },
 });
 
-// ─── Custom Tab Bar ───────────────────────────────────────────────────────────
 const CustomTabBar = React.memo(({ position, jumpTo }) => {
   const pillX = position.interpolate({ inputRange: [0, 1], outputRange: PILL_POSITIONS, extrapolate: 'clamp' });
   const opacities = ROUTES.map((_, i) =>
@@ -297,7 +282,6 @@ const tog = StyleSheet.create({
   labelAbsolute: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, textAlign: 'center' },
 });
 
-// ─── Tab Scene ────────────────────────────────────────────────────────────────
 const TabScene = React.memo(({ list, loading, restaurantId, onToggle, onToast }) => {
   if (loading) {
     return (
@@ -347,7 +331,6 @@ const TabScene = React.memo(({ list, loading, restaurantId, onToggle, onToast })
   );
 });
 
-// ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function YourListingScreen() {
   const insets       = useSafeAreaInsets();
   const { user }     = useStore();
@@ -361,12 +344,9 @@ export default function YourListingScreen() {
   const [loading,        setLoading]    = useState(true);
   const [error,          setError]      = useState(null);
 
-  // ── Search state ──
   const [searchOpen,  setSearchOpen]  = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const searchAnim = useRef(new Animated.Value(0)).current; // 0=closed 1=open
-
-  // ── Toast state (inside main component — guaranteed to render in sized View) ──
+  const searchAnim = useRef(new Animated.Value(0)).current; 
   const [toastMsg,    setToastMsg]   = useState('');
   const toastOpacity = useRef(new Animated.Value(0)).current;
   const toastScale   = useRef(new Animated.Value(0.88)).current;
@@ -389,7 +369,6 @@ export default function YourListingScreen() {
     }, 2200);
   }, []);
 
-  // ── Search open/close ──
   const openSearch = useCallback(() => {
     setSearchOpen(true);
     Animated.spring(searchAnim, { toValue: 1, useNativeDriver: false, damping: 18, stiffness: 220, mass: 0.5 }).start(() => {
@@ -408,7 +387,6 @@ export default function YourListingScreen() {
   const searchBarH = searchAnim.interpolate({ inputRange: [0, 1], outputRange: [0, SEARCH_H + rs(10)] });
   const searchOpacity = searchAnim;
 
-  // ── Fetch ──
   const fetchMenu = useCallback(async () => {
     if (!restaurantId) return;
     setLoading(true);
@@ -428,12 +406,10 @@ export default function YourListingScreen() {
 
   useEffect(() => { fetchMenu(); }, [fetchMenu]);
 
-  // ── Toggle optimistic update ──
   const handleToggle = useCallback((id) => {
     setProducts((prev) => prev.map((p) => p.id === id ? { ...p, on: !p.on, isLive: !p.on } : p));
   }, []);
 
-  // ── Filter: category + search ──
   const q = searchQuery.trim().toLowerCase();
 
   const filteredProducts = products
@@ -464,15 +440,12 @@ export default function YourListingScreen() {
       <StatusBar backgroundColor="#FFFFFF" barStyle="dark-content" translucent={false} />
       <View style={[s.root, { paddingTop: insets.top }]}>
 
-        {/* ── Header ── */}
         <View style={s.header}>
-          {/* Left: title OR search input */}
           <Animated.View style={[s.headerLeft, { flex: searchOpen ? 1 : 0 }]}>
             {searchOpen ? null : <Text style={s.headerTitle}>Your Listing</Text>}
           </Animated.View>
 
           <View style={s.headerIcons}>
-            {/* Search icon / close icon */}
             <HapticTouchable
               style={s.iconBtn}
               activeOpacity={0.7}
@@ -489,7 +462,6 @@ export default function YourListingScreen() {
           </View>
         </View>
 
-        {/* ── Search bar — animates open/closed ── */}
         <Animated.View style={[s.searchWrap, { height: searchBarH, opacity: searchOpacity }]}>
           <View style={s.searchBox}>
             <Feather name="search" size={nz(16)} color="#AAAAAA" style={s.searchIcon} />
@@ -512,8 +484,6 @@ export default function YourListingScreen() {
             )}
           </View>
         </Animated.View>
-
-        {/* ── Error banner ── */}
         {error && (
           <HapticTouchable onPress={fetchMenu} style={s.errorBanner} activeOpacity={0.8}>
             <Feather name="alert-circle" size={nz(14)} color="#E53935" />
@@ -521,7 +491,6 @@ export default function YourListingScreen() {
           </HapticTouchable>
         )}
 
-        {/* ── Category Pills ── */}
         <View style={s.categorySection}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.categoryScroll}>
             {categories.map((cat) => (
@@ -534,7 +503,6 @@ export default function YourListingScreen() {
           </ScrollView>
         </View>
 
-        {/* ── TabView ── */}
         <TabView
           navigationState={{ index: tabIndex, routes: ROUTES }}
           renderScene={renderScene}
@@ -546,7 +514,6 @@ export default function YourListingScreen() {
           style={{ flex: 1 }}
         />
 
-        {/* ── Toast — inside sized View, position:absolute works correctly ── */}
         {toastMsg !== '' && (
           <Animated.View
             pointerEvents="none"
@@ -563,39 +530,27 @@ export default function YourListingScreen() {
 
 const s = StyleSheet.create({
   root:            { flex: 1, backgroundColor: '#FFFFFF' },
-
-  // header
   header:          { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: rs(18), paddingTop: rs(10), paddingBottom: rs(10), backgroundColor: '#FFFFFF' },
   headerLeft:      { justifyContent: 'center' },
   headerTitle:     { fontSize: nz(26), fontWeight: '800', color: '#1A1A1A', letterSpacing: -0.4 },
   headerIcons:     { flexDirection: 'row', gap: rs(4), alignItems: 'center' },
   iconBtn:         { padding: rs(6) },
-
-  // search bar
   searchWrap:      { overflow: 'hidden', paddingHorizontal: rs(16) },
   searchBox:       { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F4F4F4', borderRadius: rs(14), paddingHorizontal: rs(12), height: SEARCH_H, borderWidth: rs(1), borderColor: '#EBEBEB' },
   searchIcon:      { marginRight: rs(8) },
   searchInput:     { flex: 1, fontSize: nz(14), color: '#1A1A1A', paddingVertical: 0 },
   searchClear:     { paddingLeft: rs(8) },
-
-  // error
   errorBanner:     { flexDirection: 'row', alignItems: 'center', gap: rs(6), marginHorizontal: rs(16), marginTop: rs(6), marginBottom: rs(4), backgroundColor: '#FFF3F3', borderRadius: rs(10), paddingHorizontal: rs(12), paddingVertical: rs(10), borderWidth: 1, borderColor: '#FFCDD2' },
   errorText:       { flex: 1, fontSize: nz(12), color: '#C62828', fontWeight: '500' },
-
-  // tabs
   tabSection:      { backgroundColor: '#FFFFFF', paddingBottom: rs(14), paddingTop: rs(4) },
   categorySection: { backgroundColor: '#FFFFFF', paddingBottom: rs(12), paddingTop: rs(8) },
   categoryScroll:  { paddingHorizontal: rs(16) },
-
-  // list
   row:             { flexDirection: 'row', justifyContent: 'space-between' },
   listContent:     { paddingHorizontal: rs(16), paddingTop: rs(6), paddingBottom: rs(20), backgroundColor: '#FFFFFF' },
   empty:           { alignItems: 'center', paddingTop: rs(80), gap: rs(8) },
   emptyEmoji:      { fontSize: nz(52) },
   emptyTitle:      { fontSize: nz(17), fontWeight: '700', color: '#1A1A1A' },
   emptySub:        { fontSize: nz(13), color: '#AAAAAA' },
-
-  // toast — bottom of screen, inside full-sized View
   toast: {
     position:          'absolute',
     bottom:            rs(36),

@@ -1,4 +1,3 @@
-// src/components/InAppNotification.js
 import React, { useEffect, useRef } from 'react';
 import {
   Animated, Text, TouchableOpacity,
@@ -7,7 +6,6 @@ import {
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-// No permission check here — App.js gates this before calling setInAppNotif
 const InAppNotification = ({ title, body, onPress, onDismiss }) => {
   const insets      = useSafeAreaInsets();
   const translateY  = useRef(new Animated.Value(-150)).current;
@@ -15,7 +13,6 @@ const InAppNotification = ({ title, body, onPress, onDismiss }) => {
   const isDark      = colorScheme === 'dark';
 
   useEffect(() => {
-    // Slide in immediately on mount
     Animated.spring(translateY, {
       toValue: 0,
       useNativeDriver: true,

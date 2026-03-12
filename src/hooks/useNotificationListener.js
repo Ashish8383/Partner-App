@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import * as Notifications from 'expo-notifications';
-import { Platform, Alert } from 'react-native';
+import {Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 
 export const useNotificationListener = () => {
@@ -9,13 +9,8 @@ export const useNotificationListener = () => {
   const responseListener = useRef();
 
   useEffect(() => {
-    // Listener for foreground notifications
     notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
-      console.log('Foreground notification:', notification);
-      
       const { title, body, data } = notification.request.content;
-      
-      // Show in-app alert for important notifications
       if (data?.type === 'new_order') {
         Alert.alert(
           title || 'New Order!',
@@ -31,13 +26,8 @@ export const useNotificationListener = () => {
       }
     });
 
-    // Listener for when user taps notification
     responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
-      console.log('Notification tapped:', response);
-      
       const { data } = response.notification.request.content;
-      
-      // Navigate based on notification data
       if (data?.type === 'new_order' || data?.type === 'order_update') {
         navigation.navigate('OrderDetails', { orderId: data.orderId });
       } else if (data?.type === 'chat') {
@@ -47,7 +37,6 @@ export const useNotificationListener = () => {
       }
     });
 
-    // Check for initial notification that launched app
     checkInitialNotification();
 
     return () => {
@@ -59,10 +48,7 @@ export const useNotificationListener = () => {
   const checkInitialNotification = async () => {
     const response = await Notifications.getLastNotificationResponseAsync();
     if (response) {
-      console.log('App launched from notification:', response);
       const { data } = response.notification.request.content;
-      
-      // Handle initial navigation
       setTimeout(() => {
         if (data?.type === 'new_order') {
           navigation.navigate('OrderDetails', { orderId: data.orderId });

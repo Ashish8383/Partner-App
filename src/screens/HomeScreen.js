@@ -1,19 +1,13 @@
-/**
- * Install before use:
- *   npx expo install react-native-pager-view react-native-tab-view
- */
-
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import {
   View, Text, StyleSheet, FlatList, RefreshControl,
-  StatusBar, Animated, Dimensions, Image, ActivityIndicator,
-  Modal, TouchableOpacity, Platform,
+  StatusBar, Animated, Dimensions, Image, ActivityIndicator, Platform
 } from 'react-native';
 import { TabView } from 'react-native-tab-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons, Feather } from '@expo/vector-icons';
 import { GestureHandlerRootView, GestureDetector, Gesture } from 'react-native-gesture-handler';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import * as Notifications from 'expo-notifications';
 import { HapticTouchable } from '../components/GlobalHaptic';
 import { playSound } from '../utils/sound';
 import { nz, rs } from '../utils/constant';
@@ -24,25 +18,29 @@ import { db } from '../utils/firebaseConfig';
 import { useNavigation } from '@react-navigation/native';
 
 const GREEN   = '#03954E';
-const PAGE_BG = '#FFFFFF';
 const LIMIT   = 30;
 const { width: SW } = Dimensions.get('window');
-const TAB_ORDER = ['live', 'pending', 'history'];
+const TAB_ORDER = ['live', 'pending'];
 
 const TAB_CONFIG = {
   live:    { fetcher: (p, id, extra) => ordersAPI.getLiveOrders(p, id, extra) },
   pending: { fetcher: (p, id, extra) => ordersAPI.getPendingOrders(p, id, extra) },
-  history: { fetcher: (p, id, extra) => ordersAPI.getHistoryOrders(p, id, extra) },
 };
 
-// TabView routes — key must match TAB_ORDER
 const ROUTES = [
   { key: 'live',    title: 'Live',    icon: 'circle' },
-  { key: 'pending', title: 'Pending', icon: 'clock' },
-  { key: 'history', title: 'History', icon: 'file-text' },
+  { key: 'pending', title: 'Pending', icon: 'clock'  },
 ];
 
-// ─── Skeleton ─────────────────────────────────────────────────────────────────
+const isNotificationGranted = async () => {
+  try {
+    const { status } = await Notifications.getPermissionsAsync();
+    return status === 'granted';
+  } catch {
+    return false;
+  }
+};
+
 const SkeletonPulse = ({ style }) => {
   const anim = useRef(new Animated.Value(0.4)).current;
   useEffect(() => {
@@ -93,16 +91,13 @@ const sk = StyleSheet.create({
   btnSkeleton: { height: rs(50), borderRadius: rs(26), marginTop: rs(16) },
 });
 
-// ─── Custom Tab Bar ───────────────────────────────────────────────────────────
-// `position` is Animated.Value from TabView — fractional 0.0→1.0→2.0
-// drives pill and label colours entirely on the native thread
-const TAB_BAR_INNER_W = SW - rs(40) - rs(8);
-const TAB_W           = TAB_BAR_INNER_W / 3;
-const PILL_POSITIONS  = [0, TAB_W, TAB_W * 2];
+const TAB_BAR_INNER_W = SW - rs(40) - rs(8); 
+const TAB_W           = TAB_BAR_INNER_W / 2;  
+const PILL_POSITIONS  = [0, TAB_W];
 
-const CustomTabBar = React.memo(({ navigationState, position, jumpTo, counts }) => {
+const CustomTabBar = React.memo(({ position, jumpTo, counts }) => {
   const pillX = position.interpolate({
-    inputRange:  [0, 1, 2],
+    inputRange:  [0, 1],
     outputRange: PILL_POSITIONS,
     extrapolate: 'clamp',
   });
@@ -121,6 +116,7 @@ const CustomTabBar = React.memo(({ navigationState, position, jumpTo, counts }) 
         pointerEvents="none"
         style={[tb.pill, { width: TAB_W, transform: [{ translateX: pillX }] }]}
       />
+
       {ROUTES.map((route, i) => {
         const count      = counts[route.key] ?? 0;
         const label      = `${route.title}${count > 0 ? ` (${count})` : ''}`;
@@ -135,14 +131,13 @@ const CustomTabBar = React.memo(({ navigationState, position, jumpTo, counts }) 
             style={tb.tab}
           >
             <Animated.View style={tb.inner}>
-              {/* Inactive (dark) */}
               <Animated.View style={[tb.row, { opacity: inactiveOp }]}>
                 {route.key === 'live'
                   ? <View style={[tb.dot, { backgroundColor: '#1A1A1A' }]} />
                   : <Feather name={route.icon} size={nz(11)} color="#1A1A1A" style={tb.icon} />}
                 <Text style={[tb.label, tb.labelInactive]}>{label}</Text>
               </Animated.View>
-              {/* Active (white) */}
+
               <Animated.View style={[tb.row, tb.rowAbsolute, { opacity: activeOp }]}>
                 {route.key === 'live'
                   ? <View style={[tb.dot, { backgroundColor: '#fff' }]} />
@@ -158,20 +153,37 @@ const CustomTabBar = React.memo(({ navigationState, position, jumpTo, counts }) 
 });
 
 const tb = StyleSheet.create({
-  wrapper:       { flexDirection: 'row', backgroundColor: '#EBEBEB', borderRadius: rs(14), padding: rs(4), marginHorizontal: rs(20), position: 'relative', alignItems: 'center' },
-  pill:          { position: 'absolute', top: rs(4), bottom: rs(4), left: rs(4), borderRadius: rs(10), backgroundColor: GREEN, elevation: 6, shadowColor: GREEN, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 8 },
-  tab:           { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: rs(10), zIndex: 1 },
-  inner:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-  row:           { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-  rowAbsolute:   { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 },
-  dot:           { width: rs(7), height: rs(7), borderRadius: rs(4), marginRight: rs(5) },
-  icon:          { marginRight: rs(4) },
-  label:         { fontSize: nz(13), fontWeight: '700' },
-  labelActive:   { color: '#fff' },
+  wrapper:     {
+    flexDirection: 'row',
+    backgroundColor: '#EBEBEB',
+    borderRadius: rs(50),
+    padding: rs(4),
+    marginHorizontal: rs(20),
+    position: 'relative',
+    alignItems: 'center',
+  },
+  pill:        {
+    position: 'absolute',
+    top: rs(4), bottom: rs(4), left: rs(4),
+    borderRadius: rs(50),
+    backgroundColor: GREEN,
+    elevation: 6,
+    shadowColor: GREEN,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+  },
+  tab:         { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: rs(10), zIndex: 1 },
+  inner:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  row:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  rowAbsolute: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 },
+  dot:         { width: rs(7), height: rs(7), borderRadius: rs(4), marginRight: rs(5) },
+  icon:        { marginRight: rs(4) },
+  label:       { fontSize: nz(13), fontWeight: '700' },
+  labelActive: { color: '#fff' },
   labelInactive: { color: '#1A1A1A' },
 });
 
-// ─── Slide To Accept ──────────────────────────────────────────────────────────
 const SlideToAccept = React.memo(({ onAccepted, onSlideActiveChange }) => {
   const THUMB_W   = rs(52);
   const TRACK_W   = SW - rs(56);
@@ -180,35 +192,30 @@ const SlideToAccept = React.memo(({ onAccepted, onSlideActiveChange }) => {
   const slideX    = useRef(new Animated.Value(0)).current;
   const completed = useRef(false);
 
-  // Fill slides in from left — perfectly tracks thumb position
   const fillTranslateX = slideX.interpolate({
     inputRange:  [0, MAX_SLIDE],
     outputRange: [-TRACK_W, -THUMB_W * 0.4],
     extrapolate: 'clamp',
   });
 
-  // Thumb grows slightly as drag progresses — tactile depth
   const thumbScale = slideX.interpolate({
     inputRange:  [0, MAX_SLIDE * 0.5, MAX_SLIDE],
     outputRange: [1, 1.07, 1.13],
     extrapolate: 'clamp',
   });
 
-  // Arrow fades out in last 25%
   const arrowOpacity = slideX.interpolate({
     inputRange:  [MAX_SLIDE * 0.55, MAX_SLIDE * 0.85],
     outputRange: [1, 0],
     extrapolate: 'clamp',
   });
 
-  // Check bounces in near the end
   const checkOpacity = slideX.interpolate({
     inputRange:  [MAX_SLIDE * 0.70, MAX_SLIDE],
     outputRange: [0, 1],
     extrapolate: 'clamp',
   });
 
-  // Label fades out fast — gives room for thumb to move
   const labelOpacity = slideX.interpolate({
     inputRange:  [0, MAX_SLIDE * 0.22],
     outputRange: [1, 0],
@@ -216,56 +223,39 @@ const SlideToAccept = React.memo(({ onAccepted, onSlideActiveChange }) => {
   });
 
   const snapToEnd = (cb) => Animated.spring(slideX, {
-    toValue: MAX_SLIDE,
-    useNativeDriver: true,
-    damping: 18,
-    stiffness: 380,
-    mass: 0.28,
+    toValue: MAX_SLIDE, useNativeDriver: true,
+    damping: 18, stiffness: 380, mass: 0.28,
   }).start(cb);
 
   const snapBack = (velocity = 0) => Animated.spring(slideX, {
-    toValue: 0,
-    useNativeDriver: true,
-    damping: 15,
-    stiffness: 160,
-    mass: 0.45,
-    velocity: velocity * -0.3,   // carry a bit of release velocity into snap-back
+    toValue: 0, useNativeDriver: true,
+    damping: 15, stiffness: 160, mass: 0.45, velocity: velocity * -0.3,
   }).start();
 
   const slideGesture = Gesture.Pan()
-    .activeOffsetX([3, 3])     // activates almost instantly
-    .failOffsetY([-12, 12])    // tolerant of slight diagonal touches
+    .activeOffsetX([3, 3])
+    .failOffsetY([-12, 12])
     .runOnJS(true)
     .onBegin(() => onSlideActiveChange?.(true))
     .onUpdate((e) => {
       if (completed.current) return;
       const raw = Math.max(0, e.translationX);
-      // Soft rubber-band resistance once thumb passes end
       slideX.setValue(raw > MAX_SLIDE ? MAX_SLIDE + (raw - MAX_SLIDE) * 0.1 : raw);
     })
     .onEnd((e) => {
       if (completed.current) return;
       const progress  = Math.max(0, e.translationX) / MAX_SLIDE;
-      const fastFlick = e.velocityX > 300;   // velocity flick also completes
-
+      const fastFlick = e.velocityX > 300;
       if (progress > 0.40 || fastFlick) {
         completed.current = true;
         snapToEnd(() => {
-          // Sound + callback fire after thumb hits the end — feels instant
           playSound('accept');
           onAccepted?.();
-          // Slide thumb back after card animation finishes
           setTimeout(() => {
             Animated.spring(slideX, {
-              toValue: 0,
-              useNativeDriver: true,
-              damping: 22,
-              stiffness: 110,
-              mass: 0.9,
-            }).start(() => {
-              completed.current = false;
-              onSlideActiveChange?.(false);
-            });
+              toValue: 0, useNativeDriver: true,
+              damping: 22, stiffness: 110, mass: 0.9,
+            }).start(() => { completed.current = false; onSlideActiveChange?.(false); });
           }, 750);
         });
       } else {
@@ -278,16 +268,10 @@ const SlideToAccept = React.memo(({ onAccepted, onSlideActiveChange }) => {
   return (
     <View style={sv.container}>
       <View style={[sv.track, { width: TRACK_W }]}>
-        {/* Fill */}
         <Animated.View style={[sv.fill, { width: TRACK_W, transform: [{ translateX: fillTranslateX }] }]} />
-        {/* Label */}
         <Animated.Text style={[sv.label, { opacity: labelOpacity }]}>Slide to Accept Order</Animated.Text>
-        {/* Thumb */}
         <GestureDetector gesture={slideGesture}>
-          <Animated.View style={[
-            sv.thumb,
-            { transform: [{ translateX: slideX }, { scale: thumbScale }] },
-          ]}>
+          <Animated.View style={[sv.thumb, { transform: [{ translateX: slideX }, { scale: thumbScale }] }]}>
             <Animated.View style={[StyleSheet.absoluteFill, sv.center, { opacity: arrowOpacity }]}>
               <MaterialIcons name="chevron-right" size={nz(30)} color="#1A1A1A" />
             </Animated.View>
@@ -327,7 +311,6 @@ const sv = StyleSheet.create({
   center: { justifyContent: 'center', alignItems: 'center' },
 });
 
-// ─── Order Card ───────────────────────────────────────────────────────────────
 const OrderCard = React.memo(({ item, tab, onAccepted, onDelivered, onSlideActiveChange }) => {
   const opacity       = useRef(new Animated.Value(1)).current;
   const translateX    = useRef(new Animated.Value(0)).current;
@@ -360,9 +343,9 @@ const OrderCard = React.memo(({ item, tab, onAccepted, onDelivered, onSlideActiv
   const handleDeliver = useCallback(() => animateOut(() => onDelivered(item.id)), [animateOut, onDelivered, item.id]);
 
   return (
-    <Animated.View style={{ maxHeight, marginBottom, overflow: 'hidden' }}>
+    <Animated.View style={{ maxHeight, marginBottom, overflow: 'hidden', borderRadius: rs(17) }}>
       <Animated.View style={{ transform: [{ scale: entranceScale }] }}>
-        <Animated.View style={[oc.wrap, { opacity, transform: [{ translateX }], marginBottom: 0 }]}>
+        <Animated.View style={[oc.wrap, { opacity, transform: [{ translateX }], marginBottom: 0, backgroundColor: '#01690509', borderWidth: rs(1), borderColor: '#14131336' }]}>
 
           <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, oc.flashOverlay, { opacity: flashOpacity }]}>
             <MaterialIcons name="check-circle" size={nz(48)} color="#fff" />
@@ -446,137 +429,13 @@ const oc = StyleSheet.create({
   totalLabel:   { fontSize: nz(14), fontWeight: '700', color: '#1A1A1A' },
   totalPrice:   { fontSize: nz(14), fontWeight: '800', color: '#1A1A1A' },
   orderId:      { fontSize: nz(12), color: '#AAAAAA', marginBottom: rs(10) },
-  noteBox:      { flexDirection: 'row', backgroundColor: '#FFF5E6', borderRadius: rs(10), padding: rs(12), gap: rs(8), alignItems: 'flex-start' },
+  noteBox:      { flexDirection: 'row', backgroundColor: '#fff5e6a9', borderRadius: rs(10), padding: rs(12), gap: rs(8), alignItems: 'flex-start', borderWidth: rs(1), borderColor: '#ffdd0343' },
   noteText:     { flex: 1, fontSize: nz(12.5), color: '#885500', lineHeight: nz(19) },
   deliverBtn:   { flexDirection: 'row', backgroundColor: GREEN, paddingVertical: rs(14), borderRadius: rs(26), alignItems: 'center', justifyContent: 'center', marginTop: rs(16) },
   deliverTxt:   { fontSize: nz(15), fontWeight: '700', color: '#fff' },
   flashOverlay: { backgroundColor: GREEN, borderRadius: rs(16), alignItems: 'center', justifyContent: 'center', zIndex: 10 },
 });
 
-// ─── Date helpers ─────────────────────────────────────────────────────────────
-const fmt      = (d) => d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-const fmtShort = (d) => d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
-const makeToday = () => {
-  const s = new Date(); s.setHours(0, 0, 0, 0);
-  const e = new Date(); e.setHours(23, 59, 59, 999);
-  return { start: s, end: e };
-};
-const makeYesterday = () => {
-  const y = new Date(); y.setDate(y.getDate() - 1);
-  const s = new Date(y); s.setHours(0, 0, 0, 0);
-  const e = new Date(y); e.setHours(23, 59, 59, 999);
-  return { start: s, end: e };
-};
-
-// ─── Date Filter Bar ──────────────────────────────────────────────────────────
-const DateFilterBar = React.memo(({ activeChip, startDate, endDate, onChipSelect, onCustomApply }) => {
-  const [sheetVisible,  setSheetVisible]  = useState(false);
-  const [pickerVisible, setPickerVisible] = useState(false);
-  const [pickingField,  setPickingField]  = useState(null);
-  const [draft,         setDraft]         = useState({ start: startDate, end: endDate });
-
-  useEffect(() => { setDraft({ start: startDate, end: endDate }); }, [startDate, endDate]);
-
-  const openCustomSheet     = () => { setDraft({ start: startDate, end: endDate }); setSheetVisible(true); };
-  const handleApply         = () => { setSheetVisible(false); onCustomApply(draft.start, draft.end); };
-  const openAndroidPicker   = (field) => { setPickingField(field); setSheetVisible(false); setTimeout(() => setPickerVisible(true), 180); };
-  const handleAndroidChange = (_, selected) => {
-    setPickerVisible(false);
-    if (selected) setDraft((p) => ({ ...p, [pickingField]: selected }));
-    setTimeout(() => setSheetVisible(true), 120);
-  };
-
-  const chips = [
-    { key: 'today',     label: 'Today' },
-    { key: 'yesterday', label: 'Yesterday' },
-    { key: 'custom',    label: activeChip === 'custom' ? `${fmtShort(startDate)} – ${fmtShort(endDate)}` : 'Custom' },
-  ];
-
-  return (
-    <>
-      <View style={df.chipRow}>
-        {chips.map((c) => {
-          const active = activeChip === c.key;
-          return (
-            <HapticTouchable
-              key={c.key}
-              onPress={() => c.key === 'custom' ? openCustomSheet() : onChipSelect(c.key)}
-              style={[df.chip, active && df.chipActive]}
-              activeOpacity={0.75}
-            >
-              {c.key === 'custom' && (
-                <Feather name="calendar" size={nz(11)} color={active ? '#fff' : '#1A1A1A'} style={{ marginRight: rs(4) }} />
-              )}
-              <Text style={[df.chipText, active && df.chipTextActive]} numberOfLines={1}>{c.label}</Text>
-            </HapticTouchable>
-          );
-        })}
-      </View>
-
-      <Modal visible={sheetVisible} transparent animationType="slide" statusBarTranslucent onRequestClose={() => setSheetVisible(false)}>
-        <TouchableOpacity style={df.backdrop} activeOpacity={1} onPress={() => setSheetVisible(false)} />
-        <View style={df.sheet}>
-          <View style={df.handle} />
-          <Text style={df.sheetTitle}>Custom Date Range</Text>
-          <Text style={df.fieldLabel}>From</Text>
-          {Platform.OS === 'ios' ? (
-            <View style={df.iosRow}>
-              <DateTimePicker value={draft.start} mode="date" display="compact" maximumDate={draft.end ?? new Date()} onChange={(_, d) => d && setDraft((p) => ({ ...p, start: d }))} themeVariant="light" />
-            </View>
-          ) : (
-            <HapticTouchable onPress={() => openAndroidPicker('start')} style={df.dateBtn} activeOpacity={0.8}>
-              <Feather name="calendar" size={nz(15)} color={GREEN} />
-              <Text style={df.dateBtnText}>{fmt(draft.start)}</Text>
-              <Feather name="chevron-down" size={nz(13)} color="#aaa" />
-            </HapticTouchable>
-          )}
-          <Text style={[df.fieldLabel, { marginTop: rs(16) }]}>To</Text>
-          {Platform.OS === 'ios' ? (
-            <View style={df.iosRow}>
-              <DateTimePicker value={draft.end} mode="date" display="compact" minimumDate={draft.start} maximumDate={new Date()} onChange={(_, d) => d && setDraft((p) => ({ ...p, end: d }))} themeVariant="light" />
-            </View>
-          ) : (
-            <HapticTouchable onPress={() => openAndroidPicker('end')} style={df.dateBtn} activeOpacity={0.8}>
-              <Feather name="calendar" size={nz(15)} color={GREEN} />
-              <Text style={df.dateBtnText}>{fmt(draft.end)}</Text>
-              <Feather name="chevron-down" size={nz(13)} color="#aaa" />
-            </HapticTouchable>
-          )}
-          <HapticTouchable onPress={handleApply} style={df.applyBtn} activeOpacity={0.85}>
-            <Text style={df.applyBtnText}>Apply Range</Text>
-          </HapticTouchable>
-        </View>
-      </Modal>
-
-      {Platform.OS === 'android' && pickerVisible && pickingField === 'start' && (
-        <DateTimePicker value={draft.start} mode="date" display="default" maximumDate={draft.end ?? new Date()} onChange={handleAndroidChange} />
-      )}
-      {Platform.OS === 'android' && pickerVisible && pickingField === 'end' && (
-        <DateTimePicker value={draft.end} mode="date" display="default" minimumDate={draft.start} maximumDate={new Date()} onChange={handleAndroidChange} />
-      )}
-    </>
-  );
-});
-
-const df = StyleSheet.create({
-  chipRow:       { flexDirection: 'row', gap: rs(8), paddingTop: rs(8) },
-  chip:          { flexDirection: 'row', alignItems: 'center', paddingHorizontal: rs(14), paddingVertical: rs(7), borderRadius: rs(20), borderWidth: rs(1.5), borderColor: '#DDD', backgroundColor: '#F5F5F5', flexShrink: 1 },
-  chipActive:    { backgroundColor: GREEN, borderColor: GREEN },
-  chipText:      { fontSize: nz(12), fontWeight: '600', color: '#1A1A1A' },
-  chipTextActive: { color: '#fff' },
-  backdrop:      { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
-  sheet:         { backgroundColor: '#fff', borderTopLeftRadius: rs(24), borderTopRightRadius: rs(24), paddingHorizontal: rs(24), paddingBottom: rs(48), paddingTop: rs(14) },
-  handle:        { width: rs(40), height: rs(4), borderRadius: rs(2), backgroundColor: '#DDD', alignSelf: 'center', marginBottom: rs(20) },
-  sheetTitle:    { fontSize: nz(17), fontWeight: '700', color: '#1A1A1A', marginBottom: rs(20) },
-  fieldLabel:    { fontSize: nz(13), fontWeight: '600', color: '#666', marginBottom: rs(8) },
-  iosRow:        { flexDirection: 'row', alignItems: 'center' },
-  dateBtn:       { flexDirection: 'row', alignItems: 'center', gap: rs(10), borderWidth: 1, borderColor: '#E0E0E0', borderRadius: rs(12), paddingHorizontal: rs(14), paddingVertical: rs(13), backgroundColor: '#F9F9F9' },
-  dateBtnText:   { flex: 1, fontSize: nz(14), color: '#1A1A1A', fontWeight: '500' },
-  applyBtn:      { marginTop: rs(28), backgroundColor: GREEN, borderRadius: rs(26), paddingVertical: rs(15), alignItems: 'center', elevation: 3, shadowColor: GREEN, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 6 },
-  applyBtnText:  { fontSize: nz(15), fontWeight: '700', color: '#fff' },
-});
-
-// ─── State helpers ────────────────────────────────────────────────────────────
 const makeTabState = () => ({ data: [], page: 1, totalDocs: 0, exhausted: false, fetching: false });
 
 const normaliseOrder = (o) => {
@@ -607,60 +466,37 @@ const normaliseOrder = (o) => {
   };
 };
 
-// ─── Tab Scene (rendered by TabView) ─────────────────────────────────────────
 const TabScene = React.memo(({
   tabKey, loading, list, refreshing, onRefresh,
   isLoadingMore, isExhausted, onEndReached,
   onAccepted, onDelivered, onSlideActiveChange,
-  historyFilter, onHistoryChipSelect, onHistoryCustomApply,
 }) => {
   const renderItem = useCallback(({ item }) => (
     <OrderCard
-      item={item}
-      tab={tabKey}
-      onAccepted={onAccepted}
-      onDelivered={onDelivered}
+      item={item} tab={tabKey}
+      onAccepted={onAccepted} onDelivered={onDelivered}
       onSlideActiveChange={onSlideActiveChange}
     />
   ), [tabKey, onAccepted, onDelivered, onSlideActiveChange]);
 
   return (
     <View style={{ flex: 1 }}>
-      {tabKey === 'history' && (
-        <View style={pg.filterWrap}>
-          <DateFilterBar
-            activeChip={historyFilter.activeChip}
-            startDate={historyFilter.start}
-            endDate={historyFilter.end}
-            onChipSelect={onHistoryChipSelect}
-            onCustomApply={onHistoryCustomApply}
-          />
-        </View>
-      )}
-
       {loading ? (
         <FlatList
-          data={[1, 2, 3]}
-          keyExtractor={(i) => String(i)}
+          data={[1, 2, 3]} keyExtractor={(i) => String(i)}
           renderItem={() => <SkeletonCard />}
           contentContainerStyle={[s.listContent, { paddingBottom: rs(24) }]}
-          showsVerticalScrollIndicator={false}
-          scrollEnabled={false}
+          showsVerticalScrollIndicator={false} scrollEnabled={false}
         />
       ) : (
         <FlatList
-          data={list}
-          keyExtractor={(o) => o.id}
-          renderItem={renderItem}
+          data={list} keyExtractor={(o) => o.id} renderItem={renderItem}
           removeClippedSubviews={Platform.OS === 'android'}
-          initialNumToRender={6}
-          maxToRenderPerBatch={4}
-          windowSize={5}
+          initialNumToRender={6} maxToRenderPerBatch={4} windowSize={5}
           updateCellsBatchingPeriod={80}
           contentContainerStyle={[s.listContent, { paddingBottom: rs(24) }]}
           showsVerticalScrollIndicator={false}
-          onEndReached={onEndReached}
-          onEndReachedThreshold={0.4}
+          onEndReached={onEndReached} onEndReachedThreshold={0.4}
           ListFooterComponent={
             isLoadingMore ? (
               <View style={s.loadingMore}>
@@ -677,23 +513,14 @@ const TabScene = React.memo(({
           ListEmptyComponent={
             <View style={s.empty}>
               <Image
-                source={
-                  tabKey === 'live'    ? require('../../assets/live.png') :
-                  tabKey === 'pending' ? require('../../assets/pending.png') :
-                                        require('../../assets/history.png')
-                }
-                style={s.emptyImage}
-                resizeMode="contain"
+                source={tabKey === 'live' ? require('../../assets/live.png') : require('../../assets/pending.png')}
+                style={s.emptyImage} resizeMode="contain"
               />
-              <Text style={s.emptyTitle}>
-                {tabKey === 'live' ? 'No Orders Yet' : tabKey === 'pending' ? 'All Caught Up' : 'Nothing Here Yet'}
-              </Text>
+              <Text style={s.emptyTitle}>{tabKey === 'live' ? 'No Orders Yet' : 'All Caught Up'}</Text>
               <Text style={s.emptySub}>
                 {tabKey === 'live'
                   ? 'Your store is live and waiting for customers.'
-                  : tabKey === 'pending'
-                  ? 'You have no pending deliveries right now.'
-                  : ''}
+                  : 'You have no pending deliveries right now.'}
               </Text>
             </View>
           }
@@ -703,39 +530,26 @@ const TabScene = React.memo(({
   );
 });
 
-const pg = StyleSheet.create({
-  filterWrap: { paddingHorizontal: rs(20), paddingTop: rs(4), paddingBottom: rs(2) },
-});
-
-// ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { user, restaurantName, restaurantLogo } = useStore();
   const [logoError, setLogoError] = useState(false);
-const navigation = useNavigation();
-  // ── TabView state ──
-  // index drives which tab is active; routes is static
-  const [tabIndex, setTabIndex] = useState(0);
+  const navigation = useNavigation();
 
-  // ── Slide lock: disable pager swipe while SlideToAccept is dragging ──
+  const [tabIndex, setTabIndex] = useState(0);
   const [swipeEnabled, setSwipeEnabled] = useState(true);
 
-  const tabs = useRef({ live: makeTabState(), pending: makeTabState(), history: makeTabState() });
+  const tabs = useRef({ live: makeTabState(), pending: makeTabState() });
 
   const [liveList,    setLiveList]    = useState([]);
   const [pendingList, setPendingList] = useState([]);
-  const [historyList, setHistoryList] = useState([]);
 
-  const [loadingMoreMap, setLoadingMoreMap] = useState({ live: false, pending: false, history: false });
-  const [exhaustedMap,   setExhaustedMap]   = useState({ live: false, pending: false, history: false });
+  const [loadingMoreMap, setLoadingMoreMap] = useState({ live: false, pending: false });
+  const [exhaustedMap,   setExhaustedMap]   = useState({ live: false, pending: false });
   const [loading,    setLoading]    = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const makeTodayRange = () => { const { start, end } = makeToday(); return { activeChip: 'today', start, end }; };
-  const [historyFilter,  setHistoryFilter]  = useState(makeTodayRange);
-  const historyFilterRef = useRef(makeTodayRange());
-
-  const setListMap = { live: setLiveList, pending: setPendingList, history: setHistoryList };
+  const setListMap = { live: setLiveList, pending: setPendingList };
 
   const flushTab = useCallback((tab) => {
     setListMap[tab]([...tabs.current[tab].data]);
@@ -747,29 +561,19 @@ const navigation = useNavigation();
   }, []);
 
   const getTodayDateParams = useCallback(() => {
-    const { start, end } = makeToday();
-    return { startDate: start.toISOString(), endDate: end.toISOString() };
+    const s = new Date(); s.setHours(0, 0, 0, 0);
+    const e = new Date(); e.setHours(23, 59, 59, 999);
+    return { startDate: s.toISOString(), endDate: e.toISOString() };
   }, []);
-
-  const getHistoryDateParams = useCallback(() => {
-    const f     = historyFilterRef.current;
-    const start = new Date(f.start); start.setHours(0, 0, 0, 0);
-    const end   = new Date(f.end);   end.setHours(23, 59, 59, 999);
-    return { startDate: start.toISOString(), endDate: end.toISOString() };
-  }, []);
-
-  const getTabDateParams = useCallback((tab) => (
-    tab === 'history' ? getHistoryDateParams() : getTodayDateParams()
-  ), [getTodayDateParams, getHistoryDateParams]);
 
   const loadTab = useCallback(async (tab) => {
     const id    = user?.restaurantId ?? '';
-    const extra = getTabDateParams(tab);
+    const extra = getTodayDateParams();
     try {
-      const res        = await TAB_CONFIG[tab].fetcher({ page: 1, limit: LIMIT }, id, extra);
-      const meta       = res?.data?.data?.orderData;
-      const raw        = Array.isArray(meta?.data) ? meta.data : [];
-      const totalDocs  = meta?.totalDocuments ?? 0;
+      const res       = await TAB_CONFIG[tab].fetcher({ page: 1, limit: LIMIT }, id, extra);
+      const meta      = res?.data?.data?.orderData;
+      const raw       = Array.isArray(meta?.data) ? meta.data : [];
+      const totalDocs = meta?.totalDocuments ?? 0;
       const normalised = raw.map(normaliseOrder);
       tabs.current[tab].data      = normalised;
       tabs.current[tab].page      = 1;
@@ -780,16 +584,16 @@ const navigation = useNavigation();
     } catch {
       exhaustTab(tab);
     }
-  }, [user?.restaurantId, flushTab, exhaustTab, getTabDateParams]);
+  }, [user?.restaurantId, flushTab, exhaustTab, getTodayDateParams]);
 
   const loadMoreTab = useCallback(async (tab) => {
     const t = tabs.current[tab];
     if (t.exhausted || t.fetching) return;
     t.fetching = true;
     setLoadingMoreMap((p) => ({ ...p, [tab]: true }));
-    const nextPage  = t.page + 1;
-    const id        = user?.restaurantId ?? '';
-    const extra     = getTabDateParams(tab);
+    const nextPage = t.page + 1;
+    const id    = user?.restaurantId ?? '';
+    const extra = getTodayDateParams();
     try {
       const res       = await TAB_CONFIG[tab].fetcher({ page: nextPage, limit: LIMIT }, id, extra);
       const meta      = res?.data?.data?.orderData;
@@ -811,34 +615,36 @@ const navigation = useNavigation();
       exhaustTab(tab);
     } finally {
       t.fetching = false;
-      setLoadingMoreMap((p) => ({ ...p, [tab]: false }));
+      setLoadingMoreMap((p) => ({ ...p, live: false, pending: false }));
     }
-  }, [user?.restaurantId, flushTab, exhaustTab, getTabDateParams]);
+  }, [user?.restaurantId, flushTab, exhaustTab, getTodayDateParams]);
 
   const initialLoad = useCallback(async () => {
     setLoading(true);
-    tabs.current = { live: makeTabState(), pending: makeTabState(), history: makeTabState() };
-    setExhaustedMap({ live: false, pending: false, history: false });
-    setLoadingMoreMap({ live: false, pending: false, history: false });
-    setLiveList([]); setPendingList([]); setHistoryList([]);
+    tabs.current = { live: makeTabState(), pending: makeTabState() };
+    setExhaustedMap({ live: false, pending: false });
+    setLoadingMoreMap({ live: false, pending: false });
+    setLiveList([]); setPendingList([]);
     await Promise.all(TAB_ORDER.map(loadTab));
     setLoading(false);
   }, [loadTab]);
 
   useEffect(() => { initialLoad(); }, [initialLoad]);
 
-  // Firebase realtime events
   useEffect(() => {
     const restaurantId = user?.restaurantId;
     if (!restaurantId) return;
     const eventsRef = ref(db, `${restaurantId}/events`);
     const skip = { current: true };
     const timer = setTimeout(() => { skip.current = false; }, 1500);
-    const unsub = onChildAdded(eventsRef, (snapshot) => {
+
+    const unsub = onChildAdded(eventsRef, async (snapshot) => {
       if (skip.current) return;
       const eventType = snapshot.val()?.data;
+
       if (eventType === 'ORDERPLACED') {
-        playSound('order_auto_sound');
+        const notificationsGranted = await isNotificationGranted();
+        if (!notificationsGranted) playSound('order_auto_sound');
         tabs.current.live = makeTabState();
         setExhaustedMap((p) => ({ ...p, live: false }));
         setLoadingMoreMap((p) => ({ ...p, live: false }));
@@ -849,23 +655,18 @@ const navigation = useNavigation();
         setExhaustedMap((p) => ({ ...p, live: false, pending: false }));
         setLoadingMoreMap((p) => ({ ...p, live: false, pending: false }));
         Promise.all([loadTab('live'), loadTab('pending')]);
-      } else if (eventType === 'ORDERDELIVERED') {
-        tabs.current.pending = makeTabState();
-        tabs.current.history = makeTabState();
-        setExhaustedMap((p) => ({ ...p, pending: false, history: false }));
-        setLoadingMoreMap((p) => ({ ...p, pending: false, history: false }));
-        Promise.all([loadTab('pending'), loadTab('history')]);
       }
     });
+
     return () => { clearTimeout(timer); unsub(); };
   }, [user?.restaurantId, loadTab]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    tabs.current = { live: makeTabState(), pending: makeTabState(), history: makeTabState() };
-    setExhaustedMap({ live: false, pending: false, history: false });
-    setLoadingMoreMap({ live: false, pending: false, history: false });
-    setLiveList([]); setPendingList([]); setHistoryList([]);
+    tabs.current = { live: makeTabState(), pending: makeTabState() };
+    setExhaustedMap({ live: false, pending: false });
+    setLoadingMoreMap({ live: false, pending: false });
+    setLiveList([]); setPendingList([]);
     await Promise.all(TAB_ORDER.map(loadTab));
     setRefreshing(false);
   }, [loadTab]);
@@ -874,90 +675,54 @@ const navigation = useNavigation();
     setSwipeEnabled(!active);
   }, []);
 
-  // Stable per-tab load-more handlers
   const endReachedHandlers = {
     live:    useCallback(() => { if (!tabs.current.live.exhausted    && !tabs.current.live.fetching)    loadMoreTab('live');    }, [loadMoreTab]),
     pending: useCallback(() => { if (!tabs.current.pending.exhausted && !tabs.current.pending.fetching) loadMoreTab('pending'); }, [loadMoreTab]),
-    history: useCallback(() => { if (!tabs.current.history.exhausted && !tabs.current.history.fetching) loadMoreTab('history'); }, [loadMoreTab]),
   };
-
-  const handleHistoryChipSelect = useCallback((chip) => {
-    const range     = chip === 'today' ? makeToday() : makeYesterday();
-    const newFilter = { activeChip: chip, ...range };
-    historyFilterRef.current = newFilter;
-    setHistoryFilter(newFilter);
-    tabs.current.history = makeTabState();
-    setExhaustedMap((p) => ({ ...p, history: false }));
-    setLoadingMoreMap((p) => ({ ...p, history: false }));
-    setHistoryList([]);
-    loadTab('history');
-  }, [loadTab]);
-
-  const handleHistoryCustomApply = useCallback((start, end) => {
-    const newFilter = { activeChip: 'custom', start, end };
-    historyFilterRef.current = newFilter;
-    setHistoryFilter(newFilter);
-    tabs.current.history = makeTabState();
-    setExhaustedMap((p) => ({ ...p, history: false }));
-    setLoadingMoreMap((p) => ({ ...p, history: false }));
-    setHistoryList([]);
-    loadTab('history');
-  }, [loadTab]);
 
   const handleAccepted = useCallback(async (id) => {
     const idx = tabs.current.live.data.findIndex((o) => o.id === id);
     if (idx === -1) return;
-
-    // Check BEFORE splicing — if this was the only live order, auto-go to Pending
     const wasLastLiveOrder = tabs.current.live.data.length === 1;
-
     const [order] = tabs.current.live.data.splice(idx, 1);
     tabs.current.pending.data.unshift({ ...order, AcceptOrder: true });
     flushTab('live'); flushTab('pending');
-
-    // Auto-switch to Pending tab after card animates out (~300ms card exit)
-    if (wasLastLiveOrder) {
-      setTimeout(() => setTabIndex(1), 320);
-    }
-
+    if (wasLastLiveOrder) setTimeout(() => setTabIndex(1), 320);
     try {
       await ordersAPI.acceptOrder({ OrderId: order.orderRef, Id: user?.restaurantId ?? '' });
     } catch {
       tabs.current.pending.data.shift();
       tabs.current.live.data.splice(idx, 0, order);
       flushTab('live'); flushTab('pending');
-      // Revert tab switch if API failed
       if (wasLastLiveOrder) setTabIndex(0);
     }
   }, [flushTab, user?.restaurantId]);
 
-  const handleDelivered = useCallback(async (id) => {
-    const idx = tabs.current.pending.data.findIndex((o) => o.id === id);
-    if (idx === -1) return;
-    const [order] = tabs.current.pending.data.splice(idx, 1);
-    playSound('accept');
-    tabs.current.history.data.unshift({ ...order, isDelivered: true });
-    flushTab('pending'); flushTab('history');
-    try {
-      await ordersAPI.deliverOrder({ OrderId: order.orderRef, Id: user?.restaurantId ?? '' });
-    } catch {
-      tabs.current.history.data.shift();
-      tabs.current.pending.data.splice(idx, 0, order);
-      flushTab('pending'); flushTab('history');
-    }
-  }, [flushTab, user?.restaurantId]);
+const handleDelivered = useCallback(async (id) => {
+  const idx = tabs.current.pending.data.findIndex((o) => o.id === id);
+  if (idx === -1) return;
+  const [order] = tabs.current.pending.data.splice(idx, 1);
+  
+  // Play sound immediately when button is clicked
+  playSound('accept'); // or use a different sound like 'delivered' if you have one
+  
+  flushTab('pending');
+  try {
+    await ordersAPI.deliverOrder({ OrderId: order.orderRef, Id: user?.restaurantId ?? '' });
+  } catch {
+    tabs.current.pending.data.splice(idx, 0, order);
+    flushTab('pending');
+  }
+}, [flushTab, user?.restaurantId]);
 
-  const counts     = { live: liveList.length, pending: pendingList.length, history: historyList.length };
-  const listForTab = { live: liveList, pending: pendingList, history: historyList };
-  const dateStr    = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  const counts    = { live: liveList.length, pending: pendingList.length };
+  const dateStr   = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
-  // ── renderScene: TabView calls this for each route ──
-  // useCallback with no deps — scene functions are stable, data passed as props
   const renderScene = useCallback(({ route }) => (
     <TabScene
       tabKey={route.key}
       loading={loading}
-      list={listForTab[route.key]}
+      list={route.key === 'live' ? liveList : pendingList}
       refreshing={refreshing}
       onRefresh={onRefresh}
       isLoadingMore={loadingMoreMap[route.key]}
@@ -966,20 +731,14 @@ const navigation = useNavigation();
       onAccepted={handleAccepted}
       onDelivered={handleDelivered}
       onSlideActiveChange={handleSlideActiveChange}
-      historyFilter={historyFilter}
-      onHistoryChipSelect={handleHistoryChipSelect}
-      onHistoryCustomApply={handleHistoryCustomApply}
     />
   ), [
-    loading, liveList, pendingList, historyList,
+    loading, liveList, pendingList,
     refreshing, loadingMoreMap, exhaustedMap,
-    historyFilter, onRefresh,
-    handleAccepted, handleDelivered, handleSlideActiveChange,
-    handleHistoryChipSelect, handleHistoryCustomApply,
-    endReachedHandlers,
+    onRefresh, handleAccepted, handleDelivered,
+    handleSlideActiveChange, endReachedHandlers,
   ]);
 
-  // ── renderTabBar: our fully custom pill tab bar ──
   const renderTabBar = useCallback((props) => (
     <View style={s.tabSection}>
       <CustomTabBar {...props} counts={counts} />
@@ -988,17 +747,16 @@ const navigation = useNavigation();
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <StatusBar backgroundColor={PAGE_BG} barStyle="dark-content" translucent={false} />
+      <StatusBar backgroundColor="#FFFFFF" barStyle="dark-content" translucent={false} />
       <View style={[s.root, { paddingTop: insets.top }]}>
 
-        {/* ── Header ── */}
         <View style={s.header}>
           <View>
             <Text style={s.title}>Hello, {restaurantName ?? 'Restaurant'} 👋</Text>
             <Text style={s.date}>{dateStr}</Text>
           </View>
           <View style={s.headerRight}>
-            <HapticTouchable activeOpacity={0.8} style={s.logoWrap}  onPress={() => navigation.navigate('Settings')}>
+            <HapticTouchable activeOpacity={0.8} style={s.logoWrap} onPress={() => navigation.navigate('Settings')}>
               {restaurantLogo && !logoError ? (
                 <Image source={{ uri: restaurantLogo }} style={s.restaurantLogo} resizeMode="cover" onError={() => setLogoError(true)} />
               ) : (
@@ -1010,14 +768,6 @@ const navigation = useNavigation();
           </View>
         </View>
 
-        {/*
-          TabView:
-          - Uses react-native-pager-view as backend → 100% native thread
-          - renderTabBar → our custom animated pill bar
-          - lazy → true: each tab mounts only when first visited (same as our
-            previous visitedTabs logic, but handled by the library itself)
-          - swipeEnabled controlled by SlideToAccept drag state
-        */}
         <TabView
           navigationState={{ index: tabIndex, routes: ROUTES }}
           renderScene={renderScene}
@@ -1036,15 +786,15 @@ const navigation = useNavigation();
 }
 
 const s = StyleSheet.create({
-  root:            { flex: 1, backgroundColor: '#F4F5F7' },
-  header:          { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingHorizontal: rs(20), paddingTop: rs(14), paddingBottom: rs(12), backgroundColor: PAGE_BG },
+  root:            { flex: 1, backgroundColor: '#fff' },
+  header:          { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingHorizontal: rs(20), paddingTop: rs(14), paddingBottom: rs(12), backgroundColor: '#fff' },
   headerRight:     { flexDirection: 'row', alignItems: 'center', gap: rs(10), marginTop: rs(2) },
   logoWrap:        { borderRadius: rs(10), overflow: 'hidden' },
   restaurantLogo:  { width: rs(38), height: rs(38), borderRadius: rs(10), backgroundColor: '#F0F0F0' },
   logoPlaceholder: { width: rs(38), height: rs(38), borderRadius: rs(10), backgroundColor: '#F0F0F0', alignItems: 'center', justifyContent: 'center' },
   title:           { fontSize: nz(22), fontWeight: '800', color: '#0D0D0D', letterSpacing: -0.5 },
   date:            { fontSize: nz(12), color: '#363535', marginTop: rs(2) },
-  tabSection:      { backgroundColor: PAGE_BG, paddingTop: rs(2), paddingBottom: rs(14) },
+  tabSection:      { backgroundColor: '#fff', paddingTop: rs(2), paddingBottom: rs(14) },
   listContent:     { paddingHorizontal: rs(14), paddingTop: rs(6) },
   loadingMore:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: rs(16), gap: rs(8) },
   loadingMoreText: { fontSize: nz(13), color: '#AAAAAA' },

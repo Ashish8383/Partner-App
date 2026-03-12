@@ -14,15 +14,14 @@ import OfflineScreen from './src/screens/NoInternetScreen';
 export default function App() {
   const loadPersistedState = useStore((state) => state.loadPersistedState);
   const [inAppNotif, setInAppNotif] = useState(null);
-  const [isOnline,   setIsOnline]   = useState(null); // null = first check pending
+  const [isOnline,   setIsOnline]   = useState(null); 
 
   useEffect(() => {
     loadPersistedState();
     loadSound('accept', require('./assets/slide.mp3'));
-    loadSound('order_auto_sound', require('./assets/notification.wav'));
+    loadSound('order_auto_sound', require('./assets/notification.mp3'));
   }, []);
 
-  // ── Ping check — called on mount + foreground + retry button ─────────────
   const checkConnection = async () => {
     try {
       const res = await fetch('https://www.google.com/generate_204', {
@@ -36,10 +35,7 @@ export default function App() {
   };
 
   useEffect(() => {
-    // Check immediately on mount
     checkConnection();
-
-    // Re-check when user returns to foreground
     const appStateSub = AppState.addEventListener('change', (state) => {
       if (state === 'active') checkConnection();
     });
@@ -67,7 +63,6 @@ export default function App() {
       await playCustomSound();
       setInAppNotif({ title: title ?? '', body: body ?? '' });
     });
-
     return () => foregroundSub.remove();
   }, []);
 
@@ -76,11 +71,7 @@ export default function App() {
       <SafeAreaProvider>
         <View style={{ flex: 1 }}>
           <StatusBar backgroundColor={COLORS.primary} barStyle="light-content" />
-
-          {/* Navigator always mounted — check connection on every screen change */}
           <AppNavigator onStateChange={checkConnection} />
-
-          {/* Offline overlay — sits on top when no connection */}
           {isOnline === false && (
             <OfflineScreen onRetry={checkConnection} />
           )}
