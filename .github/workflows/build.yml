@@ -1,4 +1,4 @@
-name: Build Android APK + AAB
+name: Expo Build (Android + iOS)
 
 on:
   push:
@@ -10,56 +10,34 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout Repo
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Setup Java JDK
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+          node-version: 20
+          cache: npm
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Expo CLI
-        run: npm install -g expo-cli @expo/cli
+      - name: Install EAS CLI
+        run: npm install -g eas-cli
 
-      - name: Expo Prebuild
-        run: npx expo prebuild --platform android --clean
+      - name: Expo Login
+        run: eas whoami
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Enable Gradle Optimizations
-        run: |
-          echo "org.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8" >> android/gradle.properties
-          echo "android.useAndroidX=true" >> android/gradle.properties
-          echo "android.enableR8=true" >> android/gradle.properties
-          echo "android.enableDexingArtifactTransform=false" >> android/gradle.properties
+      # Preview builds
+      - name: Build Preview (Android + iOS)
+        run: eas build -p all --profile preview --non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Build Release APK + AAB
-        run: |
-          cd android
-          chmod +x gradlew
-          ./gradlew assembleRelease bundleRelease --no-daemon
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-release-apk
-          path: android/app/build/outputs/apk/release/app-release.apk
-
-      - name: Upload AAB
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-release-aab
-          path: android/app/build/outputs/bundle/release/app-release.aab
+      # Production builds
+      - name: Build Production (Android + iOS)
+        run: eas build -p all --profile production --non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
