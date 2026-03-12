@@ -38,6 +38,7 @@ jobs:
         run: npx expo prebuild --platform android --clean
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          
 
       - name: Enable Gradle Optimizations
         run: |
