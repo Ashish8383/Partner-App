@@ -4,56 +4,52 @@
     "slug": "alfennzo-partner",
     "version": "1.0.0",
     "orientation": "portrait",
+    "scheme": "alfennzo",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "scheme": "alfennzo",
-    "assetBundlePatterns": [
-      "assets/**/*"
-    ],
+
+    "assetBundlePatterns": ["assets/**/*"],
+
     "newArchEnabled": true,
+
     "updates": {
       "enabled": true,
       "checkAutomatically": "ON_LOAD",
       "fallbackToCacheTimeout": 0
     },
+
     "runtimeVersion": {
       "policy": "appVersion"
     },
+
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#FFFFFF"
     },
+
     "ios": {
-      "supportsTablet": true,
       "bundleIdentifier": "com.alfennzo.partner.dev.sandbox_partner",
-      "buildNumber": "1",
+      "supportsTablet": true,
       "jsEngine": "hermes",
       "infoPlist": {
-        "UIBackgroundModes": [
-          "remote-notification",
-          "remote-notification"
-        ],
+        "UIBackgroundModes": ["remote-notification"],
         "ITSAppUsesNonExemptEncryption": false
       },
-      "googleServicesFile": "./GoogleService-Info.plist",
-      "splash": {
-        "image": "./assets/splash-icon.png",
-        "resizeMode": "contain",
-        "backgroundColor": "#FFFFFF",
-        "tabletImage": "./assets/splash-icon.png"
-      }
+      "googleServicesFile": "./GoogleService-Info.plist"
     },
+
     "android": {
       "package": "com.alfennzo.partner.dev.sandbox_partner",
       "versionCode": 1,
       "jsEngine": "hermes",
       "edgeToEdgeEnabled": true,
-      "softwareKeyboardLayoutMode": "resize",
+
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FF8C42"
       },
+
       "permissions": [
         "INTERNET",
         "RECEIVE_BOOT_COMPLETED",
@@ -61,21 +57,10 @@
         "WAKE_LOCK",
         "com.google.android.c2dm.permission.RECEIVE"
       ],
-      "googleServicesFile": "./google-services.json",
-      "splash": {
-        "image": "./assets/splash-icon.png",
-        "resizeMode": "contain",
-        "backgroundColor": "#FFFFFF"
-      }
+
+      "googleServicesFile": "./google-services.json"
     },
-    "web": {
-      "favicon": "./assets/favicon.png",
-      "config": {
-        "notification": {
-          "vapidPublicKey": "BMatJJCXZzF7wkxqn4zzdWuRqYH1-dYw8nVUNNKKD09Cdm1db4owTnlJA9vYyOvXjsZ_gOH_iOiQijL2DWEP1vQ"
-        }
-      }
-    },
+
     "plugins": [
       [
         "expo-notifications",
@@ -83,9 +68,7 @@
           "icon": "./assets/adaptive-icon.png",
           "color": "#FF8C42",
           "mode": "production",
-          "sounds": [
-            "./assets/notification.mp3"
-          ]
+          "sounds": ["./assets/notification.mp3"]
         }
       ],
       [
@@ -97,11 +80,6 @@
         }
       ],
       "@react-native-community/datetimepicker"
-    ],
-    "extra": {
-      "eas": {
-        "projectId": "d788a5f1-2db0-430f-88ce-bad30521bc19"
-      }
-    }
+    ]
   }
 }

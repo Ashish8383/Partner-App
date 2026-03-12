@@ -13,13 +13,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # ✅ FIXED NODE VERSION
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'npm'
 
-      - name: Setup Java JDK 17
+      - name: Setup Java JDK
         uses: actions/setup-java@v4
         with:
           java-version: '17'
@@ -29,7 +30,7 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Install Expo CLI
         run: npm install -g expo-cli @expo/cli
@@ -39,27 +40,21 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
-      # ── Build both APK and AAB in one Gradle command ──────────────────────
+      # ✅ BUILD
       - name: Build APK + AAB
         run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleRelease bundleRelease --no-daemon
-        env:
-          ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
 
-      # ── Upload APK ────────────────────────────────────────────────────────
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: app-release-apk
           path: android/app/build/outputs/apk/release/app-release.apk
-          retention-days: 7
 
-      # ── Upload AAB (for Google Play Store) ────────────────────────────────
       - name: Upload AAB
         uses: actions/upload-artifact@v4
         with:
           name: app-release-aab
           path: android/app/build/outputs/bundle/release/app-release.aab
-          retention-days: 7
