@@ -19,6 +19,7 @@ const rs = (s) => Math.round(s * Math.min(scale, 1.3));
 const GREEN = '#03954E';
 const CREAM = '#FAFAF5';
 
+// ─── Routes: 2 tabs (Active / Disabled) ──────────────────────────────────────
 const ROUTES = [
   { key: 'active',   title: 'Active Listings'  },
   { key: 'disabled', title: 'Disable Listings' },
@@ -44,6 +45,7 @@ const EMOJI_MAP = {
 };
 const getEmoji = (name = '') => EMOJI_MAP[name.toLowerCase()] ?? '🍽️';
 
+// ─── APIs ─────────────────────────────────────────────────────────────────────
 const menuAPI = {
   getAllMenu:   (Id)   => api.get('/menu/getAllMenu', { params: { Id } }),
   liveStatus:  (data) => api.post('/menu/liveStatus', data),
@@ -51,7 +53,9 @@ const menuAPI = {
   comboToggle: (data) => api.post('/menu/ComboOff', data),
 };
 
+// ─── Normalise menu ───────────────────────────────────────────────────────────
 const normaliseMenu = (menuCategories = []) => {
+  // "Combo" pill sits right after "All" in the scroll
   const categories = [
     { id: '__all__',    label: 'All',   emoji: '🍽️', categoryId: null },
     { id: COMBO_CAT_ID, label: 'Combo', emoji: '🍱', categoryId: null },
@@ -85,8 +89,10 @@ const normaliseMenu = (menuCategories = []) => {
   return { categories, products };
 };
 
+// ─── Normalise combos → exact same shape as products ─────────────────────────
 const normaliseCombo = (raw = []) =>
   raw.map((c) => {
+    // Support discount fields on combos if present in API response
     const discountPct = c.discountinPercentageByRestraurant ?? 0;
     const discountedPrice =
       c.isDiscountedByRestraurant && discountPct > 0
@@ -111,6 +117,7 @@ const normaliseCombo = (raw = []) =>
     };
   });
 
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
 const SkeletonBox = ({ style }) => {
   const anim = useRef(new Animated.Value(0.4)).current;
   useEffect(() => {
@@ -141,6 +148,7 @@ const sk = StyleSheet.create({
   btn:   { height: rs(36), borderRadius: rs(18) },
 });
 
+// ─── Category Pill ────────────────────────────────────────────────────────────
 const CategoryPill = React.memo(({ item, isActive, onPress }) => (
   <HapticTouchable onPress={onPress} activeOpacity={0.78} style={[cp.pill, isActive && cp.pillActive]}>
     <View style={[cp.emojiWrap, isActive && cp.emojiWrapActive]}>
@@ -158,6 +166,10 @@ const cp = StyleSheet.create({
   label:           { fontSize: nz(13), fontWeight: '600', color: '#555555', maxWidth: rs(80) },
   labelActive:     { color: GREEN, fontWeight: '700' },
 });
+
+// ─── Toggle Switch ────────────────────────────────────────────────────────────
+// Classic iOS-style switch — bigger, centered, clean look.
+// Card-width centered row: "Off" label ── [track] ── "Live" label
 
 const T_TRACK_W   = rs(58);
 const T_TRACK_H   = rs(32);
@@ -473,7 +485,7 @@ const pc = StyleSheet.create({
   priceFull:       { fontSize: nz(11), color: '#AAAAAA', textDecorationLine: 'line-through' },
   priceDiscounted: { fontSize: nz(12), fontWeight: '700', color: GREEN },
   priceDisabled:   { color: '#BBBBBB' },
-  viewItemsBtn:    { flexDirection: 'row', alignItems: 'center', backgroundColor: '#EAF5EE', borderRadius: rs(8), paddingHorizontal: rs(8), paddingVertical: rs(5), marginBottom: rs(7), alignSelf: 'center', borderWidth: rs(1), borderColor: '#C5E0C5',width:'100%' },
+  viewItemsBtn:    { flexDirection: 'row', alignItems: 'center', backgroundColor: '#EAF5EE', borderRadius: rs(8), paddingHorizontal: rs(8), paddingVertical: rs(5), marginBottom: rs(7), alignSelf: 'center', borderWidth: rs(1), borderColor: '#C5E0C5' },
   viewItemsTxt:    { fontSize: nz(11), fontWeight: '700', color: GREEN },
   disabledBadge:   { flexDirection: 'row', alignItems: 'center', alignSelf: 'center', marginTop: rs(10), backgroundColor: '#F5F5F5', borderRadius: rs(20), paddingHorizontal: rs(10), paddingVertical: rs(5), gap: rs(5), borderWidth: rs(1), borderColor: '#E0E0E0' },
   disabledDot:     { width: rs(6), height: rs(6), borderRadius: rs(3), backgroundColor: '#BBBBBB' },
@@ -676,7 +688,10 @@ export default function YourListingScreen() {
     ? combos
     : products.filter((p) => activeCatId === '__all__' || p.catRowId === activeCatId);
 
-  const filteredList = baseList.filter((p) => !q || p.name.toLowerCase().includes(q));
+  // comboOnly items are only sold as part of a combo — never shown standalone
+  const filteredList = baseList.filter((p) =>
+    !p.comboOnly && (!q || p.name.toLowerCase().includes(q))
+  );
   const isLoading    = isComboFilter ? comboLoading : loading;
 
   const activeLists = {

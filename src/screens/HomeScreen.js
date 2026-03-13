@@ -18,19 +18,19 @@ import { db } from '../utils/firebaseConfig';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { AppState } from 'react-native';
 
-const GREEN   = '#03954E';
-const LIMIT   = 30;
+const GREEN = '#03954E';
+const LIMIT = 30;
 const { width: SW } = Dimensions.get('window');
 const TAB_ORDER = ['live', 'pending'];
 
 const TAB_CONFIG = {
-  live:    { fetcher: (p, id, extra) => ordersAPI.getLiveOrders(p, id, extra) },
+  live: { fetcher: (p, id, extra) => ordersAPI.getLiveOrders(p, id, extra) },
   pending: { fetcher: (p, id, extra) => ordersAPI.getPendingOrders(p, id, extra) },
 };
 
 const ROUTES = [
-  { key: 'live',    title: 'Live',    icon: 'circle' },
-  { key: 'pending', title: 'Pending', icon: 'clock'  },
+  { key: 'live', title: 'Live', icon: 'circle' },
+  { key: 'pending', title: 'Pending', icon: 'clock' },
 ];
 
 const isNotificationGranted = async () => {
@@ -49,7 +49,7 @@ const SkeletonPulse = ({ style }) => {
   useEffect(() => {
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(anim, { toValue: 1,   duration: 750, useNativeDriver: true }),
+        Animated.timing(anim, { toValue: 1, duration: 750, useNativeDriver: true }),
         Animated.timing(anim, { toValue: 0.4, duration: 750, useNativeDriver: true }),
       ])
     );
@@ -80,25 +80,25 @@ const SkeletonCard = () => (
 );
 
 const sk = StyleSheet.create({
-  base:        { backgroundColor: '#E8E8E8', borderRadius: rs(6) },
-  card:        { backgroundColor: '#fff', borderRadius: rs(16), padding: rs(16), marginBottom: rs(14), borderWidth: 1, borderColor: '#F0F0F0' },
-  topRow:      { flexDirection: 'row', alignItems: 'flex-start' },
-  avatar:      { width: rs(42), height: rs(42), borderRadius: rs(21), marginRight: rs(10) },
-  nameBlock:   { flex: 1, gap: rs(7) },
-  line1:       { height: rs(14), width: '72%' },
-  line2:       { height: rs(11), width: '52%' },
-  line3:       { height: rs(11), width: '40%' },
-  badge:       { width: rs(72), height: rs(62), borderRadius: rs(10), marginLeft: rs(8) },
-  divider:     { height: rs(1), marginVertical: rs(12) },
-  itemLine:    { height: rs(12), width: '80%' },
+  base: { backgroundColor: '#E8E8E8', borderRadius: rs(6) },
+  card: { backgroundColor: '#fff', borderRadius: rs(16), padding: rs(16), marginBottom: rs(14), borderWidth: 1, borderColor: '#F0F0F0' },
+  topRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  avatar: { width: rs(42), height: rs(42), borderRadius: rs(21), marginRight: rs(10) },
+  nameBlock: { flex: 1, gap: rs(7) },
+  line1: { height: rs(14), width: '72%' },
+  line2: { height: rs(11), width: '52%' },
+  line3: { height: rs(11), width: '40%' },
+  badge: { width: rs(72), height: rs(62), borderRadius: rs(10), marginLeft: rs(8) },
+  divider: { height: rs(1), marginVertical: rs(12) },
+  itemLine: { height: rs(12), width: '80%' },
   btnSkeleton: { height: rs(50), borderRadius: rs(26), marginTop: rs(16) },
 });
 
 // ─── Tab Bar ─────────────────────────────────────────────────────────────────
 
 const TAB_BAR_INNER_W = SW - rs(40) - rs(8);
-const TAB_W           = TAB_BAR_INNER_W / 2;
-const PILL_POSITIONS  = [0, TAB_W];
+const TAB_W = TAB_BAR_INNER_W / 2;
+const PILL_POSITIONS = [0, TAB_W];
 
 // ─── Ripple Alert Dot ─────────────────────────────────────────────────────────
 // Two expanding rings that fade out behind a solid centre dot — "water ripple" effect.
@@ -115,13 +115,13 @@ const RippleDot = React.memo(({ color }) => {
         // Ring 1
         Animated.sequence([
           Animated.timing(ring1, { toValue: 1, duration: 1200, useNativeDriver: true }),
-          Animated.timing(ring1, { toValue: 0, duration: 0,    useNativeDriver: true }),
+          Animated.timing(ring1, { toValue: 0, duration: 0, useNativeDriver: true }),
         ]),
         // Ring 2 — delayed
         Animated.sequence([
           Animated.delay(400),
           Animated.timing(ring2, { toValue: 1, duration: 1200, useNativeDriver: true }),
-          Animated.timing(ring2, { toValue: 0, duration: 0,    useNativeDriver: true }),
+          Animated.timing(ring2, { toValue: 0, duration: 0, useNativeDriver: true }),
         ]),
       ])
     );
@@ -129,17 +129,17 @@ const RippleDot = React.memo(({ color }) => {
     return () => anim.stop();
   }, [ring1, ring2]);
 
-  const DOT_SIZE  = rs(9);
-  const RING_MAX  = rs(22);   // how far rings expand
+  const DOT_SIZE = rs(9);
+  const RING_MAX = rs(22);   // how far rings expand
 
   const makeRingStyle = (anim) => ({
-    position:     'absolute',
-    width:        DOT_SIZE,
-    height:       DOT_SIZE,
+    position: 'absolute',
+    width: DOT_SIZE,
+    height: DOT_SIZE,
     borderRadius: DOT_SIZE / 2,
-    borderWidth:  rs(1.5),
-    borderColor:  color,
-    opacity:      anim.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, 0.6, 0] }),
+    borderWidth: rs(1.5),
+    borderColor: color,
+    opacity: anim.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, 0.6, 0] }),
     transform: [{
       scale: anim.interpolate({ inputRange: [0, 1], outputRange: [1, RING_MAX / DOT_SIZE] }),
     }],
@@ -159,14 +159,14 @@ const RippleDot = React.memo(({ color }) => {
 
 const CustomTabBar = React.memo(({ position, jumpTo, counts, blinkAnim }) => {
   const pillX = position.interpolate({
-    inputRange:  [0, 1],
+    inputRange: [0, 1],
     outputRange: PILL_POSITIONS,
     extrapolate: 'clamp',
   });
 
   const activeOpacities = ROUTES.map((_, i) =>
     position.interpolate({
-      inputRange:  [i - 1, i, i + 1],
+      inputRange: [i - 1, i, i + 1],
       outputRange: [0, 1, 0],
       extrapolate: 'clamp',
     })
@@ -179,12 +179,12 @@ const CustomTabBar = React.memo(({ position, jumpTo, counts, blinkAnim }) => {
         style={[tb.pill, { width: TAB_W, transform: [{ translateX: pillX }] }]}
       />
       {ROUTES.map((route, i) => {
-        const count      = counts[route.key] ?? 0;
-        const label      = `${route.title}${count > 0 ? ` (${count})` : ''}`;
-        const activeOp   = activeOpacities[i];
+        const count = counts[route.key] ?? 0;
+        const label = `${route.title}${count > 0 ? ` (${count})` : ''}`;
+        const activeOp = activeOpacities[i];
         const inactiveOp = activeOp.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
-        const isLive     = route.key === 'live';
-        const hasAlert   = isLive && count > 0;
+        const isLive = route.key === 'live';
+        const hasAlert = isLive && count > 0;
 
         return (
           <HapticTouchable
@@ -221,17 +221,17 @@ const CustomTabBar = React.memo(({ position, jumpTo, counts, blinkAnim }) => {
 });
 
 const tb = StyleSheet.create({
-  wrapper:      { flexDirection: 'row', backgroundColor: '#EBEBEB', borderRadius: rs(50), padding: rs(4), marginHorizontal: rs(20), position: 'relative', alignItems: 'center' },
-  pill:         { position: 'absolute', top: rs(4), bottom: rs(4), left: rs(4), borderRadius: rs(50), backgroundColor: GREEN, elevation: 6, shadowColor: GREEN, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 8 },
-  tab:          { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: rs(10), zIndex: 1 },
-  inner:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-  row:          { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-  rowAbsolute:  { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 },
-  dot:          { width: rs(7), height: rs(7), borderRadius: rs(4), marginRight: rs(5) },
-  icon:         { marginRight: rs(4) },
-  label:        { fontSize: nz(13), fontWeight: '700' },
-  labelActive:  { color: '#fff' },
-  labelInactive:{ color: '#1A1A1A' },
+  wrapper: { flexDirection: 'row', backgroundColor: '#EBEBEB', borderRadius: rs(50), padding: rs(4), marginHorizontal: rs(20), position: 'relative', alignItems: 'center' },
+  pill: { position: 'absolute', top: rs(4), bottom: rs(4), left: rs(4), borderRadius: rs(50), backgroundColor: GREEN, elevation: 6, shadowColor: GREEN, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 8 },
+  tab: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: rs(10), zIndex: 1 },
+  inner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  rowAbsolute: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 },
+  dot: { width: rs(7), height: rs(7), borderRadius: rs(4), marginRight: rs(5) },
+  icon: { marginRight: rs(4) },
+  label: { fontSize: nz(13), fontWeight: '700' },
+  labelActive: { color: '#fff' },
+  labelInactive: { color: '#1A1A1A' },
 });
 
 // ─── Slide To Accept ─────────────────────────────────────────────────────────
@@ -242,40 +242,40 @@ const tb = StyleSheet.create({
 //  • Reset delay reduced from 750ms → 500ms
 
 const SlideToAccept = React.memo(({ onAccepted, onSlideActiveChange }) => {
-  const THUMB_W   = rs(52);
-  const TRACK_W   = SW - rs(56);
+  const THUMB_W = rs(52);
+  const TRACK_W = SW - rs(56);
   const MAX_SLIDE = TRACK_W - THUMB_W - rs(6);
 
-  const slideX    = useRef(new Animated.Value(0)).current;
+  const slideX = useRef(new Animated.Value(0)).current;
   const completed = useRef(false);
 
   // Pre-compute all interpolations once
   const fillTranslateX = useRef(slideX.interpolate({
-    inputRange:  [0, MAX_SLIDE],
+    inputRange: [0, MAX_SLIDE],
     outputRange: [-TRACK_W, -THUMB_W * 0.4],
     extrapolate: 'clamp',
   })).current;
 
   const thumbScale = useRef(slideX.interpolate({
-    inputRange:  [0, MAX_SLIDE * 0.5, MAX_SLIDE],
+    inputRange: [0, MAX_SLIDE * 0.5, MAX_SLIDE],
     outputRange: [1, 1.05, 1.1],
     extrapolate: 'clamp',
   })).current;
 
   const arrowOpacity = useRef(slideX.interpolate({
-    inputRange:  [MAX_SLIDE * 0.5, MAX_SLIDE * 0.8],
+    inputRange: [MAX_SLIDE * 0.5, MAX_SLIDE * 0.8],
     outputRange: [1, 0],
     extrapolate: 'clamp',
   })).current;
 
   const checkOpacity = useRef(slideX.interpolate({
-    inputRange:  [MAX_SLIDE * 0.65, MAX_SLIDE],
+    inputRange: [MAX_SLIDE * 0.65, MAX_SLIDE],
     outputRange: [0, 1],
     extrapolate: 'clamp',
   })).current;
 
   const labelOpacity = useRef(slideX.interpolate({
-    inputRange:  [0, MAX_SLIDE * 0.2],
+    inputRange: [0, MAX_SLIDE * 0.2],
     outputRange: [1, 0],
     extrapolate: 'clamp',
   })).current;
@@ -313,7 +313,7 @@ const SlideToAccept = React.memo(({ onAccepted, onSlideActiveChange }) => {
     })
     .onEnd((e) => {
       if (completed.current) return;
-      const progress  = Math.max(0, e.translationX) / MAX_SLIDE;
+      const progress = Math.max(0, e.translationX) / MAX_SLIDE;
       const fastFlick = e.velocityX > 250;   // was 300, lower = easier trigger
       if (progress > 0.35 || fastFlick) {    // was 0.40, lower = faster accept
         completed.current = true;
@@ -369,11 +369,11 @@ const SlideToAccept = React.memo(({ onAccepted, onSlideActiveChange }) => {
 
 const sv = StyleSheet.create({
   container: { marginTop: rs(16), alignItems: 'center' },
-  track:     { height: rs(58), borderRadius: rs(29), backgroundColor: 'rgba(3,149,78,0.08)', justifyContent: 'center', overflow: 'hidden', alignSelf: 'center', borderWidth: rs(1.5), borderColor: GREEN },
-  fill:      { position: 'absolute', left: 0, top: 0, bottom: 0, backgroundColor: GREEN },
-  label:     { position: 'absolute', left: 0, right: 0, textAlign: 'center', color: GREEN, fontSize: nz(14), fontWeight: '700', letterSpacing: 0.4 },
-  thumb:     { width: rs(52), height: rs(52), borderRadius: rs(26), backgroundColor: '#F5C518', position: 'absolute', left: rs(3), elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.22, shadowRadius: 6, zIndex: 10 },
-  center:    { justifyContent: 'center', alignItems: 'center' },
+  track: { height: rs(58), borderRadius: rs(29), backgroundColor: 'rgba(3,149,78,0.08)', justifyContent: 'center', overflow: 'hidden', alignSelf: 'center', borderWidth: rs(1.5), borderColor: GREEN },
+  fill: { position: 'absolute', left: 0, top: 0, bottom: 0, backgroundColor: GREEN },
+  label: { position: 'absolute', left: 0, right: 0, textAlign: 'center', color: GREEN, fontSize: nz(14), fontWeight: '700', letterSpacing: 0.4 },
+  thumb: { width: rs(52), height: rs(52), borderRadius: rs(26), backgroundColor: '#F5C518', position: 'absolute', left: rs(3), elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.22, shadowRadius: 6, zIndex: 10 },
+  center: { justifyContent: 'center', alignItems: 'center' },
 });
 
 // ─── Order Card ───────────────────────────────────────────────────────────────
@@ -384,11 +384,11 @@ const sv = StyleSheet.create({
 //  • Deliver button uses same fast animateOut
 
 const OrderCard = React.memo(({ item, tab, onAccepted, onDelivered, onSlideActiveChange }) => {
-  const opacity       = useRef(new Animated.Value(1)).current;
-  const translateX    = useRef(new Animated.Value(0)).current;
-  const flashOpacity  = useRef(new Animated.Value(0)).current;
-  const maxHeight     = useRef(new Animated.Value(1200)).current;
-  const marginBottom  = useRef(new Animated.Value(rs(14))).current;
+  const opacity = useRef(new Animated.Value(1)).current;
+  const translateX = useRef(new Animated.Value(0)).current;
+  const flashOpacity = useRef(new Animated.Value(0)).current;
+  const maxHeight = useRef(new Animated.Value(1200)).current;
+  const marginBottom = useRef(new Animated.Value(rs(14))).current;
   const entranceScale = useRef(new Animated.Value(0.95)).current;
 
   useEffect(() => {
@@ -404,19 +404,19 @@ const OrderCard = React.memo(({ item, tab, onAccepted, onDelivered, onSlideActiv
 
     // Immediately start fly-out + fade (no sequence delay)
     Animated.parallel([
-      Animated.timing(flashOpacity, { toValue: 0,         duration: 160, delay: 80,  useNativeDriver: true }),
-      Animated.timing(opacity,      { toValue: 0,         duration: 180, useNativeDriver: true }),
-      Animated.timing(translateX,   { toValue: SW * 0.5,  duration: 200, useNativeDriver: true }),
+      Animated.timing(flashOpacity, { toValue: 0, duration: 160, delay: 80, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 0, duration: 180, useNativeDriver: true }),
+      Animated.timing(translateX, { toValue: SW * 0.5, duration: 200, useNativeDriver: true }),
     ]).start(() => {
       // Collapse height immediately after card vanishes
       Animated.parallel([
-        Animated.timing(maxHeight,    { toValue: 0, duration: 160, useNativeDriver: false }),
+        Animated.timing(maxHeight, { toValue: 0, duration: 160, useNativeDriver: false }),
         Animated.timing(marginBottom, { toValue: 0, duration: 160, useNativeDriver: false }),
       ]).start(() => callback());
     });
   }, [flashOpacity, opacity, translateX, maxHeight, marginBottom]);
 
-  const handleAccept  = useCallback(() => animateOut(() => onAccepted(item.id)),  [animateOut, onAccepted, item.id]);
+  const handleAccept = useCallback(() => animateOut(() => onAccepted(item.id)), [animateOut, onAccepted, item.id]);
   const handleDeliver = useCallback(() => animateOut(() => onDelivered(item.id)), [animateOut, onDelivered, item.id]);
 
   return (
@@ -438,7 +438,7 @@ const OrderCard = React.memo(({ item, tab, onAccepted, onDelivered, onSlideActiv
             <View style={oc.nameBlock}>
               <Text style={oc.name} numberOfLines={2}>{item.customerName}</Text>
               <View style={oc.metaRow}>
-                <Feather name="clock"    size={nz(11)} color="#999" />
+                <Feather name="clock" size={nz(11)} color="#999" />
                 <Text style={oc.meta} numberOfLines={1}> Received at {item.receivedAt}</Text>
               </View>
               <View style={oc.metaRow}>
@@ -501,33 +501,33 @@ const OrderCard = React.memo(({ item, tab, onAccepted, onDelivered, onSlideActiv
 }, (prev, next) => prev.item.id === next.item.id && prev.tab === next.tab);
 
 const oc = StyleSheet.create({
-  wrap:         { backgroundColor: '#01690509', borderRadius: rs(16), marginBottom: rs(14), padding: rs(16), borderWidth: rs(1), borderColor: '#14131336' },
-  topRow:       { flexDirection: 'row', alignItems: 'flex-start' },
-  avatar:       { width: rs(42), height: rs(42), borderRadius: rs(21), backgroundColor: '#F0F0F0', justifyContent: 'center', alignItems: 'center', marginRight: rs(10), flexShrink: 0 },
-  initials:     { fontSize: nz(14), fontWeight: '700', color: '#555' },
-  nameBlock:    { flex: 1, flexShrink: 1, marginRight: rs(8) },
-  name:         { fontSize: nz(15), fontWeight: '700', color: '#1A1A1A', marginBottom: rs(4) },
-  metaRow:      { flexDirection: 'row', alignItems: 'center', marginBottom: rs(3), flexShrink: 1 },
-  meta:         { fontSize: nz(12), color: '#666', flexShrink: 1 },
+  wrap: { backgroundColor: '#01690509', borderRadius: rs(16), marginBottom: rs(14), padding: rs(16), borderWidth: rs(1), borderColor: '#14131336' },
+  topRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  avatar: { width: rs(42), height: rs(42), borderRadius: rs(21), backgroundColor: '#F0F0F0', justifyContent: 'center', alignItems: 'center', marginRight: rs(10), flexShrink: 0 },
+  initials: { fontSize: nz(14), fontWeight: '700', color: '#555' },
+  nameBlock: { flex: 1, flexShrink: 1, marginRight: rs(8) },
+  name: { fontSize: nz(15), fontWeight: '700', color: '#1A1A1A', marginBottom: rs(4) },
+  metaRow: { flexDirection: 'row', alignItems: 'center', marginBottom: rs(3), flexShrink: 1 },
+  meta: { fontSize: nz(12), color: '#666', flexShrink: 1 },
   // Seat badge: fixed width so it never pushes nameBlock, label wraps, code auto-fits
-  seatBadge:    { borderWidth: rs(1), borderColor: GREEN, backgroundColor: 'rgba(245,197,24,0.2)', borderRadius: rs(10), paddingHorizontal: rs(10), paddingVertical: rs(8), alignItems: 'center', width: rs(100), flexShrink: 0, alignSelf: 'flex-start' },
-  seatLabel:    { fontSize: nz(10), fontWeight: '600', color: '#1A1A1A', marginBottom: rs(3), textAlign: 'center', width: '100%' },
-  seatCode:     { fontSize: nz(24), fontWeight: '900', color: '#1A1A1A', letterSpacing: 0.5, width: '100%', textAlign: 'center' },
-  divider:      { height: 1, backgroundColor: '#F2F2F2', marginVertical: rs(12) },
-  dashed:       { borderBottomWidth: 1, borderStyle: 'dashed', borderColor: '#CCCCCC', marginBottom: rs(10) },
-  itemsHeader:  { flexDirection: 'row', alignItems: 'center', marginBottom: rs(10) },
-  greenSquare:  { width: rs(14), height: rs(14), borderRadius: rs(3), backgroundColor: GREEN, marginRight: rs(8) },
-  itemsTitle:   { fontSize: nz(14), fontWeight: '700', color: '#1A1A1A' },
-  itemRow:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: rs(8) },
-  itemName:     { fontSize: nz(13), color: '#444', flex: 1 },
-  itemPrice:    { fontSize: nz(13), color: '#1A1A1A', fontWeight: '600' },
-  totalLabel:   { fontSize: nz(14), fontWeight: '700', color: '#1A1A1A' },
-  totalPrice:   { fontSize: nz(14), fontWeight: '800', color: '#1A1A1A' },
-  orderId:      { fontSize: nz(12), color: '#AAAAAA', marginBottom: rs(10) },
-  noteBox:      { flexDirection: 'row', backgroundColor: '#fff5e6a9', borderRadius: rs(10), padding: rs(12), gap: rs(8), alignItems: 'flex-start', borderWidth: rs(1), borderColor: '#ffdd0343' },
-  noteText:     { flex: 1, fontSize: nz(12.5), color: '#885500', lineHeight: nz(19) },
-  deliverBtn:   { flexDirection: 'row', backgroundColor: GREEN, paddingVertical: rs(14), borderRadius: rs(26), alignItems: 'center', justifyContent: 'center', marginTop: rs(16) },
-  deliverTxt:   { fontSize: nz(15), fontWeight: '700', color: '#fff' },
+  seatBadge: { borderWidth: rs(1), borderColor: GREEN, backgroundColor: 'rgba(245,197,24,0.2)', borderRadius: rs(10), paddingHorizontal: rs(10), paddingVertical: rs(8), alignItems: 'center', width: rs(100), flexShrink: 0, alignSelf: 'flex-start' },
+  seatLabel: { fontSize: nz(10), fontWeight: '600', color: '#1A1A1A', marginBottom: rs(3), textAlign: 'center', width: '100%' },
+  seatCode: { fontSize: nz(24), fontWeight: '900', color: '#1A1A1A', letterSpacing: 0.5, width: '100%', textAlign: 'center' },
+  divider: { height: 1, backgroundColor: '#F2F2F2', marginVertical: rs(12) },
+  dashed: { borderBottomWidth: 1, borderStyle: 'dashed', borderColor: '#CCCCCC', marginBottom: rs(10) },
+  itemsHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: rs(10) },
+  greenSquare: { width: rs(14), height: rs(14), borderRadius: rs(3), backgroundColor: GREEN, marginRight: rs(8) },
+  itemsTitle: { fontSize: nz(14), fontWeight: '700', color: '#1A1A1A' },
+  itemRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: rs(8) },
+  itemName: { fontSize: nz(13), color: '#444', flex: 1 },
+  itemPrice: { fontSize: nz(13), color: '#1A1A1A', fontWeight: '600' },
+  totalLabel: { fontSize: nz(14), fontWeight: '700', color: '#1A1A1A' },
+  totalPrice: { fontSize: nz(14), fontWeight: '800', color: '#1A1A1A' },
+  orderId: { fontSize: nz(12), color: '#AAAAAA', marginBottom: rs(10) },
+  noteBox: { flexDirection: 'row', backgroundColor: '#fff5e6a9', borderRadius: rs(10), padding: rs(12), gap: rs(8), alignItems: 'flex-start', borderWidth: rs(1), borderColor: '#ffdd0343' },
+  noteText: { flex: 1, fontSize: nz(12.5), color: '#885500', lineHeight: nz(19) },
+  deliverBtn: { flexDirection: 'row', backgroundColor: GREEN, paddingVertical: rs(14), borderRadius: rs(26), alignItems: 'center', justifyContent: 'center', marginTop: rs(16) },
+  deliverTxt: { fontSize: nz(15), fontWeight: '700', color: '#fff' },
   flashOverlay: { backgroundColor: GREEN, borderRadius: rs(16), alignItems: 'center', justifyContent: 'center', zIndex: 10 },
 });
 
@@ -537,29 +537,29 @@ const makeTabState = () => ({ data: [], page: 1, totalDocs: 0, exhausted: false,
 
 const normaliseOrder = (o) => {
   const seatParts = (o.seatNo ?? '').split('/');
-  const parts     = (o.fullname ?? '').trim().split(' ').filter(Boolean);
-  const initials  = (parts.length >= 2 ? parts[0][0] + parts[1][0] : (parts[0]?.[0] ?? '?')).toUpperCase();
-  const d         = o.OrderPlacedAt ? new Date(o.OrderPlacedAt) : null;
+  const parts = (o.fullname ?? '').trim().split(' ').filter(Boolean);
+  const initials = (parts.length >= 2 ? parts[0][0] + parts[1][0] : (parts[0]?.[0] ?? '?')).toUpperCase();
+  const d = o.OrderPlacedAt ? new Date(o.OrderPlacedAt) : null;
   return {
-    id:           o._id,
-    orderRef:     o.Id,
-    orderId:      o.OrderId,
+    id: o._id,
+    orderRef: o.Id,
+    orderId: o.OrderId,
     initials,
     customerName: (o.fullname ?? '').trim() || 'Customer',
-    phone:        o.phone,
-    receivedAt:   d ? d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '—',
-    date:         d ? d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : '—',
-    seat:         seatParts[0]?.trim() ?? '',
-    seatCode:     seatParts[1]?.trim() ?? '',
-    items:        (o.order ?? []).map((it) => ({
-      name:  `${it.quantity}x ${it.foodName}`,
+    phone: o.phone,
+    receivedAt: d ? d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '—',
+    date: d ? d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : '—',
+    seat: seatParts[0]?.trim() ?? '',
+    seatCode: seatParts[1]?.trim() ?? '',
+    items: (o.order ?? []).map((it) => ({
+      name: `${it.quantity}x ${it.foodName}`,
       price: (() => { const n = Number(it.amount * it.quantity); return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, ''); })(),
     })),
-    total:        (() => { const n = Number(o.TotalAmount); return n == null ? '0' : Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, ''); })(),
-    note:         'Please ensure the invoice is provided to the customer at the time of food delivery, as the order is already entered in POS.',
-    AcceptOrder:  o.AcceptOrder,
-    isDelivered:  o.isDelivered,
-    isCancelled:  o.isCancelled,
+    total: (() => { const n = Number(o.TotalAmount); return n == null ? '0' : Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, ''); })(),
+    note: 'Please ensure the invoice is provided to the customer at the time of food delivery, as the order is already entered in POS.',
+    AcceptOrder: o.AcceptOrder,
+    isDelivered: o.isDelivered,
+    isCancelled: o.isCancelled,
   };
 };
 
@@ -642,7 +642,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { user, restaurantName } = useStore();
   const navigation = useNavigation();
-  const route      = useRoute();
+  const route = useRoute();
 
   // initialTab: 0 = Live (default), passed from App.js when notification is tapped
   const [tabIndex, setTabIndex] = useState(route.params?.initialTab ?? 0);
@@ -659,20 +659,20 @@ export default function HomeScreen() {
 
   const tabs = useRef({ live: makeTabState(), pending: makeTabState() });
 
-  const [liveList,    setLiveList]    = useState([]);
+  const [liveList, setLiveList] = useState([]);
   const [pendingList, setPendingList] = useState([]);
 
   const [loadingMoreMap, setLoadingMoreMap] = useState({ live: false, pending: false });
-  const [exhaustedMap,   setExhaustedMap]   = useState({ live: false, pending: false });
-  const [loading,    setLoading]    = useState(true);
+  const [exhaustedMap, setExhaustedMap] = useState({ live: false, pending: false });
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   // ── Live alert: write count to store — App.js owns the sound globally ────
   const setLiveOrderCount = useStore((s) => s.setLiveOrderCount);
 
   // ── Live-tab blink ────────────────────────────────────────────────────────
-  const blinkAnim      = useRef(new Animated.Value(1)).current;
-  const blinkLoopRef   = useRef(null);
+  const blinkAnim = useRef(new Animated.Value(1)).current;
+  const blinkLoopRef = useRef(null);
   const alertActiveRef = useRef(false);
 
   const startBlink = useCallback(() => {
@@ -681,7 +681,7 @@ export default function HomeScreen() {
     blinkLoopRef.current = Animated.loop(
       Animated.sequence([
         Animated.timing(blinkAnim, { toValue: 0.15, duration: 500, useNativeDriver: true }),
-        Animated.timing(blinkAnim, { toValue: 1,    duration: 500, useNativeDriver: true }),
+        Animated.timing(blinkAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
       ])
     );
     blinkLoopRef.current.start();
@@ -731,16 +731,16 @@ export default function HomeScreen() {
   }, []);
 
   const loadTab = useCallback(async (tab) => {
-    const id    = user?.restaurantId ?? '';
+    const id = user?.restaurantId ?? '';
     const extra = getTodayDateParams();
     try {
-      const res        = await TAB_CONFIG[tab].fetcher({ page: 1, limit: LIMIT }, id, extra);
-      const meta       = res?.data?.data?.orderData;
-      const raw        = Array.isArray(meta?.data) ? meta.data : [];
-      const totalDocs  = meta?.totalDocuments ?? 0;
+      const res = await TAB_CONFIG[tab].fetcher({ page: 1, limit: LIMIT }, id, extra);
+      const meta = res?.data?.data?.orderData;
+      const raw = Array.isArray(meta?.data) ? meta.data : [];
+      const totalDocs = meta?.totalDocuments ?? 0;
       const normalised = raw.map(normaliseOrder);
-      tabs.current[tab].data      = normalised;
-      tabs.current[tab].page      = 1;
+      tabs.current[tab].data = normalised;
+      tabs.current[tab].page = 1;
       tabs.current[tab].totalDocs = totalDocs;
       tabs.current[tab].exhausted = normalised.length === 0 || normalised.length >= totalDocs;
       flushTab(tab);
@@ -756,20 +756,20 @@ export default function HomeScreen() {
     t.fetching = true;
     setLoadingMoreMap((p) => ({ ...p, [tab]: true }));
     const nextPage = t.page + 1;
-    const id    = user?.restaurantId ?? '';
+    const id = user?.restaurantId ?? '';
     const extra = getTodayDateParams();
     try {
-      const res       = await TAB_CONFIG[tab].fetcher({ page: nextPage, limit: LIMIT }, id, extra);
-      const meta      = res?.data?.data?.orderData;
-      const raw       = Array.isArray(meta?.data) ? meta.data : [];
+      const res = await TAB_CONFIG[tab].fetcher({ page: nextPage, limit: LIMIT }, id, extra);
+      const meta = res?.data?.data?.orderData;
+      const raw = Array.isArray(meta?.data) ? meta.data : [];
       const totalDocs = meta?.totalDocuments ?? t.totalDocs;
       if (raw.length === 0) {
         exhaustTab(tab);
       } else {
         const existingIds = new Set(t.data.map((o) => o.id));
         const fresh = raw.map(normaliseOrder).filter((o) => !existingIds.has(o.id));
-        t.data      = [...t.data, ...fresh];
-        t.page      = nextPage;
+        t.data = [...t.data, ...fresh];
+        t.page = nextPage;
         t.totalDocs = totalDocs;
         t.exhausted = fresh.length === 0 || nextPage * LIMIT >= totalDocs;
         flushTab(tab);
@@ -822,12 +822,19 @@ export default function HomeScreen() {
         setExhaustedMap((p) => ({ ...p, live: false }));
         setLoadingMoreMap((p) => ({ ...p, live: false }));
         loadTab('live');
+
       } else if (eventType === 'ACCEPTORDER') {
-        tabs.current.live    = makeTabState();
+        tabs.current.live = makeTabState();
         tabs.current.pending = makeTabState();
         setExhaustedMap((p) => ({ ...p, live: false, pending: false }));
         setLoadingMoreMap((p) => ({ ...p, live: false, pending: false }));
         Promise.all([loadTab('live'), loadTab('pending')]);
+
+      } else if (eventType === 'ORDERDELIVERED') {      
+        tabs.current.pending = makeTabState();
+        setExhaustedMap((p) => ({ ...p, pending: false }));
+        setLoadingMoreMap((p) => ({ ...p, pending: false }));
+        loadTab('pending');
       }
     });
 
@@ -849,7 +856,7 @@ export default function HomeScreen() {
   }, []);
 
   const endReachedHandlers = useRef({
-    live:    () => { if (!tabs.current.live.exhausted    && !tabs.current.live.fetching)    loadMoreTab('live');    },
+    live: () => { if (!tabs.current.live.exhausted && !tabs.current.live.fetching) loadMoreTab('live'); },
     pending: () => { if (!tabs.current.pending.exhausted && !tabs.current.pending.fetching) loadMoreTab('pending'); },
   }).current;
 
@@ -904,7 +911,7 @@ export default function HomeScreen() {
     }
   }, [flushTab, user?.restaurantId]);
 
-  const counts  = { live: liveList.length, pending: pendingList.length };
+  const counts = { live: liveList.length, pending: pendingList.length };
   const dateStr = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
   const renderScene = useCallback(({ route }) => (
@@ -964,17 +971,17 @@ export default function HomeScreen() {
 }
 
 const s = StyleSheet.create({
-  root:            { flex: 1, backgroundColor: '#fff' },
-  header:          { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingHorizontal: rs(20), paddingTop: rs(14), paddingBottom: rs(12), backgroundColor: '#fff' },
-  title:           { fontSize: nz(18), fontWeight: '800', color: '#0D0D0D', letterSpacing: -0.5 },
-  date:            { fontSize: nz(12), color: '#363535', marginTop: rs(2) },
-  tabSection:      { backgroundColor: '#fff', paddingTop: rs(2), paddingBottom: rs(14) },
-  listContent:     { paddingHorizontal: rs(14), paddingTop: rs(6) },
-  loadingMore:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: rs(16), gap: rs(8) },
+  root: { flex: 1, backgroundColor: '#fff' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingHorizontal: rs(20), paddingTop: rs(14), paddingBottom: rs(12), backgroundColor: '#fff' },
+  title: { fontSize: nz(18), fontWeight: '800', color: '#0D0D0D', letterSpacing: -0.5 },
+  date: { fontSize: nz(12), color: '#363535', marginTop: rs(2) },
+  tabSection: { backgroundColor: '#fff', paddingTop: rs(2), paddingBottom: rs(14) },
+  listContent: { paddingHorizontal: rs(14), paddingTop: rs(6) },
+  loadingMore: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: rs(16), gap: rs(8) },
   loadingMoreText: { fontSize: nz(13), color: '#AAAAAA' },
-  noMoreText:      { textAlign: 'center', color: '#CCCCCC', fontSize: nz(12), paddingVertical: rs(16) },
-  empty:           { alignItems: 'center', paddingTop: rs(50), gap: rs(4) },
-  emptyImage:      { width: rs(180), height: rs(180), marginBottom: rs(8) },
-  emptyTitle:      { fontSize: nz(18), fontWeight: '700', color: '#1A1A1A' },
-  emptySub:        { fontSize: nz(13), color: '#888', textAlign: 'center', paddingHorizontal: rs(30), marginTop: rs(4) },
+  noMoreText: { textAlign: 'center', color: '#CCCCCC', fontSize: nz(12), paddingVertical: rs(16) },
+  empty: { alignItems: 'center', paddingTop: rs(50), gap: rs(4) },
+  emptyImage: { width: rs(180), height: rs(180), marginBottom: rs(8) },
+  emptyTitle: { fontSize: nz(18), fontWeight: '700', color: '#1A1A1A' },
+  emptySub: { fontSize: nz(13), color: '#888', textAlign: 'center', paddingHorizontal: rs(30), marginTop: rs(4) },
 });

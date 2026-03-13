@@ -96,6 +96,7 @@ export default function App() {
     return () => sub.remove();
   }, [syncPermission]);
 
+  console.log(inAppNotif,"asfsafsaf")
   useEffect(() => {
     const sub = Notifications.addNotificationReceivedListener(async (notification) => {
       if (!notificationsEnabled) return;

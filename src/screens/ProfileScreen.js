@@ -160,7 +160,7 @@ export default function ProfileScreen() {
 
   const openPrivacyPolicy  = () => Linking.openURL('https://www.alfennzo.com/privacy-policy');
   const openTerms          = () => Linking.openURL('https://www.alfennzo.com/terms-and-conditions');
-  const openSupport        = () => Linking.openURL('tel:9319702754');
+  const openSupport        = () => Linking.openURL('tel:9653757666');
 
   const initials = (name = '') =>
     name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase() || 'U';
@@ -318,7 +318,6 @@ export default function ProfileScreen() {
 
 const st = StyleSheet.create({
   screen:  { flex: 1, backgroundColor: BG },
-  scroll:  { paddingBottom: rs(12) },
   hero: {
     alignItems: 'center',
     paddingBottom: rs(28),
@@ -392,7 +391,6 @@ const st = StyleSheet.create({
     color: '#9CA3AF',
     textAlign: 'center',
     marginTop: rs(16),
-    marginBottom: rs(8),
   },
 });
 
