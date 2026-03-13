@@ -34,7 +34,7 @@ export const playCustomSound = async () => {
 
     const { sound } = await Audio.Sound.createAsync(
       require('../../assets/notification.mp3'),
-      { shouldPlay: true, volume: 1.0 }
+      { shouldPlay: false, volume: 1.0 }
     );
 
     soundInstance = sound;

@@ -4,14 +4,14 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import * as SplashScreen from 'expo-splash-screen';
-import LoginScreen          from '../screens/LoginScreen';
-import HomeScreen           from '../screens/HomeScreen';
-import ProductScreen        from '../screens/ProductScreen';
-import ProfileScreen        from '../screens/ProfileScreen';
-import BottomTabs           from '../components/BottomTabs';
-import useStore             from '../store/useStore';
-import NotificationScreen from '../screens/Notification';
-import OrderHistoryScreen from '../screens/OrderHistoryScreen';
+import LoginScreen         from '../screens/LoginScreen';
+import HomeScreen          from '../screens/HomeScreen';
+import ProductScreen       from '../screens/ProductScreen';
+import ProfileScreen       from '../screens/ProfileScreen';
+import BottomTabs          from '../components/BottomTabs';
+import useStore            from '../store/useStore';
+import NotificationScreen  from '../screens/Notification';
+import OrderHistoryScreen  from '../screens/OrderHistoryScreen';
 
 const Tab   = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -35,13 +35,13 @@ const AuthStack = () => (
     <Stack.Screen
       name="NotificationSettings"
       component={NotificationScreen}
-      options={{ animation: 'slide_from_right' }}   
+      options={{ animation: 'slide_from_right' }}
     />
     <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} />
   </Stack.Navigator>
 );
 
-const AppNavigator = ({ onStateChange }) => {
+const AppNavigator = ({ onStateChange, navigationRef }) => {
   const isAuthenticated    = useStore((state) => state.isAuthenticated);
   const loadPersistedState = useStore((state) => state.loadPersistedState);
   const [appReady, setAppReady] = useState(false);
@@ -66,7 +66,7 @@ const AppNavigator = ({ onStateChange }) => {
 
   return (
     <View style={styles.root} onLayout={onRootLayout}>
-      <NavigationContainer onStateChange={onStateChange}>
+      <NavigationContainer ref={navigationRef} onStateChange={onStateChange}>
         <Stack.Navigator screenOptions={{ headerShown: false, animationEnabled: false }}>
           {!isAuthenticated
             ? <Stack.Screen name="Login" component={LoginScreen} />

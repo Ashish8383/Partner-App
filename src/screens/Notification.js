@@ -14,6 +14,7 @@ import { getFCMToken } from '../utils/fcmToken';
 import useStore from '../store/useStore';
 import api from '../utils/api';
 
+
 const { width: SW } = Dimensions.get('window');
 const sc = SW / 390;
 const rs = (n) => Math.round(n * Math.min(sc, 1.35));
@@ -53,7 +54,7 @@ export default function NotificationScreen() {
   const storedFingerprint       = useStore((s) => s.deviceFingerprint);
   const setNotificationsEnabled = useStore((s) => s.setNotificationsEnabled);
   const storeFcmToken           = useStore((s) => s.setFcmToken);
-
+    
   const [isEnabled, setIsEnabled] = useState(false);
   const [syncing,   setSyncing]   = useState(true);
 
@@ -63,6 +64,7 @@ export default function NotificationScreen() {
       toValue: isEnabled ? 1 : 0, duration: 260, useNativeDriver: false,
     }).start();
   }, [isEnabled]);
+
   const updateFcmToken = useCallback(async (token) => {
     try {
       const payload = {

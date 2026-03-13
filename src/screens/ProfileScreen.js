@@ -20,6 +20,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import useStore from '../store/useStore';
 import HapticTouchable from '../components/GlobalHaptic';
 import { useNavigation } from '@react-navigation/native';
+import useAppVersion from '../utils/useAppVersion';
 const { width: SW } = Dimensions.get('window');
 const BASE = 390;
 const sc   = SW / BASE;
@@ -145,7 +146,7 @@ export default function ProfileScreen() {
   const user          = useStore((s) => s.user);
   const restaurantName = useStore((s) => s.restaurantName);
   const restaurantLogo = useStore((s) => s.restaurantLogo);
-
+  const {currentVersion} = useAppVersion();
   const [logoError, setLogoError] = useState(false);
   const pulse = useRef(new Animated.Value(1)).current;
   useEffect(() => {
@@ -305,7 +306,7 @@ export default function ProfileScreen() {
           </FadeRow>
 
           <FadeRow delay={360}>
-            <Text style={st.versionText}>Version 1.0.0</Text>
+            <Text style={st.versionText}>Version {currentVersion}</Text>
           </FadeRow>
 
           <View style={{ height: rs(32) + insets.bottom }} />

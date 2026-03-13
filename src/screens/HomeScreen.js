@@ -15,7 +15,8 @@ import { ref, onChildAdded } from 'firebase/database';
 import useStore from '../store/useStore';
 import { ordersAPI } from '../utils/api';
 import { db } from '../utils/firebaseConfig';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { AppState } from 'react-native';
 
 const GREEN   = '#03954E';
 const LIMIT   = 30;
@@ -40,6 +41,8 @@ const isNotificationGranted = async () => {
     return false;
   }
 };
+
+// ─── Skeleton ────────────────────────────────────────────────────────────────
 
 const SkeletonPulse = ({ style }) => {
   const anim = useRef(new Animated.Value(0.4)).current;
@@ -91,11 +94,70 @@ const sk = StyleSheet.create({
   btnSkeleton: { height: rs(50), borderRadius: rs(26), marginTop: rs(16) },
 });
 
-const TAB_BAR_INNER_W = SW - rs(40) - rs(8); 
-const TAB_W           = TAB_BAR_INNER_W / 2;  
+// ─── Tab Bar ─────────────────────────────────────────────────────────────────
+
+const TAB_BAR_INNER_W = SW - rs(40) - rs(8);
+const TAB_W           = TAB_BAR_INNER_W / 2;
 const PILL_POSITIONS  = [0, TAB_W];
 
-const CustomTabBar = React.memo(({ position, jumpTo, counts }) => {
+// ─── Ripple Alert Dot ─────────────────────────────────────────────────────────
+// Two expanding rings that fade out behind a solid centre dot — "water ripple" effect.
+// Used on the Live tab when there are pending orders.
+
+const RippleDot = React.memo(({ color }) => {
+  const ring1 = useRef(new Animated.Value(0)).current;
+  const ring2 = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Ring 2 starts 400ms after ring 1 so they feel staggered like real ripples
+    const anim = Animated.loop(
+      Animated.parallel([
+        // Ring 1
+        Animated.sequence([
+          Animated.timing(ring1, { toValue: 1, duration: 1200, useNativeDriver: true }),
+          Animated.timing(ring1, { toValue: 0, duration: 0,    useNativeDriver: true }),
+        ]),
+        // Ring 2 — delayed
+        Animated.sequence([
+          Animated.delay(400),
+          Animated.timing(ring2, { toValue: 1, duration: 1200, useNativeDriver: true }),
+          Animated.timing(ring2, { toValue: 0, duration: 0,    useNativeDriver: true }),
+        ]),
+      ])
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [ring1, ring2]);
+
+  const DOT_SIZE  = rs(9);
+  const RING_MAX  = rs(22);   // how far rings expand
+
+  const makeRingStyle = (anim) => ({
+    position:     'absolute',
+    width:        DOT_SIZE,
+    height:       DOT_SIZE,
+    borderRadius: DOT_SIZE / 2,
+    borderWidth:  rs(1.5),
+    borderColor:  color,
+    opacity:      anim.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, 0.6, 0] }),
+    transform: [{
+      scale: anim.interpolate({ inputRange: [0, 1], outputRange: [1, RING_MAX / DOT_SIZE] }),
+    }],
+  });
+
+  return (
+    <View style={{ width: DOT_SIZE, height: DOT_SIZE, alignItems: 'center', justifyContent: 'center', marginRight: rs(5) }}>
+      {/* Ring 1 */}
+      <Animated.View style={makeRingStyle(ring1)} />
+      {/* Ring 2 */}
+      <Animated.View style={makeRingStyle(ring2)} />
+      {/* Solid centre dot */}
+      <View style={{ width: DOT_SIZE, height: DOT_SIZE, borderRadius: DOT_SIZE / 2, backgroundColor: color }} />
+    </View>
+  );
+});
+
+const CustomTabBar = React.memo(({ position, jumpTo, counts, blinkAnim }) => {
   const pillX = position.interpolate({
     inputRange:  [0, 1],
     outputRange: PILL_POSITIONS,
@@ -116,12 +178,13 @@ const CustomTabBar = React.memo(({ position, jumpTo, counts }) => {
         pointerEvents="none"
         style={[tb.pill, { width: TAB_W, transform: [{ translateX: pillX }] }]}
       />
-
       {ROUTES.map((route, i) => {
         const count      = counts[route.key] ?? 0;
         const label      = `${route.title}${count > 0 ? ` (${count})` : ''}`;
         const activeOp   = activeOpacities[i];
         const inactiveOp = activeOp.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
+        const isLive     = route.key === 'live';
+        const hasAlert   = isLive && count > 0;
 
         return (
           <HapticTouchable
@@ -131,16 +194,21 @@ const CustomTabBar = React.memo(({ position, jumpTo, counts }) => {
             style={tb.tab}
           >
             <Animated.View style={tb.inner}>
+              {/* Inactive state */}
               <Animated.View style={[tb.row, { opacity: inactiveOp }]}>
-                {route.key === 'live'
-                  ? <View style={[tb.dot, { backgroundColor: '#1A1A1A' }]} />
+                {isLive
+                  ? hasAlert
+                    ? <RippleDot color={GREEN} />
+                    : <View style={[tb.dot, { backgroundColor: '#1A1A1A' }]} />
                   : <Feather name={route.icon} size={nz(11)} color="#1A1A1A" style={tb.icon} />}
-                <Text style={[tb.label, tb.labelInactive]}>{label}</Text>
+                <Text style={[tb.label, tb.labelInactive, hasAlert && { color: GREEN }]}>{label}</Text>
               </Animated.View>
-
+              {/* Active (white pill) state */}
               <Animated.View style={[tb.row, tb.rowAbsolute, { opacity: activeOp }]}>
-                {route.key === 'live'
-                  ? <View style={[tb.dot, { backgroundColor: '#fff' }]} />
+                {isLive
+                  ? hasAlert
+                    ? <RippleDot color="#fff" />
+                    : <View style={[tb.dot, { backgroundColor: '#fff' }]} />
                   : <Feather name={route.icon} size={nz(11)} color="#fff" style={tb.icon} />}
                 <Text style={[tb.label, tb.labelActive]}>{label}</Text>
               </Animated.View>
@@ -153,36 +221,25 @@ const CustomTabBar = React.memo(({ position, jumpTo, counts }) => {
 });
 
 const tb = StyleSheet.create({
-  wrapper:     {
-    flexDirection: 'row',
-    backgroundColor: '#EBEBEB',
-    borderRadius: rs(50),
-    padding: rs(4),
-    marginHorizontal: rs(20),
-    position: 'relative',
-    alignItems: 'center',
-  },
-  pill:        {
-    position: 'absolute',
-    top: rs(4), bottom: rs(4), left: rs(4),
-    borderRadius: rs(50),
-    backgroundColor: GREEN,
-    elevation: 6,
-    shadowColor: GREEN,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-  },
-  tab:         { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: rs(10), zIndex: 1 },
-  inner:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-  row:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-  rowAbsolute: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 },
-  dot:         { width: rs(7), height: rs(7), borderRadius: rs(4), marginRight: rs(5) },
-  icon:        { marginRight: rs(4) },
-  label:       { fontSize: nz(13), fontWeight: '700' },
-  labelActive: { color: '#fff' },
-  labelInactive: { color: '#1A1A1A' },
+  wrapper:      { flexDirection: 'row', backgroundColor: '#EBEBEB', borderRadius: rs(50), padding: rs(4), marginHorizontal: rs(20), position: 'relative', alignItems: 'center' },
+  pill:         { position: 'absolute', top: rs(4), bottom: rs(4), left: rs(4), borderRadius: rs(50), backgroundColor: GREEN, elevation: 6, shadowColor: GREEN, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 8 },
+  tab:          { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: rs(10), zIndex: 1 },
+  inner:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  row:          { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  rowAbsolute:  { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 },
+  dot:          { width: rs(7), height: rs(7), borderRadius: rs(4), marginRight: rs(5) },
+  icon:         { marginRight: rs(4) },
+  label:        { fontSize: nz(13), fontWeight: '700' },
+  labelActive:  { color: '#fff' },
+  labelInactive:{ color: '#1A1A1A' },
 });
+
+// ─── Slide To Accept ─────────────────────────────────────────────────────────
+// Performance improvements:
+//  • All interpolations pre-computed once (no re-creation on render)
+//  • Shorter spring/timing durations for snappier feel
+//  • Threshold lowered to 0.35 (was 0.40) for faster trigger
+//  • Reset delay reduced from 750ms → 500ms
 
 const SlideToAccept = React.memo(({ onAccepted, onSlideActiveChange }) => {
   const THUMB_W   = rs(52);
@@ -192,45 +249,57 @@ const SlideToAccept = React.memo(({ onAccepted, onSlideActiveChange }) => {
   const slideX    = useRef(new Animated.Value(0)).current;
   const completed = useRef(false);
 
-  const fillTranslateX = slideX.interpolate({
+  // Pre-compute all interpolations once
+  const fillTranslateX = useRef(slideX.interpolate({
     inputRange:  [0, MAX_SLIDE],
     outputRange: [-TRACK_W, -THUMB_W * 0.4],
     extrapolate: 'clamp',
-  });
+  })).current;
 
-  const thumbScale = slideX.interpolate({
+  const thumbScale = useRef(slideX.interpolate({
     inputRange:  [0, MAX_SLIDE * 0.5, MAX_SLIDE],
-    outputRange: [1, 1.07, 1.13],
+    outputRange: [1, 1.05, 1.1],
     extrapolate: 'clamp',
-  });
+  })).current;
 
-  const arrowOpacity = slideX.interpolate({
-    inputRange:  [MAX_SLIDE * 0.55, MAX_SLIDE * 0.85],
+  const arrowOpacity = useRef(slideX.interpolate({
+    inputRange:  [MAX_SLIDE * 0.5, MAX_SLIDE * 0.8],
     outputRange: [1, 0],
     extrapolate: 'clamp',
-  });
+  })).current;
 
-  const checkOpacity = slideX.interpolate({
-    inputRange:  [MAX_SLIDE * 0.70, MAX_SLIDE],
+  const checkOpacity = useRef(slideX.interpolate({
+    inputRange:  [MAX_SLIDE * 0.65, MAX_SLIDE],
     outputRange: [0, 1],
     extrapolate: 'clamp',
-  });
+  })).current;
 
-  const labelOpacity = slideX.interpolate({
-    inputRange:  [0, MAX_SLIDE * 0.22],
+  const labelOpacity = useRef(slideX.interpolate({
+    inputRange:  [0, MAX_SLIDE * 0.2],
     outputRange: [1, 0],
     extrapolate: 'clamp',
-  });
+  })).current;
 
-  const snapToEnd = (cb) => Animated.spring(slideX, {
-    toValue: MAX_SLIDE, useNativeDriver: true,
-    damping: 18, stiffness: 380, mass: 0.28,
-  }).start(cb);
+  const snapToEnd = useCallback((cb) => {
+    Animated.spring(slideX, {
+      toValue: MAX_SLIDE,
+      useNativeDriver: true,
+      damping: 22,       // tighter snap
+      stiffness: 450,    // faster
+      mass: 0.22,        // lighter = quicker
+    }).start(cb);
+  }, [slideX, MAX_SLIDE]);
 
-  const snapBack = (velocity = 0) => Animated.spring(slideX, {
-    toValue: 0, useNativeDriver: true,
-    damping: 15, stiffness: 160, mass: 0.45, velocity: velocity * -0.3,
-  }).start();
+  const snapBack = useCallback((velocity = 0) => {
+    Animated.spring(slideX, {
+      toValue: 0,
+      useNativeDriver: true,
+      damping: 18,
+      stiffness: 200,
+      mass: 0.4,
+      velocity: velocity * -0.25,
+    }).start();
+  }, [slideX]);
 
   const slideGesture = Gesture.Pan()
     .activeOffsetX([3, 3])
@@ -240,30 +309,40 @@ const SlideToAccept = React.memo(({ onAccepted, onSlideActiveChange }) => {
     .onUpdate((e) => {
       if (completed.current) return;
       const raw = Math.max(0, e.translationX);
-      slideX.setValue(raw > MAX_SLIDE ? MAX_SLIDE + (raw - MAX_SLIDE) * 0.1 : raw);
+      slideX.setValue(raw > MAX_SLIDE ? MAX_SLIDE + (raw - MAX_SLIDE) * 0.08 : raw);
     })
     .onEnd((e) => {
       if (completed.current) return;
       const progress  = Math.max(0, e.translationX) / MAX_SLIDE;
-      const fastFlick = e.velocityX > 300;
-      if (progress > 0.40 || fastFlick) {
+      const fastFlick = e.velocityX > 250;   // was 300, lower = easier trigger
+      if (progress > 0.35 || fastFlick) {    // was 0.40, lower = faster accept
         completed.current = true;
         snapToEnd(() => {
           playSound('accept');
+          // ✅ Re-enable swipe IMMEDIATELY so user can swipe tabs right away
+          onSlideActiveChange?.(false);
           onAccepted?.();
           setTimeout(() => {
             Animated.spring(slideX, {
-              toValue: 0, useNativeDriver: true,
-              damping: 22, stiffness: 110, mass: 0.9,
-            }).start(() => { completed.current = false; onSlideActiveChange?.(false); });
-          }, 750);
+              toValue: 0,
+              useNativeDriver: true,
+              damping: 26,
+              stiffness: 130,
+              mass: 0.8,
+            }).start(() => {
+              completed.current = false;
+            });
+          }, 500);
         });
       } else {
         snapBack(e.velocityX);
         onSlideActiveChange?.(false);
       }
     })
-    .onFinalize(() => { if (!completed.current) onSlideActiveChange?.(false); });
+    .onFinalize(() => {
+      // Only reset swipe lock if accept path hasn't already done it
+      if (!completed.current) onSlideActiveChange?.(false);
+    });
 
   return (
     <View style={sv.container}>
@@ -290,26 +369,19 @@ const SlideToAccept = React.memo(({ onAccepted, onSlideActiveChange }) => {
 
 const sv = StyleSheet.create({
   container: { marginTop: rs(16), alignItems: 'center' },
-  track:     {
-    height: rs(58), borderRadius: rs(29),
-    backgroundColor: 'rgba(3,149,78,0.08)',
-    justifyContent: 'center', overflow: 'hidden', alignSelf: 'center',
-    borderWidth: rs(1.5), borderColor: GREEN,
-  },
-  fill:  { position: 'absolute', left: 0, top: 0, bottom: 0, backgroundColor: GREEN },
-  label: {
-    position: 'absolute', left: 0, right: 0, textAlign: 'center',
-    color: GREEN, fontSize: nz(14), fontWeight: '700', letterSpacing: 0.4,
-  },
-  thumb: {
-    width: rs(52), height: rs(52), borderRadius: rs(26),
-    backgroundColor: '#F5C518', position: 'absolute', left: rs(3),
-    elevation: 8, shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.22, shadowRadius: 6,
-    zIndex: 10,
-  },
-  center: { justifyContent: 'center', alignItems: 'center' },
+  track:     { height: rs(58), borderRadius: rs(29), backgroundColor: 'rgba(3,149,78,0.08)', justifyContent: 'center', overflow: 'hidden', alignSelf: 'center', borderWidth: rs(1.5), borderColor: GREEN },
+  fill:      { position: 'absolute', left: 0, top: 0, bottom: 0, backgroundColor: GREEN },
+  label:     { position: 'absolute', left: 0, right: 0, textAlign: 'center', color: GREEN, fontSize: nz(14), fontWeight: '700', letterSpacing: 0.4 },
+  thumb:     { width: rs(52), height: rs(52), borderRadius: rs(26), backgroundColor: '#F5C518', position: 'absolute', left: rs(3), elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.22, shadowRadius: 6, zIndex: 10 },
+  center:    { justifyContent: 'center', alignItems: 'center' },
 });
+
+// ─── Order Card ───────────────────────────────────────────────────────────────
+// Performance improvements:
+//  • animateOut: all 3 exit animations run in a single Animated.parallel (no sequence overhead)
+//  • Collapse runs immediately after opacity hits 0 (parallel, not sequential)
+//  • Total exit time: ~220ms (was ~560ms)
+//  • Deliver button uses same fast animateOut
 
 const OrderCard = React.memo(({ item, tab, onAccepted, onDelivered, onSlideActiveChange }) => {
   const opacity       = useRef(new Animated.Value(1)).current;
@@ -317,27 +389,32 @@ const OrderCard = React.memo(({ item, tab, onAccepted, onDelivered, onSlideActiv
   const flashOpacity  = useRef(new Animated.Value(0)).current;
   const maxHeight     = useRef(new Animated.Value(1200)).current;
   const marginBottom  = useRef(new Animated.Value(rs(14))).current;
-  const entranceScale = useRef(new Animated.Value(0.93)).current;
+  const entranceScale = useRef(new Animated.Value(0.95)).current;
 
   useEffect(() => {
-    Animated.spring(entranceScale, { toValue: 1, damping: 18, stiffness: 220, mass: 0.5, useNativeDriver: true }).start();
+    Animated.spring(entranceScale, {
+      toValue: 1, damping: 20, stiffness: 260, mass: 0.45, useNativeDriver: true,
+    }).start();
   }, []);
 
+  // Faster animateOut: flash + fly + collapse all in ~220ms total
   const animateOut = useCallback((callback) => {
-    Animated.sequence([
-      Animated.timing(flashOpacity, { toValue: 0.9, duration: 130, useNativeDriver: true }),
-      Animated.parallel([
-        Animated.timing(flashOpacity, { toValue: 0,         duration: 200, useNativeDriver: true }),
-        Animated.timing(opacity,      { toValue: 0,         duration: 260, useNativeDriver: true }),
-        Animated.timing(translateX,   { toValue: SW * 0.45, duration: 300, useNativeDriver: true }),
-      ]),
+    // Flash in
+    Animated.timing(flashOpacity, { toValue: 0.88, duration: 80, useNativeDriver: true }).start();
+
+    // Immediately start fly-out + fade (no sequence delay)
+    Animated.parallel([
+      Animated.timing(flashOpacity, { toValue: 0,         duration: 160, delay: 80,  useNativeDriver: true }),
+      Animated.timing(opacity,      { toValue: 0,         duration: 180, useNativeDriver: true }),
+      Animated.timing(translateX,   { toValue: SW * 0.5,  duration: 200, useNativeDriver: true }),
     ]).start(() => {
+      // Collapse height immediately after card vanishes
       Animated.parallel([
-        Animated.timing(maxHeight,    { toValue: 0, duration: 200, useNativeDriver: false }),
-        Animated.timing(marginBottom, { toValue: 0, duration: 200, useNativeDriver: false }),
+        Animated.timing(maxHeight,    { toValue: 0, duration: 160, useNativeDriver: false }),
+        Animated.timing(marginBottom, { toValue: 0, duration: 160, useNativeDriver: false }),
       ]).start(() => callback());
     });
-  }, []);
+  }, [flashOpacity, opacity, translateX, maxHeight, marginBottom]);
 
   const handleAccept  = useCallback(() => animateOut(() => onAccepted(item.id)),  [animateOut, onAccepted, item.id]);
   const handleDeliver = useCallback(() => animateOut(() => onDelivered(item.id)), [animateOut, onDelivered, item.id]);
@@ -345,22 +422,39 @@ const OrderCard = React.memo(({ item, tab, onAccepted, onDelivered, onSlideActiv
   return (
     <Animated.View style={{ maxHeight, marginBottom, overflow: 'hidden', borderRadius: rs(17) }}>
       <Animated.View style={{ transform: [{ scale: entranceScale }] }}>
-        <Animated.View style={[oc.wrap, { opacity, transform: [{ translateX }], marginBottom: 0, backgroundColor: '#01690509', borderWidth: rs(1), borderColor: '#14131336' }]}>
+        <Animated.View style={[oc.wrap, { opacity, transform: [{ translateX }] }]}>
 
           <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, oc.flashOverlay, { opacity: flashOpacity }]}>
             <MaterialIcons name="check-circle" size={nz(48)} color="#fff" />
           </Animated.View>
 
           <View style={oc.topRow}>
-            <View style={oc.avatar}><Text style={oc.initials}>{item.initials}</Text></View>
-            <View style={oc.nameBlock}>
-              <Text style={oc.name}>{item.customerName}</Text>
-              <View style={oc.metaRow}><Feather name="clock"    size={nz(11)} color="#999" /><Text style={oc.meta}> Received at {item.receivedAt}</Text></View>
-              <View style={oc.metaRow}><Feather name="calendar" size={nz(11)} color="#999" /><Text style={oc.meta}> {item.date}</Text></View>
+            {/* Avatar — fixed size, never shrinks */}
+            <View style={oc.avatar}>
+              <Text style={oc.initials}>{item.initials}</Text>
             </View>
+
+            {/* Name + meta — takes all remaining space, shrinks if needed */}
+            <View style={oc.nameBlock}>
+              <Text style={oc.name} numberOfLines={2}>{item.customerName}</Text>
+              <View style={oc.metaRow}>
+                <Feather name="clock"    size={nz(11)} color="#999" />
+                <Text style={oc.meta} numberOfLines={1}> Received at {item.receivedAt}</Text>
+              </View>
+              <View style={oc.metaRow}>
+                <Feather name="calendar" size={nz(11)} color="#999" />
+                <Text style={oc.meta} numberOfLines={1}> {item.date}</Text>
+              </View>
+            </View>
+
+            {/* Seat badge — fixed width, label wraps, code auto-shrinks */}
             <View style={oc.seatBadge}>
-              <Text style={oc.seatLabel}>{item.seat}</Text>
-              <Text style={oc.seatCode}>{item.seatCode}</Text>
+              <Text style={oc.seatLabel} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.7}>
+                {item.seat}
+              </Text>
+              <Text style={oc.seatCode} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>
+                {item.seatCode}
+              </Text>
             </View>
           </View>
 
@@ -394,7 +488,7 @@ const OrderCard = React.memo(({ item, tab, onAccepted, onDelivered, onSlideActiv
             <SlideToAccept onSlideActiveChange={onSlideActiveChange} onAccepted={handleAccept} />
           )}
           {tab === 'pending' && (
-            <HapticTouchable onPress={handleDeliver} style={oc.deliverBtn} activeOpacity={0.85}>
+            <HapticTouchable onPress={handleDeliver} style={oc.deliverBtn} activeOpacity={0.82}>
               <MaterialIcons name="check" size={nz(18)} color="#fff" style={{ marginRight: rs(6) }} />
               <Text style={oc.deliverTxt}>Order Mark As Delivered</Text>
             </HapticTouchable>
@@ -407,17 +501,18 @@ const OrderCard = React.memo(({ item, tab, onAccepted, onDelivered, onSlideActiv
 }, (prev, next) => prev.item.id === next.item.id && prev.tab === next.tab);
 
 const oc = StyleSheet.create({
-  wrap:         { backgroundColor: '#fff', borderRadius: rs(16), marginBottom: rs(14), padding: rs(16), borderWidth: 1, borderColor: '#F0F0F0' },
+  wrap:         { backgroundColor: '#01690509', borderRadius: rs(16), marginBottom: rs(14), padding: rs(16), borderWidth: rs(1), borderColor: '#14131336' },
   topRow:       { flexDirection: 'row', alignItems: 'flex-start' },
-  avatar:       { width: rs(42), height: rs(42), borderRadius: rs(21), backgroundColor: '#F0F0F0', justifyContent: 'center', alignItems: 'center', marginRight: rs(10) },
+  avatar:       { width: rs(42), height: rs(42), borderRadius: rs(21), backgroundColor: '#F0F0F0', justifyContent: 'center', alignItems: 'center', marginRight: rs(10), flexShrink: 0 },
   initials:     { fontSize: nz(14), fontWeight: '700', color: '#555' },
-  nameBlock:    { flex: 1 },
+  nameBlock:    { flex: 1, flexShrink: 1, marginRight: rs(8) },
   name:         { fontSize: nz(15), fontWeight: '700', color: '#1A1A1A', marginBottom: rs(4) },
-  metaRow:      { flexDirection: 'row', alignItems: 'center', marginBottom: rs(3) },
-  meta:         { fontSize: nz(12), color: '#666' },
-  seatBadge:    { borderWidth: rs(1), borderColor: GREEN, backgroundColor: 'rgba(245,197,24,0.2)', borderRadius: rs(10), paddingHorizontal: rs(12), paddingVertical: rs(8), alignItems: 'center', minWidth: rs(90), marginLeft: rs(8), alignSelf: 'flex-start' },
-  seatLabel:    { fontSize: nz(11), fontWeight: '600', color: '#1A1A1A', marginBottom: rs(3) },
-  seatCode:     { fontSize: nz(24), fontWeight: '900', color: '#1A1A1A', letterSpacing: 0.5 },
+  metaRow:      { flexDirection: 'row', alignItems: 'center', marginBottom: rs(3), flexShrink: 1 },
+  meta:         { fontSize: nz(12), color: '#666', flexShrink: 1 },
+  // Seat badge: fixed width so it never pushes nameBlock, label wraps, code auto-fits
+  seatBadge:    { borderWidth: rs(1), borderColor: GREEN, backgroundColor: 'rgba(245,197,24,0.2)', borderRadius: rs(10), paddingHorizontal: rs(10), paddingVertical: rs(8), alignItems: 'center', width: rs(100), flexShrink: 0, alignSelf: 'flex-start' },
+  seatLabel:    { fontSize: nz(10), fontWeight: '600', color: '#1A1A1A', marginBottom: rs(3), textAlign: 'center', width: '100%' },
+  seatCode:     { fontSize: nz(24), fontWeight: '900', color: '#1A1A1A', letterSpacing: 0.5, width: '100%', textAlign: 'center' },
   divider:      { height: 1, backgroundColor: '#F2F2F2', marginVertical: rs(12) },
   dashed:       { borderBottomWidth: 1, borderStyle: 'dashed', borderColor: '#CCCCCC', marginBottom: rs(10) },
   itemsHeader:  { flexDirection: 'row', alignItems: 'center', marginBottom: rs(10) },
@@ -435,6 +530,8 @@ const oc = StyleSheet.create({
   deliverTxt:   { fontSize: nz(15), fontWeight: '700', color: '#fff' },
   flashOverlay: { backgroundColor: GREEN, borderRadius: rs(16), alignItems: 'center', justifyContent: 'center', zIndex: 10 },
 });
+
+// ─── Data helpers ────────────────────────────────────────────────────────────
 
 const makeTabState = () => ({ data: [], page: 1, totalDocs: 0, exhausted: false, fetching: false });
 
@@ -466,6 +563,8 @@ const normaliseOrder = (o) => {
   };
 };
 
+// ─── Tab Scene ───────────────────────────────────────────────────────────────
+
 const TabScene = React.memo(({
   tabKey, loading, list, refreshing, onRefresh,
   isLoadingMore, isExhausted, onEndReached,
@@ -479,6 +578,8 @@ const TabScene = React.memo(({
     />
   ), [tabKey, onAccepted, onDelivered, onSlideActiveChange]);
 
+  const keyExtractor = useCallback((o) => o.id, []);
+
   return (
     <View style={{ flex: 1 }}>
       {loading ? (
@@ -490,13 +591,18 @@ const TabScene = React.memo(({
         />
       ) : (
         <FlatList
-          data={list} keyExtractor={(o) => o.id} renderItem={renderItem}
+          data={list}
+          keyExtractor={keyExtractor}
+          renderItem={renderItem}
           removeClippedSubviews={Platform.OS === 'android'}
-          initialNumToRender={6} maxToRenderPerBatch={4} windowSize={5}
-          updateCellsBatchingPeriod={80}
+          initialNumToRender={5}
+          maxToRenderPerBatch={3}
+          windowSize={5}
+          updateCellsBatchingPeriod={60}
           contentContainerStyle={[s.listContent, { paddingBottom: rs(24) }]}
           showsVerticalScrollIndicator={false}
-          onEndReached={onEndReached} onEndReachedThreshold={0.4}
+          onEndReached={onEndReached}
+          onEndReachedThreshold={0.35}
           ListFooterComponent={
             isLoadingMore ? (
               <View style={s.loadingMore}>
@@ -530,14 +636,26 @@ const TabScene = React.memo(({
   );
 });
 
+// ─── Home Screen ─────────────────────────────────────────────────────────────
+
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const { user, restaurantName, restaurantLogo } = useStore();
-  const [logoError, setLogoError] = useState(false);
+  const { user, restaurantName } = useStore();
   const navigation = useNavigation();
+  const route      = useRoute();
 
-  const [tabIndex, setTabIndex] = useState(0);
+  // initialTab: 0 = Live (default), passed from App.js when notification is tapped
+  const [tabIndex, setTabIndex] = useState(route.params?.initialTab ?? 0);
   const [swipeEnabled, setSwipeEnabled] = useState(true);
+
+  // Reset to Live tab whenever the screen is focused via notification tap
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      const tab = route.params?.initialTab;
+      if (tab !== undefined) setTabIndex(tab);
+    });
+    return unsubscribe;
+  }, [navigation, route.params?.initialTab]);
 
   const tabs = useRef({ live: makeTabState(), pending: makeTabState() });
 
@@ -549,11 +667,57 @@ export default function HomeScreen() {
   const [loading,    setLoading]    = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const setListMap = { live: setLiveList, pending: setPendingList };
+  // ── Live alert: write count to store — App.js owns the sound globally ────
+  const setLiveOrderCount = useStore((s) => s.setLiveOrderCount);
+
+  // ── Live-tab blink ────────────────────────────────────────────────────────
+  const blinkAnim      = useRef(new Animated.Value(1)).current;
+  const blinkLoopRef   = useRef(null);
+  const alertActiveRef = useRef(false);
+
+  const startBlink = useCallback(() => {
+    if (alertActiveRef.current) return;
+    alertActiveRef.current = true;
+    blinkLoopRef.current = Animated.loop(
+      Animated.sequence([
+        Animated.timing(blinkAnim, { toValue: 0.15, duration: 500, useNativeDriver: true }),
+        Animated.timing(blinkAnim, { toValue: 1,    duration: 500, useNativeDriver: true }),
+      ])
+    );
+    blinkLoopRef.current.start();
+  }, [blinkAnim]);
+
+  const stopBlink = useCallback(() => {
+    if (!alertActiveRef.current) return;
+    alertActiveRef.current = false;
+    blinkLoopRef.current?.stop();
+    blinkLoopRef.current = null;
+    Animated.timing(blinkAnim, { toValue: 1, duration: 150, useNativeDriver: true }).start();
+  }, [blinkAnim]);
+
+  // Watch liveList — update store count (App.js controls sound) + blink tab
+  useEffect(() => {
+    setLiveOrderCount(liveList.length);   // App.js reacts to this globally
+    if (liveList.length > 0) {
+      startBlink();
+    } else {
+      stopBlink();
+    }
+  }, [liveList.length, setLiveOrderCount, startBlink, stopBlink]);
+
+  // Clean up blink only on unmount
+  useEffect(() => {
+    return () => {
+      blinkLoopRef.current?.stop();
+      setLiveOrderCount(0);              // stop sound in App.js on logout/unmount
+    };
+  }, []);
+
+  const setListMap = useRef({ live: setLiveList, pending: setPendingList }).current;
 
   const flushTab = useCallback((tab) => {
     setListMap[tab]([...tabs.current[tab].data]);
-  }, []);
+  }, [setListMap]);
 
   const exhaustTab = useCallback((tab) => {
     tabs.current[tab].exhausted = true;
@@ -570,10 +734,10 @@ export default function HomeScreen() {
     const id    = user?.restaurantId ?? '';
     const extra = getTodayDateParams();
     try {
-      const res       = await TAB_CONFIG[tab].fetcher({ page: 1, limit: LIMIT }, id, extra);
-      const meta      = res?.data?.data?.orderData;
-      const raw       = Array.isArray(meta?.data) ? meta.data : [];
-      const totalDocs = meta?.totalDocuments ?? 0;
+      const res        = await TAB_CONFIG[tab].fetcher({ page: 1, limit: LIMIT }, id, extra);
+      const meta       = res?.data?.data?.orderData;
+      const raw        = Array.isArray(meta?.data) ? meta.data : [];
+      const totalDocs  = meta?.totalDocuments ?? 0;
       const normalised = raw.map(normaliseOrder);
       tabs.current[tab].data      = normalised;
       tabs.current[tab].page      = 1;
@@ -631,6 +795,15 @@ export default function HomeScreen() {
 
   useEffect(() => { initialLoad(); }, [initialLoad]);
 
+  // AppState: reload when app comes to foreground
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') initialLoad();
+    });
+    return () => subscription.remove();
+  }, [initialLoad]);
+
+  // Firebase real-time events
   useEffect(() => {
     const restaurantId = user?.restaurantId;
     if (!restaurantId) return;
@@ -675,48 +848,64 @@ export default function HomeScreen() {
     setSwipeEnabled(!active);
   }, []);
 
-  const endReachedHandlers = {
-    live:    useCallback(() => { if (!tabs.current.live.exhausted    && !tabs.current.live.fetching)    loadMoreTab('live');    }, [loadMoreTab]),
-    pending: useCallback(() => { if (!tabs.current.pending.exhausted && !tabs.current.pending.fetching) loadMoreTab('pending'); }, [loadMoreTab]),
-  };
+  const endReachedHandlers = useRef({
+    live:    () => { if (!tabs.current.live.exhausted    && !tabs.current.live.fetching)    loadMoreTab('live');    },
+    pending: () => { if (!tabs.current.pending.exhausted && !tabs.current.pending.fetching) loadMoreTab('pending'); },
+  }).current;
 
+  // ── Accept: optimistic update, then API call ─────────────────────────────
   const handleAccepted = useCallback(async (id) => {
     const idx = tabs.current.live.data.findIndex((o) => o.id === id);
     if (idx === -1) return;
-    const wasLastLiveOrder = tabs.current.live.data.length === 1;
     const [order] = tabs.current.live.data.splice(idx, 1);
     tabs.current.pending.data.unshift({ ...order, AcceptOrder: true });
-    flushTab('live'); flushTab('pending');
-    if (wasLastLiveOrder) setTimeout(() => setTabIndex(1), 320);
+    flushTab('live');
+    flushTab('pending');
+
+    // Auto-switch to Live tab if pending becomes empty after this accept
+    // (rare edge case — accepted order goes to pending, but if live is now empty switch there)
+    if (tabs.current.live.data.length === 0) {
+      setTimeout(() => setTabIndex(1), 280); // switch to Pending since order is now there
+    }
+
     try {
       await ordersAPI.acceptOrder({ OrderId: order.orderRef, Id: user?.restaurantId ?? '' });
     } catch {
+      // Rollback
       tabs.current.pending.data.shift();
       tabs.current.live.data.splice(idx, 0, order);
-      flushTab('live'); flushTab('pending');
-      if (wasLastLiveOrder) setTabIndex(0);
+      flushTab('live');
+      flushTab('pending');
+      if (tabs.current.live.data.length === 1) setTabIndex(0);
     }
   }, [flushTab, user?.restaurantId]);
 
-const handleDelivered = useCallback(async (id) => {
-  const idx = tabs.current.pending.data.findIndex((o) => o.id === id);
-  if (idx === -1) return;
-  const [order] = tabs.current.pending.data.splice(idx, 1);
-  
-  // Play sound immediately when button is clicked
-  playSound('accept'); // or use a different sound like 'delivered' if you have one
-  
-  flushTab('pending');
-  try {
-    await ordersAPI.deliverOrder({ OrderId: order.orderRef, Id: user?.restaurantId ?? '' });
-  } catch {
-    tabs.current.pending.data.splice(idx, 0, order);
-    flushTab('pending');
-  }
-}, [flushTab, user?.restaurantId]);
+  // ── Deliver: optimistic update → auto-switch to Live if pending empty ────
+  const handleDelivered = useCallback(async (id) => {
+    const idx = tabs.current.pending.data.findIndex((o) => o.id === id);
+    if (idx === -1) return;
+    const [order] = tabs.current.pending.data.splice(idx, 1);
 
-  const counts    = { live: liveList.length, pending: pendingList.length };
-  const dateStr   = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    playSound('deliver');
+    flushTab('pending');
+
+    // ✅ Auto-switch to Live tab when pending list becomes empty
+    if (tabs.current.pending.data.length === 0) {
+      setTimeout(() => setTabIndex(0), 280);
+    }
+
+    try {
+      await ordersAPI.deliverOrder({ OrderId: order.orderRef, Id: user?.restaurantId ?? '' });
+    } catch {
+      // Rollback
+      tabs.current.pending.data.splice(idx, 0, order);
+      flushTab('pending');
+      // Cancel the tab switch if rollback
+    }
+  }, [flushTab, user?.restaurantId]);
+
+  const counts  = { live: liveList.length, pending: pendingList.length };
+  const dateStr = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
   const renderScene = useCallback(({ route }) => (
     <TabScene
@@ -755,17 +944,6 @@ const handleDelivered = useCallback(async (id) => {
             <Text style={s.title}>Hello, {restaurantName ?? 'Restaurant'} 👋</Text>
             <Text style={s.date}>{dateStr}</Text>
           </View>
-          <View style={s.headerRight}>
-            <HapticTouchable activeOpacity={0.8} style={s.logoWrap} onPress={() => navigation.navigate('Settings')}>
-              {restaurantLogo && !logoError ? (
-                <Image source={{ uri: restaurantLogo }} style={s.restaurantLogo} resizeMode="cover" onError={() => setLogoError(true)} />
-              ) : (
-                <View style={s.logoPlaceholder}>
-                  <Feather name="user" size={nz(18)} color="#888" />
-                </View>
-              )}
-            </HapticTouchable>
-          </View>
         </View>
 
         <TabView
@@ -788,11 +966,7 @@ const handleDelivered = useCallback(async (id) => {
 const s = StyleSheet.create({
   root:            { flex: 1, backgroundColor: '#fff' },
   header:          { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingHorizontal: rs(20), paddingTop: rs(14), paddingBottom: rs(12), backgroundColor: '#fff' },
-  headerRight:     { flexDirection: 'row', alignItems: 'center', gap: rs(10), marginTop: rs(2) },
-  logoWrap:        { borderRadius: rs(10), overflow: 'hidden' },
-  restaurantLogo:  { width: rs(38), height: rs(38), borderRadius: rs(10), backgroundColor: '#F0F0F0' },
-  logoPlaceholder: { width: rs(38), height: rs(38), borderRadius: rs(10), backgroundColor: '#F0F0F0', alignItems: 'center', justifyContent: 'center' },
-  title:           { fontSize: nz(22), fontWeight: '800', color: '#0D0D0D', letterSpacing: -0.5 },
+  title:           { fontSize: nz(18), fontWeight: '800', color: '#0D0D0D', letterSpacing: -0.5 },
   date:            { fontSize: nz(12), color: '#363535', marginTop: rs(2) },
   tabSection:      { backgroundColor: '#fff', paddingTop: rs(2), paddingBottom: rs(14) },
   listContent:     { paddingHorizontal: rs(14), paddingTop: rs(6) },

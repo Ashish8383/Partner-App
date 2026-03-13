@@ -1,77 +1,150 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar, View, AppState } from 'react-native';
 import AppNavigator from './src/navigation/AppNavigator';
 import useStore from './src/store/useStore';
 import { COLORS } from './src/constants/theme';
 import * as Notifications from 'expo-notifications';
-import { setupNotificationChannel, playCustomSound } from './src/utils/fcmToken';
+import { setupNotificationChannel} from './src/utils/fcmToken';
 import InAppNotification from './src/components/InAppNotification';
 import { ThemeProvider } from './src/theme/themeContext';
-import { loadSound } from './src/utils/sound';
+import { loadSound, playLoopSound, stopSound } from './src/utils/sound';
 import OfflineScreen from './src/screens/NoInternetScreen';
+import useAppVersion from './src/utils/useAppVersion';
+import UpdateRequiredScreen from './src/screens/UpdateRequiredScreen';
 
 export default function App() {
-  const loadPersistedState = useStore((state) => state.loadPersistedState);
   const [inAppNotif, setInAppNotif] = useState(null);
-  const [isOnline,   setIsOnline]   = useState(null); 
+  const [isOnline,   setIsOnline]   = useState(null);
+  const navigationRef = useRef(null);
+  const loadPersistedState      = useStore((s) => s.loadPersistedState);
+  const setNotificationsEnabled = useStore((s) => s.setNotificationsEnabled);
+  const notificationsEnabled    = useStore((s) => s.notificationsEnabled);
+  const liveOrderCount  = useStore((s) => s.liveOrderCount);
+  const alertRunningRef = useRef(false);  
+  const { updateRequired, checking: checkingVersion, currentVersion, checkVersion } = useAppVersion();
 
   useEffect(() => {
     loadPersistedState();
-    loadSound('accept', require('./assets/slide.mp3'));
+    loadSound('accept',           require('./assets/slide.mp3'));
+    loadSound('deliver',          require('./assets/deliver.mp3'));
     loadSound('order_auto_sound', require('./assets/notification.mp3'));
   }, []);
 
-  const checkConnection = async () => {
+  useEffect(() => {
+    if (liveOrderCount > 0) {
+      if (!alertRunningRef.current) {
+        alertRunningRef.current = true;
+        playLoopSound('order_auto_sound');
+      }
+    } else {
+      if (alertRunningRef.current) {
+        alertRunningRef.current = false;
+        stopSound('order_auto_sound');
+      }
+    }
+  }, [liveOrderCount]);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        if (liveOrderCount > 0 && !alertRunningRef.current) {
+          alertRunningRef.current = true;
+          playLoopSound('order_auto_sound');
+        }
+      } else if (state === 'background' || state === 'inactive') {
+        alertRunningRef.current = false;
+        stopSound('order_auto_sound');
+      }
+    });
+    return () => sub.remove();
+  }, [liveOrderCount]);
+
+  const checkConnection = useCallback(async () => {
     try {
       const res = await fetch('https://www.google.com/generate_204', {
-        method: 'HEAD',
-        cache:  'no-cache',
+        method: 'HEAD', cache: 'no-cache',
       });
       setIsOnline(res.status === 204 || res.ok);
     } catch {
       setIsOnline(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     checkConnection();
-    const appStateSub = AppState.addEventListener('change', (state) => {
+    const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') checkConnection();
     });
+    return () => sub.remove();
+  }, [checkConnection]);
 
-    return () => appStateSub.remove();
-  }, []);
-
-
+  const syncPermission = useCallback(async () => {
+    const { status } = await Notifications.getPermissionsAsync();
+    await setNotificationsEnabled(status === 'granted');
+  }, [setNotificationsEnabled]);
 
   useEffect(() => {
     setupNotificationChannel();
+    syncPermission();
   }, []);
 
   useEffect(() => {
-    const foregroundSub = Notifications.addNotificationReceivedListener(async (notification) => {
-      const notifEnabled = useStore.getState().notificationsEnabled;
-      if (!notifEnabled) return;
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') syncPermission();
+    });
+    return () => sub.remove();
+  }, [syncPermission]);
 
-      const { status } = await Notifications.getPermissionsAsync();
-      if (status !== 'granted') return;
-
-      const { title, body } = notification.request.content;
+  useEffect(() => {
+    const sub = Notifications.addNotificationReceivedListener(async (notification) => {
+      if (!notificationsEnabled) return;
+      const title = notification?.request?.content?.title;
+      const body  = notification?.request?.content?.body;
       if (!title && !body) return;
-
-      await playCustomSound();
+  
       setInAppNotif({ title: title ?? '', body: body ?? '' });
     });
-    return () => foregroundSub.remove();
+    return () => sub.remove();
+  }, [notificationsEnabled]);
+
+  const goToHomeLiveTab = useCallback(() => {
+    const nav = navigationRef.current;
+    if (!nav || !nav.isReady()) return;
+    nav.navigate('Auth', {
+      screen: 'Main',
+      params: {
+        screen: 'Home',
+        params: { initialTab: 0 },
+      },
+    });
   }, []);
+
+  if (!checkingVersion && updateRequired) {
+    return (
+      <ThemeProvider>
+        <SafeAreaProvider>
+          <StatusBar backgroundColor="#EFEFEF" barStyle="dark-content" />
+          <UpdateRequiredScreen
+            currentVersion={currentVersion}
+            onRetry={checkVersion}
+          />
+        </SafeAreaProvider>
+      </ThemeProvider>
+    );
+  }
 
   return (
     <ThemeProvider>
       <SafeAreaProvider>
         <View style={{ flex: 1 }}>
           <StatusBar backgroundColor={COLORS.primary} barStyle="light-content" />
-          <AppNavigator onStateChange={checkConnection} />
+
+          <AppNavigator
+            navigationRef={navigationRef}
+            onStateChange={checkConnection}
+          />
+
           {isOnline === false && (
             <OfflineScreen onRetry={checkConnection} />
           )}
@@ -80,6 +153,10 @@ export default function App() {
             <InAppNotification
               title={inAppNotif.title}
               body={inAppNotif.body}
+              onPress={() => {
+                goToHomeLiveTab();
+                setInAppNotif(null);
+              }}
               onDismiss={() => setInAppNotif(null)}
             />
           )}

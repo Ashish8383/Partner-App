@@ -7,49 +7,43 @@
     "scheme": "alfennzo",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-
-    "assetBundlePatterns": ["assets/**/*"],
-
+    "assetBundlePatterns": [
+      "assets/**/*"
+    ],
     "newArchEnabled": true,
-
     "updates": {
       "enabled": true,
       "checkAutomatically": "ON_LOAD",
       "fallbackToCacheTimeout": 0
     },
-
     "runtimeVersion": {
       "policy": "appVersion"
     },
-
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#FFFFFF"
     },
-
     "ios": {
       "bundleIdentifier": "com.alfennzo.partner.dev.sandbox_partner",
       "supportsTablet": true,
       "jsEngine": "hermes",
       "infoPlist": {
-        "UIBackgroundModes": ["remote-notification"],
+        "UIBackgroundModes": [
+          "remote-notification"
+        ],
         "ITSAppUsesNonExemptEncryption": false
       },
       "googleServicesFile": "./GoogleService-Info.plist"
     },
-
     "android": {
       "package": "com.alfennzo.partner.dev.sandbox_partner",
       "versionCode": 1,
       "jsEngine": "hermes",
       "edgeToEdgeEnabled": true,
-
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FF8C42"
+        "foregroundImage": "./assets/adaptive-icon.png"
       },
-
       "permissions": [
         "INTERNET",
         "RECEIVE_BOOT_COMPLETED",
@@ -57,18 +51,17 @@
         "WAKE_LOCK",
         "com.google.android.c2dm.permission.RECEIVE"
       ],
-
       "googleServicesFile": "./google-services.json"
     },
-
     "plugins": [
       [
         "expo-notifications",
         {
           "icon": "./assets/adaptive-icon.png",
-          "color": "#FF8C42",
           "mode": "production",
-          "sounds": ["./assets/notification.mp3"]
+          "sounds": [
+            "./assets/notification.mp3"
+          ]
         }
       ],
       [
@@ -80,6 +73,11 @@
         }
       ],
       "@react-native-community/datetimepicker"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "d788a5f1-2db0-430f-88ce-bad30521bc19"
+      }
+    }
   }
 }

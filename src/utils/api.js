@@ -19,6 +19,7 @@ api.interceptors.request.use(
   },
   (error) => Promise.reject(error)
 );
+
 const SKIP_AUTH_URLS = ['/restaurant/login', '/restaurant/logout', '/restaurant/updateFcmToken'];
 
 api.interceptors.response.use(
@@ -27,7 +28,6 @@ api.interceptors.response.use(
     const url = error.config?.url ?? '';
     const is401 = error.response?.status === 401;
     const isAuthRoute = SKIP_AUTH_URLS.some((r) => url.includes(r));
-
     if (is401 && !isAuthRoute) {
       await useStore.getState().logout();
     }
@@ -47,13 +47,13 @@ export const authAPI = {
     }),
 };
 
-
 export const getLogedinDevices = async (data) => {
   const response = await api.post('/restaurant/get-device-sessions', data);
   return response.data;
 };
 
 export const logoutfromdevice = async (data) => {
+  console.log(data,"device finger")
   const response = await api.post('/restaurant/logout-from-specific-device', data);
   return response.data;
 };
@@ -67,7 +67,7 @@ const fetchOrders = (Id, params, filter) =>
     params: {
       ...params,
       filter: JSON.stringify(filter),
-      Id:     Id ? encodeURIComponent(Id) : '',
+      Id: Id ? encodeURIComponent(Id) : '',
     },
     paramsSerializer: (p) => new URLSearchParams(p).toString(),
   });
@@ -100,6 +100,11 @@ export const ordersAPI = {
 
   acceptOrder:  (data) => api.post('/restaurant/AcceptOrder', data),
   deliverOrder: (data) => api.post('/restaurant/updateDeliverStatus', data),
+};
+
+export const appVersionAPI = {
+  getVersionList: (appType = 'PARTNER') =>
+    api.get('/admin/appSettingList', { params: { app: appType } }),
 };
 
 export default api;

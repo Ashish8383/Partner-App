@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { storage } from '../utils/storage';
-import { authAPI} from '../utils/api';
+import { authAPI } from '../utils/api';
 
 const useStore = create((set, get) => ({
   isAuthenticated: false,
@@ -10,14 +10,19 @@ const useStore = create((set, get) => ({
   refreshToken: null,
   restaurantName: null,
   restaurantLogo: null,
-  _isLoggingOut: false,  
-  fcmToken: null,   
-  deviceFingerprint: null,   
-  notificationsEnabled: false,  
-  pendingToast: null, 
+  _isLoggingOut: false,
+  fcmToken: null,
+  deviceFingerprint: null,
+  notificationsEnabled: false,
+  pendingToast: null,
   themeMode: 'system',
   liveOrders: [],
   orderHistory: [],
+
+  // ── liveOrderCount: written by HomeScreen, read by App.js to control alert sound
+  // App.js owns the sound — survives navigation completely
+  liveOrderCount: 0,
+  setLiveOrderCount: (count) => set({ liveOrderCount: count }),
 
   login: async (userData, token, refreshToken = null) => {
     await storage.setItem('user', userData);
@@ -36,7 +41,7 @@ const useStore = create((set, get) => ({
 
   setFcmToken: async (token) => {
     if (token === null || token === undefined) return;
-    await storage.setItem('fcmToken', token); 
+    await storage.setItem('fcmToken', token);
     set({ fcmToken: token });
   },
 
@@ -66,8 +71,8 @@ const useStore = create((set, get) => ({
     const { deviceFingerprint } = get();
     try {
       await authAPI.logout({ deviceFingerprint: deviceFingerprint ?? '' });
-    } catch {
-    }
+    } catch {}
+
     set({ pendingToast: { message: 'Logged out successfully', type: 'success' } });
     await storage.removeItem('user');
     await storage.removeItem('token');
@@ -84,6 +89,7 @@ const useStore = create((set, get) => ({
       restaurantName: null, restaurantLogo: null,
       fcmToken: null, deviceFingerprint: null, notificationsEnabled: false,
       liveOrders: [], orderHistory: [],
+      liveOrderCount: 0,   // reset alert on logout
     });
   },
 
@@ -94,37 +100,36 @@ const useStore = create((set, get) => ({
 
   loadPersistedState: async () => {
     try {
-      const user = await storage.getItem('user');
-      const token = await storage.getItem('token');
-      const refreshToken = await storage.getItem('refreshToken');
-      const savedTheme = await storage.getItem('themeMode');
-      const restaurantName = await storage.getItem('restaurantName');
-      const restaurantLogo = await storage.getItem('restaurantLogo');
-      const fcmToken = await storage.getItem('fcmToken');
-      const deviceFingerprint = await storage.getItem('deviceFingerprint');
+      const user               = await storage.getItem('user');
+      const token              = await storage.getItem('token');
+      const refreshToken       = await storage.getItem('refreshToken');
+      const savedTheme         = await storage.getItem('themeMode');
+      const restaurantName     = await storage.getItem('restaurantName');
+      const restaurantLogo     = await storage.getItem('restaurantLogo');
+      const fcmToken           = await storage.getItem('fcmToken');
+      const deviceFingerprint  = await storage.getItem('deviceFingerprint');
       const notificationsEnabled = await storage.getItem('notificationsEnabled');
-
 
       if (user && token) {
         set({
           isAuthenticated: true,
           user, token, refreshToken,
-          restaurantName: restaurantName ?? null,
-          restaurantLogo: restaurantLogo ?? null,
-          fcmToken: fcmToken ?? null,
-          deviceFingerprint: deviceFingerprint ?? null,
+          restaurantName:      restaurantName      ?? null,
+          restaurantLogo:      restaurantLogo      ?? null,
+          fcmToken:            fcmToken            ?? null,
+          deviceFingerprint:   deviceFingerprint   ?? null,
           notificationsEnabled: notificationsEnabled ?? false,
         });
       }
 
       if (savedTheme) set({ themeMode: savedTheme });
-    } catch (e) {
-    } finally {
+    } catch {}
+    finally {
       set({ isHydrated: true });
     }
   },
 
-  setLiveOrders: (orders) => set({ liveOrders: orders }),
+  setLiveOrders:   (orders)  => set({ liveOrders: orders }),
   setOrderHistory: (history) => set({ orderHistory: history }),
 
   addLiveOrder: (order) =>
