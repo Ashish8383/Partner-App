@@ -36,24 +36,41 @@ jobs:
       - name: 🔧 Install Expo CLI
         run: npm install -g @expo/cli
 
-      # ── Keystore banao secret se ───────────────────────────────────────────
+      # ─────────────────────────────────────────────────────────────────────
+      # ROOT CAUSE FIX — .env file banao project root mein
+      #
+      # EXPO_PUBLIC_* vars Metro bundler ke through JS bundle mein
+      # inject hote hain — Metro sirf .env FILE padhta hai,
+      # shell environment variables nahi.
+      #
+      # Isliye gradlew ke env: block mein dene se kaam nahi chalta.
+      # .env file banana ZAROORI hai — yahi actual fix hai.
+      # ─────────────────────────────────────────────────────────────────────
+      - name: 📄 Create .env file (Metro bundler ke liye)
+        run: |
+          cat > .env << EOF
+          EXPO_PUBLIC_BASE_URL=${{ secrets.EXPO_PUBLIC_BASE_URL }}
+          EXPO_PUBLIC_FIREBASE_API_KEY=${{ secrets.EXPO_PUBLIC_FIREBASE_API_KEY }}
+          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ secrets.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+          EXPO_PUBLIC_FIREBASE_DATABASE_URL=${{ secrets.EXPO_PUBLIC_FIREBASE_DATABASE_URL }}
+          EXPO_PUBLIC_FIREBASE_PROJECT_ID=${{ secrets.EXPO_PUBLIC_FIREBASE_PROJECT_ID }}
+          EXPO_PUBLIC_FIREBASE_APP_ID=${{ secrets.EXPO_PUBLIC_FIREBASE_APP_ID }}
+          EOF
+          echo "✅ .env file created"
+          # Verify (values mask karke)
+          echo "--- .env keys ---"
+          cut -d'=' -f1 .env
+
       - name: 🔑 Decode Keystore
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > release.keystore
 
-      # ── Expo Prebuild — android/ folder yahan generate hoga ───────────────
+      # ── Prebuild — android/ folder generate hoga ──────────────────────────
       - name: 🏗️ Expo Prebuild
         run: npx expo prebuild --platform android --clean --no-install
         env:
-          EXPO_TOKEN:                        ${{ secrets.EXPO_TOKEN }}
-          EXPO_PUBLIC_BASE_URL:              ${{ secrets.EXPO_PUBLIC_BASE_URL }}
-          EXPO_PUBLIC_FIREBASE_API_KEY:      ${{ secrets.EXPO_PUBLIC_FIREBASE_API_KEY }}
-          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN:  ${{ secrets.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN }}
-          EXPO_PUBLIC_FIREBASE_DATABASE_URL: ${{ secrets.EXPO_PUBLIC_FIREBASE_DATABASE_URL }}
-          EXPO_PUBLIC_FIREBASE_PROJECT_ID:   ${{ secrets.EXPO_PUBLIC_FIREBASE_PROJECT_ID }}
-          EXPO_PUBLIC_FIREBASE_APP_ID:       ${{ secrets.EXPO_PUBLIC_FIREBASE_APP_ID }}
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
-      # ── keystore.properties file banao ────────────────────────────────────
       - name: 📝 Create keystore.properties
         run: |
           cat > android/keystore.properties << EOF
@@ -63,18 +80,16 @@ jobs:
           keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
           EOF
 
-      # ── Signing config inject karo — koi alag file nahi, sab yahan ────────
-      - name: 🔧 Patch build.gradle (signing config)
+      # ── Signing + minifyEnabled false (crash fix) ──────────────────────────
+      - name: 🔧 Patch build.gradle
         run: |
           GRADLE_FILE="android/app/build.gradle"
 
-          # Agar pehle se patch hai to skip karo
           if grep -q "signingConfigs" "$GRADLE_FILE"; then
             echo "✅ Already patched — skipping"
             exit 0
           fi
 
-          # keystore.properties read karne wala block + signingConfigs inject karo
           python3 - <<'PYEOF'
           import re
 
@@ -96,7 +111,6 @@ jobs:
               }
           """
 
-          # android { ke baad inject karo
           content = re.sub(
               r'(android\s*\{)',
               r'\1' + signing_block,
@@ -104,10 +118,14 @@ jobs:
               count=1
           )
 
-          # buildTypes > release mein signingConfig line add karo
           content = re.sub(
               r'(buildTypes\s*\{[^}]*?release\s*\{)',
-              r'\1\n            signingConfig signingConfigs.release',
+              (
+                  r'\1'
+                  r'\n            signingConfig   signingConfigs.release'
+                  r'\n            minifyEnabled   false'
+                  r'\n            shrinkResources false'
+              ),
               content,
               count=1,
               flags=re.DOTALL
@@ -116,10 +134,29 @@ jobs:
           with open(gradle_path, "w") as f:
               f.write(content)
 
-          print("✅ build.gradle patched successfully")
+          print("✅ build.gradle patched")
           PYEOF
 
-      # ── Gradle cache ───────────────────────────────────────────────────────
+      - name: 📋 Write ProGuard rules
+        run: |
+          cat > android/app/proguard-rules.pro << 'EOF'
+          -keep class com.facebook.react.**            { *; }
+          -keep class com.facebook.hermes.**           { *; }
+          -keep class com.facebook.jni.**              { *; }
+          -keep class expo.modules.**                  { *; }
+          -keep class com.google.firebase.**           { *; }
+          -keep class com.google.android.gms.**        { *; }
+          -keep class com.swmansion.gesturehandler.**  { *; }
+          -keep class com.swmansion.reanimated.**      { *; }
+          -keep class com.th3rdwave.safeareacontext.** { *; }
+          -keep class com.swmansion.rnscreens.**       { *; }
+          -keep class expo.modules.notifications.**    { *; }
+          -keepclassmembers class * {
+              @android.webkit.JavascriptInterface <methods>;
+          }
+          -keep class com.alfennzo.partner.BuildConfig { *; }
+          EOF
+
       - name: 📦 Cache Gradle
         uses: actions/cache@v4
         with:
@@ -129,21 +166,13 @@ jobs:
           key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: gradle-${{ runner.os }}-
 
-      # ── Build ──────────────────────────────────────────────────────────────
+      # ── Build — .env file project root mein hai, Metro ise padhega ────────
       - name: 🔨 Build APK + AAB
         run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleRelease bundleRelease --no-daemon
-        env:
-          EXPO_PUBLIC_BASE_URL:              ${{ secrets.EXPO_PUBLIC_BASE_URL }}
-          EXPO_PUBLIC_FIREBASE_API_KEY:      ${{ secrets.EXPO_PUBLIC_FIREBASE_API_KEY }}
-          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN:  ${{ secrets.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN }}
-          EXPO_PUBLIC_FIREBASE_DATABASE_URL: ${{ secrets.EXPO_PUBLIC_FIREBASE_DATABASE_URL }}
-          EXPO_PUBLIC_FIREBASE_PROJECT_ID:   ${{ secrets.EXPO_PUBLIC_FIREBASE_PROJECT_ID }}
-          EXPO_PUBLIC_FIREBASE_APP_ID:       ${{ secrets.EXPO_PUBLIC_FIREBASE_APP_ID }}
 
-      # ── Artifacts upload ───────────────────────────────────────────────────
       - name: 📤 Upload APK
         uses: actions/upload-artifact@v4
         with:
@@ -158,7 +187,6 @@ jobs:
           path: android/app/build/outputs/bundle/release/app-release.aab
           retention-days: 7
 
-      # ── Summary ────────────────────────────────────────────────────────────
       - name: 📊 Build Summary
         run: |
           echo "### ✅ Build Complete!" >> $GITHUB_STEP_SUMMARY
@@ -170,4 +198,4 @@ jobs:
           echo "| APK  | $APK_SIZE |" >> $GITHUB_STEP_SUMMARY
           echo "| AAB  | $AAB_SIZE |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Artifacts** tab se download karo ⬆️" >> $GITHUB_STEP_SUMMARY
+          echo "Artifacts tab se download karo ⬆️" >> $GITHUB_STEP_SUMMARY
