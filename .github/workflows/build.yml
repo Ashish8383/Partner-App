@@ -52,9 +52,7 @@ jobs:
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > release.keystore
           echo "✅ Keystore decoded"
-
-          # Verify SHA1
-          echo "--- Keystore SHA1 verify ---"
+          echo "--- Keystore SHA1 ---"
           keytool -list -v \
             -keystore release.keystore \
             -storepass "${{ secrets.ANDROID_STORE_PASSWORD }}" \
@@ -63,17 +61,7 @@ jobs:
       - name: 🏗️ Expo Prebuild
         run: npx expo prebuild --platform android --clean --no-install
 
-      - name: 📝 Create keystore.properties
-        run: |
-          cat > android/keystore.properties << EOF
-          storeFile=../release.keystore
-          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
-          storePassword=${{ secrets.ANDROID_STORE_PASSWORD }}
-          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
-          EOF
-          echo "✅ keystore.properties created"
-
-      - name: 🔧 Patch build.gradle
+      - name: 🔧 Patch build.gradle (minify off only)
         run: |
           python3 - <<'PYEOF'
           import re
@@ -82,36 +70,11 @@ jobs:
           with open(gradle_path, "r") as f:
               content = f.read()
 
-          if "signingConfigs" in content:
-              print("✅ Already patched")
-              exit()
-
-          signing_block = """
-              signingConfigs {
-                  release {
-                      def props = new Properties()
-                      def propsFile = rootProject.file("keystore.properties")
-                      if (propsFile.exists()) { props.load(new FileInputStream(propsFile)) }
-                      storeFile     file(props["storeFile"]     ?: "../release.keystore")
-                      keyAlias      props["keyAlias"]     ?: ""
-                      storePassword props["storePassword"] ?: ""
-                      keyPassword   props["keyPassword"]   ?: ""
-                  }
-              }
-          """
-
-          content = re.sub(
-              r'(android\s*\{)',
-              r'\1' + signing_block,
-              content,
-              count=1
-          )
-
+          # Sirf minifyEnabled false karo — signing command line se hogi
           content = re.sub(
               r'(buildTypes\s*\{[^}]*?release\s*\{)',
               (
                   r'\1'
-                  r'\n            signingConfig   signingConfigs.release'
                   r'\n            minifyEnabled   false'
                   r'\n            shrinkResources false'
               ),
@@ -126,21 +89,25 @@ jobs:
           print("✅ build.gradle patched")
           PYEOF
 
-      # ── Cache HATA diya — fresh build hogi sahi keystore se ───────────────
       - name: 🔨 Build Signed APK + AAB
         run: |
           cd android
           chmod +x gradlew
-          # --rerun-tasks force karta hai fresh build
-          ./gradlew assembleRelease bundleRelease --no-daemon --rerun-tasks
+          # Signing directly command line se — build.gradle override hoga
+          ./gradlew assembleRelease bundleRelease --no-daemon \
+            -Pandroid.injected.signing.store.file=$(pwd)/../release.keystore \
+            -Pandroid.injected.signing.store.password=${{ secrets.ANDROID_STORE_PASSWORD }} \
+            -Pandroid.injected.signing.key.alias=${{ secrets.ANDROID_KEY_ALIAS }} \
+            -Pandroid.injected.signing.key.password=${{ secrets.ANDROID_KEY_PASSWORD }}
 
-      # ── Verify signed AAB SHA1 ─────────────────────────────────────────────
-      - name: ✅ Verify AAB Signature
+      - name: ✅ Verify AAB SHA1
         run: |
-          echo "--- AAB Signature verify ---"
+          echo "--- AAB SHA1 verify ---"
           keytool -printcert -jarfile \
             android/app/build/outputs/bundle/release/app-release.aab \
-            2>/dev/null | grep "SHA1" || echo "AAB signature check skipped"
+            2>/dev/null | grep "SHA1"
+          echo ""
+          echo "Expected: C2:11:92:F4:3F:F4:C1:75:0C:60:14:E5:89:34:24:26:10:9C:8D:0B"
 
       - name: 📤 Upload APK
         uses: actions/upload-artifact@v4
