@@ -1,4 +1,4 @@
-name: 🚀 Production Build — APK + AAB
+name: 🚀 Production Build — Signed APK + AAB
 
 on:
   push:
@@ -36,66 +36,51 @@ jobs:
       - name: 🔧 Install Expo CLI
         run: npm install -g @expo/cli
 
-      # ─────────────────────────────────────────────────────────────────────
-      # .env file banao — Metro bundler yahi file padhta hai
-      # shell env vars nahi padhta, isliye ye step zaroori hai
-      # ─────────────────────────────────────────────────────────────────────
       - name: 📄 Create .env file
         run: |
-          cat > .env << EOF
-          EXPO_PUBLIC_BASE_URL=${{ secrets.EXPO_PUBLIC_BASE_URL }}
-          EXPO_PUBLIC_FIREBASE_API_KEY=${{ secrets.EXPO_PUBLIC_FIREBASE_API_KEY }}
-          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ secrets.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN }}
-          EXPO_PUBLIC_FIREBASE_DATABASE_URL=${{ secrets.EXPO_PUBLIC_FIREBASE_DATABASE_URL }}
-          EXPO_PUBLIC_FIREBASE_PROJECT_ID=${{ secrets.EXPO_PUBLIC_FIREBASE_PROJECT_ID }}
-          EXPO_PUBLIC_FIREBASE_APP_ID=${{ secrets.EXPO_PUBLIC_FIREBASE_APP_ID }}
+          cat > .env << 'EOF'
+          EXPO_PUBLIC_BASE_URL=https://production.alfennzo.com/api/v1
+          EXPO_PUBLIC_FIREBASE_API_KEY=AIzaSyAGwdVq_euG9apZlhl1bXspqVQdyDyrb3I
+          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=partner-console-production.firebaseapp.com
+          EXPO_PUBLIC_FIREBASE_DATABASE_URL=https://partner-console-production-default-rtdb.asia-southeast1.firebasedatabase.app
+          EXPO_PUBLIC_FIREBASE_PROJECT_ID=partner-console-production
+          EXPO_PUBLIC_FIREBASE_APP_ID=1:814221401570:web:2fdfbafd7fdedef80a6dbb
           EOF
+          echo "✅ .env created"
 
-          echo "--- Verifying secrets are not empty ---"
-          while IFS='=' read -r key value; do
-            value=$(echo "$value" | xargs)
-            if [ -z "$value" ]; then
-              echo "❌ $key = EMPTY — GitHub Secret missing!"
-            else
-              echo "✅ $key = SET (${#value} chars)"
-            fi
-          done < .env
-
+      # ── Keystore decode ────────────────────────────────────────────────────
       - name: 🔑 Decode Keystore
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > release.keystore
-          echo "✅ Keystore decoded ($(du -sh release.keystore | cut -f1))"
+          echo "✅ Keystore ready ($(du -sh release.keystore | cut -f1))"
 
       - name: 🏗️ Expo Prebuild
         run: npx expo prebuild --platform android --clean --no-install
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
+      # ── keystore.properties ────────────────────────────────────────────────
       - name: 📝 Create keystore.properties
         run: |
           cat > android/keystore.properties << EOF
           storeFile=../release.keystore
-          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
-          storePassword=${{ secrets.ANDROID_STORE_PASSWORD }}
-          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
+          keyAlias=alfennzo-key
+          storePassword=Alfennzo@2024
+          keyPassword=Alfennzo@2024
           EOF
           echo "✅ keystore.properties created"
 
+      # ── build.gradle patch — signing + minify off ──────────────────────────
       - name: 🔧 Patch build.gradle
         run: |
-          GRADLE_FILE="android/app/build.gradle"
-
-          if grep -q "signingConfigs" "$GRADLE_FILE"; then
-            echo "✅ Already patched — skipping"
-            exit 0
-          fi
-
           python3 - <<'PYEOF'
           import re
 
           gradle_path = "android/app/build.gradle"
           with open(gradle_path, "r") as f:
               content = f.read()
+
+          if "signingConfigs" in content:
+              print("✅ Already patched")
+              exit()
 
           signing_block = """
               signingConfigs {
@@ -137,27 +122,6 @@ jobs:
           print("✅ build.gradle patched")
           PYEOF
 
-      - name: 📋 Write ProGuard rules
-        run: |
-          cat > android/app/proguard-rules.pro << 'EOF'
-          -keep class com.facebook.react.**            { *; }
-          -keep class com.facebook.hermes.**           { *; }
-          -keep class com.facebook.jni.**              { *; }
-          -keep class expo.modules.**                  { *; }
-          -keep class com.google.firebase.**           { *; }
-          -keep class com.google.android.gms.**        { *; }
-          -keep class com.swmansion.gesturehandler.**  { *; }
-          -keep class com.swmansion.reanimated.**      { *; }
-          -keep class com.th3rdwave.safeareacontext.** { *; }
-          -keep class com.swmansion.rnscreens.**       { *; }
-          -keep class expo.modules.notifications.**    { *; }
-          -keepclassmembers class * {
-              @android.webkit.JavascriptInterface <methods>;
-          }
-          -keep class com.alfennzo.alfennzo_partner.BuildConfig { *; }
-          EOF
-          echo "✅ ProGuard rules written"
-
       - name: 📦 Cache Gradle
         uses: actions/cache@v4
         with:
@@ -167,7 +131,7 @@ jobs:
           key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: gradle-${{ runner.os }}-
 
-      - name: 🔨 Build APK + AAB
+      - name: 🔨 Build Signed APK + AAB
         run: |
           cd android
           chmod +x gradlew
@@ -189,13 +153,13 @@ jobs:
 
       - name: 📊 Build Summary
         run: |
-          echo "### ✅ Build Complete!" >> $GITHUB_STEP_SUMMARY
+          echo "### ✅ Signed Build Complete!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| File | Size |" >> $GITHUB_STEP_SUMMARY
           echo "|------|------|" >> $GITHUB_STEP_SUMMARY
           APK_SIZE=$(du -sh android/app/build/outputs/apk/release/app-release.apk 2>/dev/null | cut -f1 || echo "N/A")
           AAB_SIZE=$(du -sh android/app/build/outputs/bundle/release/app-release.aab 2>/dev/null | cut -f1 || echo "N/A")
-          echo "| APK  | $APK_SIZE |" >> $GITHUB_STEP_SUMMARY
-          echo "| AAB  | $AAB_SIZE |" >> $GITHUB_STEP_SUMMARY
+          echo "| APK (Testing) | $APK_SIZE |" >> $GITHUB_STEP_SUMMARY
+          echo "| AAB (Play Store) | $AAB_SIZE |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Artifacts tab se download karo ⬆️" >> $GITHUB_STEP_SUMMARY
+          echo "✅ AAB signed hai — Play Store pe upload karo!" >> $GITHUB_STEP_SUMMARY
