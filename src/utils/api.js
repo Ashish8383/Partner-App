@@ -1,13 +1,12 @@
 import axios from 'axios';
 import useStore from '../store/useStore';
-const API_BASE_URL = 'https://sandbox.safeqr.in/api/v1';
 
 const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: process.env.EXPO_PUBLIC_BASE_URL,
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
-    'Accept': 'application/json',
+    'Accept':       'application/json',
   },
 });
 
@@ -25,8 +24,8 @@ const SKIP_AUTH_URLS = ['/restaurant/login', '/restaurant/logout', '/restaurant/
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const url = error.config?.url ?? '';
-    const is401 = error.response?.status === 401;
+    const url         = error.config?.url ?? '';
+    const is401       = error.response?.status === 401;
     const isAuthRoute = SKIP_AUTH_URLS.some((r) => url.includes(r));
     if (is401 && !isAuthRoute) {
       await useStore.getState().logout();
@@ -53,7 +52,6 @@ export const getLogedinDevices = async (data) => {
 };
 
 export const logoutfromdevice = async (data) => {
-  console.log(data,"device finger")
   const response = await api.post('/restaurant/logout-from-specific-device', data);
   return response.data;
 };
@@ -67,7 +65,7 @@ const fetchOrders = (Id, params, filter) =>
     params: {
       ...params,
       filter: JSON.stringify(filter),
-      Id: Id ? encodeURIComponent(Id) : '',
+      Id:     Id ? encodeURIComponent(Id) : '',
     },
     paramsSerializer: (p) => new URLSearchParams(p).toString(),
   });
