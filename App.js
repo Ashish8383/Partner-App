@@ -31,6 +31,7 @@ export default function App() {
     loadSound('order_auto_sound', require('./assets/notification.mp3'));
   }, []);
 
+  
   useEffect(() => {
     if (liveOrderCount > 0) {
       if (!alertRunningRef.current) {
@@ -121,7 +122,7 @@ export default function App() {
     });
   }, []);
 
-  
+
   if (!checkingVersion && updateRequired) {
     return (
       <ThemeProvider>
