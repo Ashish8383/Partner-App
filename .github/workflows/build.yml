@@ -48,27 +48,25 @@ jobs:
           EOF
           echo "✅ .env created"
 
-      # ── Keystore decode ────────────────────────────────────────────────────
       - name: 🔑 Decode Keystore
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > release.keystore
-          echo "✅ Keystore ready ($(du -sh release.keystore | cut -f1))"
+          echo "✅ Keystore decoded ($(du -sh release.keystore | cut -f1))"
 
       - name: 🏗️ Expo Prebuild
         run: npx expo prebuild --platform android --clean --no-install
 
-      # ── keystore.properties ────────────────────────────────────────────────
+      # ── Flutter keystore alias = "upload" ─────────────────────────────────
       - name: 📝 Create keystore.properties
         run: |
           cat > android/keystore.properties << EOF
           storeFile=../release.keystore
-          keyAlias=alfennzo-key
-          storePassword=Alfennzo@2024
-          keyPassword=Alfennzo@2024
+          keyAlias=upload
+          storePassword=${{ secrets.ANDROID_STORE_PASSWORD }}
+          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
           EOF
           echo "✅ keystore.properties created"
 
-      # ── build.gradle patch — signing + minify off ──────────────────────────
       - name: 🔧 Patch build.gradle
         run: |
           python3 - <<'PYEOF'
@@ -142,14 +140,14 @@ jobs:
         with:
           name: alfennzo-partner-release-apk
           path: android/app/build/outputs/apk/release/app-release.apk
-          retention-days: 7
+          retention-days: 1
 
       - name: 📤 Upload AAB
         uses: actions/upload-artifact@v4
         with:
           name: alfennzo-partner-release-aab
           path: android/app/build/outputs/bundle/release/app-release.aab
-          retention-days: 7
+          retention-days: 1
 
       - name: 📊 Build Summary
         run: |
@@ -159,7 +157,6 @@ jobs:
           echo "|------|------|" >> $GITHUB_STEP_SUMMARY
           APK_SIZE=$(du -sh android/app/build/outputs/apk/release/app-release.apk 2>/dev/null | cut -f1 || echo "N/A")
           AAB_SIZE=$(du -sh android/app/build/outputs/bundle/release/app-release.aab 2>/dev/null | cut -f1 || echo "N/A")
-          echo "| APK (Testing) | $APK_SIZE |" >> $GITHUB_STEP_SUMMARY
-          echo "| AAB (Play Store) | $AAB_SIZE |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ AAB signed hai — Play Store pe upload karo!" >> $GITHUB_STEP_SUMMARY
+          echo "| APK | $APK_SIZE |" >> $GITHUB_STEP_SUMMARY
+          echo "| AAB | $AAB_SIZE |" >> $GITHUB_STEP_SUMMARY
+          echo "✅ AAB signed — Play Store pe upload karo!" >> $GITHUB_STEP_SUMMARY
