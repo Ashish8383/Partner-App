@@ -12,47 +12,36 @@ jobs:
 
     steps:
 
-      # ── 1. Code checkout ───────────────────────────────────────────────────
       - name: 📥 Checkout code
         uses: actions/checkout@v4
 
-      # ── 2. Node setup ──────────────────────────────────────────────────────
       - name: ⚙️ Setup Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
 
-      # ── 3. Java setup ──────────────────────────────────────────────────────
       - name: ☕ Setup Java 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      # ── 4. Android SDK ─────────────────────────────────────────────────────
       - name: 📱 Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      # ── 5. Dependencies ────────────────────────────────────────────────────
       - name: 📦 Install dependencies
         run: npm ci
 
-      # ── 6. Expo CLI ────────────────────────────────────────────────────────
       - name: 🔧 Install Expo CLI
         run: npm install -g @expo/cli
 
-      # ── 7. Keystore decode ─────────────────────────────────────────────────
-      # GitHub Secret: ANDROID_KEYSTORE_BASE64
-      # Banane ka command apni machine pe:
-      #   keytool -genkey -v -keystore release.keystore -alias alfennzo-key -keyalg RSA -keysize 2048 -validity 10000
-      #   base64 -i release.keystore  (Mac/Linux)
-      #   certutil -encode release.keystore tmp.b64 && findstr /v /c:- tmp.b64 > encoded.b64  (Windows)
+      # ── Keystore banao secret se ───────────────────────────────────────────
       - name: 🔑 Decode Keystore
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > release.keystore
 
-      # ── 8. Expo Prebuild — android folder generate hoga ───────────────────
+      # ── Expo Prebuild — android/ folder yahan generate hoga ───────────────
       - name: 🏗️ Expo Prebuild
         run: npx expo prebuild --platform android --clean --no-install
         env:
@@ -64,7 +53,7 @@ jobs:
           EXPO_PUBLIC_FIREBASE_PROJECT_ID:   ${{ secrets.EXPO_PUBLIC_FIREBASE_PROJECT_ID }}
           EXPO_PUBLIC_FIREBASE_APP_ID:       ${{ secrets.EXPO_PUBLIC_FIREBASE_APP_ID }}
 
-      # ── 9. keystore.properties banao android/ folder mein ─────────────────
+      # ── keystore.properties file banao ────────────────────────────────────
       - name: 📝 Create keystore.properties
         run: |
           cat > android/keystore.properties << EOF
@@ -74,11 +63,63 @@ jobs:
           keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
           EOF
 
-      # ── 10. build.gradle mein signing config inject karo ──────────────────
-      - name: 🔧 Patch build.gradle (signing config inject)
-        run: node patch-gradle.js
+      # ── Signing config inject karo — koi alag file nahi, sab yahan ────────
+      - name: 🔧 Patch build.gradle (signing config)
+        run: |
+          GRADLE_FILE="android/app/build.gradle"
 
-      # ── 11. Gradle cache (build fast hoga) ────────────────────────────────
+          # Agar pehle se patch hai to skip karo
+          if grep -q "signingConfigs" "$GRADLE_FILE"; then
+            echo "✅ Already patched — skipping"
+            exit 0
+          fi
+
+          # keystore.properties read karne wala block + signingConfigs inject karo
+          python3 - <<'PYEOF'
+          import re
+
+          gradle_path = "android/app/build.gradle"
+          with open(gradle_path, "r") as f:
+              content = f.read()
+
+          signing_block = """
+              signingConfigs {
+                  release {
+                      def props = new Properties()
+                      def propsFile = rootProject.file("keystore.properties")
+                      if (propsFile.exists()) { props.load(new FileInputStream(propsFile)) }
+                      storeFile     file(props["storeFile"]     ?: "../release.keystore")
+                      keyAlias      props["keyAlias"]     ?: ""
+                      storePassword props["storePassword"] ?: ""
+                      keyPassword   props["keyPassword"]   ?: ""
+                  }
+              }
+          """
+
+          # android { ke baad inject karo
+          content = re.sub(
+              r'(android\s*\{)',
+              r'\1' + signing_block,
+              content,
+              count=1
+          )
+
+          # buildTypes > release mein signingConfig line add karo
+          content = re.sub(
+              r'(buildTypes\s*\{[^}]*?release\s*\{)',
+              r'\1\n            signingConfig signingConfigs.release',
+              content,
+              count=1,
+              flags=re.DOTALL
+          )
+
+          with open(gradle_path, "w") as f:
+              f.write(content)
+
+          print("✅ build.gradle patched successfully")
+          PYEOF
+
+      # ── Gradle cache ───────────────────────────────────────────────────────
       - name: 📦 Cache Gradle
         uses: actions/cache@v4
         with:
@@ -88,12 +129,12 @@ jobs:
           key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: gradle-${{ runner.os }}-
 
-      # ── 12. Production APK + AAB build ────────────────────────────────────
+      # ── Build ──────────────────────────────────────────────────────────────
       - name: 🔨 Build APK + AAB
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleRelease bundleRelease --no-daemon --stacktrace
+          ./gradlew assembleRelease bundleRelease --no-daemon
         env:
           EXPO_PUBLIC_BASE_URL:              ${{ secrets.EXPO_PUBLIC_BASE_URL }}
           EXPO_PUBLIC_FIREBASE_API_KEY:      ${{ secrets.EXPO_PUBLIC_FIREBASE_API_KEY }}
@@ -102,32 +143,31 @@ jobs:
           EXPO_PUBLIC_FIREBASE_PROJECT_ID:   ${{ secrets.EXPO_PUBLIC_FIREBASE_PROJECT_ID }}
           EXPO_PUBLIC_FIREBASE_APP_ID:       ${{ secrets.EXPO_PUBLIC_FIREBASE_APP_ID }}
 
-      # ── 13. APK Upload ─────────────────────────────────────────────────────
-      - name: 📤 Upload APK (direct install ke liye)
+      # ── Artifacts upload ───────────────────────────────────────────────────
+      - name: 📤 Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: alfennzo-partner-release-apk
           path: android/app/build/outputs/apk/release/app-release.apk
           retention-days: 7
 
-      # ── 14. AAB Upload ─────────────────────────────────────────────────────
-      - name: 📤 Upload AAB (Play Store ke liye)
+      - name: 📤 Upload AAB
         uses: actions/upload-artifact@v4
         with:
           name: alfennzo-partner-release-aab
           path: android/app/build/outputs/bundle/release/app-release.aab
           retention-days: 7
 
-      # ── 15. Build summary ──────────────────────────────────────────────────
+      # ── Summary ────────────────────────────────────────────────────────────
       - name: 📊 Build Summary
         run: |
           echo "### ✅ Build Complete!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| File | Size |" >> $GITHUB_STEP_SUMMARY
           echo "|------|------|" >> $GITHUB_STEP_SUMMARY
-          APK_SIZE=$(du -sh android/app/build/outputs/apk/release/app-release.apk | cut -f1)
-          AAB_SIZE=$(du -sh android/app/build/outputs/bundle/release/app-release.aab | cut -f1)
+          APK_SIZE=$(du -sh android/app/build/outputs/apk/release/app-release.apk 2>/dev/null | cut -f1 || echo "N/A")
+          AAB_SIZE=$(du -sh android/app/build/outputs/bundle/release/app-release.aab 2>/dev/null | cut -f1 || echo "N/A")
           echo "| APK  | $APK_SIZE |" >> $GITHUB_STEP_SUMMARY
           echo "| AAB  | $AAB_SIZE |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Artifacts** tab se download karo 👆" >> $GITHUB_STEP_SUMMARY
+          echo "**Artifacts** tab se download karo ⬆️" >> $GITHUB_STEP_SUMMARY
