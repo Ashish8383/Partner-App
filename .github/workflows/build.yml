@@ -51,17 +51,23 @@ jobs:
       - name: 🔑 Decode Keystore
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > release.keystore
-          echo "✅ Keystore decoded ($(du -sh release.keystore | cut -f1))"
+          echo "✅ Keystore decoded"
+
+          # Verify SHA1
+          echo "--- Keystore SHA1 verify ---"
+          keytool -list -v \
+            -keystore release.keystore \
+            -storepass "${{ secrets.ANDROID_STORE_PASSWORD }}" \
+            2>/dev/null | grep "SHA1"
 
       - name: 🏗️ Expo Prebuild
         run: npx expo prebuild --platform android --clean --no-install
 
-      # ── Flutter keystore alias = "upload" ─────────────────────────────────
       - name: 📝 Create keystore.properties
         run: |
           cat > android/keystore.properties << EOF
           storeFile=../release.keystore
-          keyAlias=upload
+          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
           storePassword=${{ secrets.ANDROID_STORE_PASSWORD }}
           keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
           EOF
@@ -120,20 +126,21 @@ jobs:
           print("✅ build.gradle patched")
           PYEOF
 
-      - name: 📦 Cache Gradle
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: gradle-${{ runner.os }}-
-
+      # ── Cache HATA diya — fresh build hogi sahi keystore se ───────────────
       - name: 🔨 Build Signed APK + AAB
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleRelease bundleRelease --no-daemon
+          # --rerun-tasks force karta hai fresh build
+          ./gradlew assembleRelease bundleRelease --no-daemon --rerun-tasks
+
+      # ── Verify signed AAB SHA1 ─────────────────────────────────────────────
+      - name: ✅ Verify AAB Signature
+        run: |
+          echo "--- AAB Signature verify ---"
+          keytool -printcert -jarfile \
+            android/app/build/outputs/bundle/release/app-release.aab \
+            2>/dev/null | grep "SHA1" || echo "AAB signature check skipped"
 
       - name: 📤 Upload APK
         uses: actions/upload-artifact@v4
