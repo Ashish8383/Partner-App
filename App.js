@@ -121,6 +121,7 @@ export default function App() {
     });
   }, []);
 
+  
   if (!checkingVersion && updateRequired) {
     return (
       <ThemeProvider>
