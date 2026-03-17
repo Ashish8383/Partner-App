@@ -50,7 +50,7 @@ const DeviceSessionsModal = ({
 
   const handleLogoutDevice = async (deviceFingerprint) => {
     setLoadingDevices(prev => ({ ...prev, [deviceFingerprint]: true }));
-    console.log(deviceFingerprint,"sadhsad")
+    console.log(deviceFingerprint, "sadhsad")
     try {
       const response = await logoutfromdevice({
         targetDeviceFingerprint: deviceFingerprint,
@@ -111,16 +111,16 @@ const DeviceSessionsModal = ({
   const renderDeviceItem = ({ item }) => {
     const deviceInfo = item.deviceInfo || {};
     const isLoading = loadingDevices[item.deviceFingerprint];
-    const isCurrentDevice = item.isCurrentDevice; 
+    const isCurrentDevice = item.isCurrentDevice;
 
     return (
       <View style={styles.deviceCard}>
         <View style={styles.deviceHeader}>
           <View style={styles.deviceIconContainer}>
-            <MaterialIcons 
-              name={getDeviceIcon(deviceInfo.platform)} 
-              size={normalize(24)} 
-              color="#03954E" 
+            <MaterialIcons
+              name={getDeviceIcon(deviceInfo.platform)}
+              size={normalize(24)}
+              color="#03954E"
             />
           </View>
           <View style={styles.deviceInfo}>
@@ -137,13 +137,7 @@ const DeviceSessionsModal = ({
               Last active: {formatLastActive(item.lastActive || item.updatedAt)}
             </Text>
           </View>
-        </View>
 
-        <View style={styles.deviceFooter}>
-          <Text style={styles.fingerprintText}>
-            ID: {item.deviceFingerprint?.substring(0, 8)}...
-          </Text>
-          
           {!isCurrentDevice && (
             <TouchableOpacity
               style={[styles.logoutButton, isLoading && styles.logoutButtonDisabled]}
@@ -161,6 +155,8 @@ const DeviceSessionsModal = ({
             </TouchableOpacity>
           )}
         </View>
+
+
       </View>
     );
   };
@@ -194,7 +190,7 @@ const DeviceSessionsModal = ({
                 contentContainerStyle={styles.devicesList}
                 showsVerticalScrollIndicator={false}
               />
-              
+
               <View style={styles.modalFooter}>
                 <Text style={styles.footerText}>
                   Logout from a device to continue with this one
@@ -321,7 +317,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFEBEE',
-    paddingVertical: rs(6),
     paddingHorizontal: rs(12),
     borderRadius: rs(16),
     gap: rs(4),

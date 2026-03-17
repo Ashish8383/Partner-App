@@ -37,16 +37,10 @@ jobs:
         run: npm install -g @expo/cli
 
       # ─────────────────────────────────────────────────────────────────────
-      # ROOT CAUSE FIX — .env file banao project root mein
-      #
-      # EXPO_PUBLIC_* vars Metro bundler ke through JS bundle mein
-      # inject hote hain — Metro sirf .env FILE padhta hai,
-      # shell environment variables nahi.
-      #
-      # Isliye gradlew ke env: block mein dene se kaam nahi chalta.
-      # .env file banana ZAROORI hai — yahi actual fix hai.
+      # .env file banao — Metro bundler yahi file padhta hai
+      # shell env vars nahi padhta, isliye ye step zaroori hai
       # ─────────────────────────────────────────────────────────────────────
-      - name: 📄 Create .env file (Metro bundler ke liye)
+      - name: 📄 Create .env file
         run: |
           cat > .env << EOF
           EXPO_PUBLIC_BASE_URL=${{ secrets.EXPO_PUBLIC_BASE_URL }}
@@ -56,16 +50,22 @@ jobs:
           EXPO_PUBLIC_FIREBASE_PROJECT_ID=${{ secrets.EXPO_PUBLIC_FIREBASE_PROJECT_ID }}
           EXPO_PUBLIC_FIREBASE_APP_ID=${{ secrets.EXPO_PUBLIC_FIREBASE_APP_ID }}
           EOF
-          echo "✅ .env file created"
-          # Verify (values mask karke)
-          echo "--- .env keys ---"
-          cut -d'=' -f1 .env
+
+          echo "--- Verifying secrets are not empty ---"
+          while IFS='=' read -r key value; do
+            value=$(echo "$value" | xargs)
+            if [ -z "$value" ]; then
+              echo "❌ $key = EMPTY — GitHub Secret missing!"
+            else
+              echo "✅ $key = SET (${#value} chars)"
+            fi
+          done < .env
 
       - name: 🔑 Decode Keystore
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > release.keystore
+          echo "✅ Keystore decoded ($(du -sh release.keystore | cut -f1))"
 
-      # ── Prebuild — android/ folder generate hoga ──────────────────────────
       - name: 🏗️ Expo Prebuild
         run: npx expo prebuild --platform android --clean --no-install
         env:
@@ -79,8 +79,8 @@ jobs:
           storePassword=${{ secrets.ANDROID_STORE_PASSWORD }}
           keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
           EOF
+          echo "✅ keystore.properties created"
 
-      # ── Signing + minifyEnabled false (crash fix) ──────────────────────────
       - name: 🔧 Patch build.gradle
         run: |
           GRADLE_FILE="android/app/build.gradle"
@@ -154,8 +154,9 @@ jobs:
           -keepclassmembers class * {
               @android.webkit.JavascriptInterface <methods>;
           }
-          -keep class com.alfennzo.partner.BuildConfig { *; }
+          -keep class com.alfennzo.alfennzo_partner.BuildConfig { *; }
           EOF
+          echo "✅ ProGuard rules written"
 
       - name: 📦 Cache Gradle
         uses: actions/cache@v4
@@ -166,7 +167,6 @@ jobs:
           key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: gradle-${{ runner.os }}-
 
-      # ── Build — .env file project root mein hai, Metro ise padhega ────────
       - name: 🔨 Build APK + AAB
         run: |
           cd android

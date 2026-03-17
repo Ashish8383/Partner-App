@@ -1,22 +1,22 @@
 {
   "project_info": {
-    "project_number": "1025748391482",
-    "firebase_url": "https://partner-console-sandbox-default-rtdb.asia-southeast1.firebasedatabase.app",
-    "project_id": "partner-console-sandbox",
-    "storage_bucket": "partner-console-sandbox.firebasestorage.app"
+    "project_number": "814221401570",
+    "firebase_url": "https://partner-console-production-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "partner-console-production",
+    "storage_bucket": "partner-console-production.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1025748391482:android:c7ca30078723eaafae4703",
+        "mobilesdk_app_id": "1:814221401570:android:98e56f6d2c9c4ca00a6dbb",
         "android_client_info": {
-          "package_name": "com.alfennzo.partner.dev.sandbox_partner"
+          "package_name": "com.alfennzo.alfennzo_partner"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyBCAb3YuP-T1GiygiPwZBpkOVVA8cLShzs"
+          "current_key": "AIzaSyCxu4brhCsCVSeA7D-wyZMVqcJO5WJSGsY"
         }
       ],
       "services": {
