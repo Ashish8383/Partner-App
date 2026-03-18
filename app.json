@@ -25,7 +25,7 @@
       "backgroundColor": "#FFFFFF"
     },
     "ios": {
-      "bundleIdentifier": "com.alfennzo.alfennzo_partner",
+      "bundleIdentifier": "com.alfennzo.partner",
       "supportsTablet": true,
       "jsEngine": "hermes",
       "infoPlist": {
