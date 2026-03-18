@@ -1,4 +1,4 @@
-name: 🚀 Production Build + OTA Update
+name: 🚀 Production Build — Signed APK + AAB
 
 on:
   push:
@@ -6,57 +6,9 @@ on:
   workflow_dispatch:
 
 jobs:
-
-  # ── Job 1: OTA Update — UI/JS changes instant deploy ─────────────────────
-  # Play Store update ki zaroorat nahi
-  # Push karo → 2 min mein users ke phone pe live
-  ota-update:
-    name: 📡 OTA Update (Instant)
-    runs-on: ubuntu-latest
-    steps:
-
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
-
-      - name: ⚙️ Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: 📦 Install dependencies
-        run: npm ci
-
-      - name: 🔧 Install EAS CLI
-        run: npm install -g eas-cli
-
-      - name: 📄 Create .env file
-        run: |
-          cat > .env << 'EOF'
-          EXPO_PUBLIC_BASE_URL=https://production.alfennzo.com/api/v1
-          EXPO_PUBLIC_FIREBASE_API_KEY=AIzaSyAGwdVq_euG9apZlhl1bXspqVQdyDyrb3I
-          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=partner-console-production.firebaseapp.com
-          EXPO_PUBLIC_FIREBASE_DATABASE_URL=https://partner-console-production-default-rtdb.asia-southeast1.firebasedatabase.app
-          EXPO_PUBLIC_FIREBASE_PROJECT_ID=partner-console-production
-          EXPO_PUBLIC_FIREBASE_APP_ID=1:814221401570:web:2fdfbafd7fdedef80a6dbb
-          EOF
-
-      - name: 📡 Publish OTA Update
-        run: |
-          eas update \
-            --branch production \
-            --message "${{ github.event.head_commit.message }}" \
-            --non-interactive
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-
-  # ── Job 2: Native Build — APK + AAB ──────────────────────────────────────
-  # Sirf native changes pe zaroorat hogi (new package, permission etc)
-  # OTA ke baad run hoga
   build:
-    name: 🔨 Native Build (APK + AAB)
+    name: Android Production Build
     runs-on: ubuntu-latest
-    needs: ota-update
 
     steps:
 
@@ -108,6 +60,17 @@ jobs:
 
       - name: 🏗️ Expo Prebuild
         run: npx expo prebuild --platform android --clean --no-install
+
+      # ── Increase Gradle memory — fixes OutOfMemoryError ───────────────────
+      - name: 🔧 Configure Gradle memory
+        run: |
+          cat >> android/gradle.properties << 'EOF'
+          org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
+          org.gradle.daemon=true
+          org.gradle.parallel=true
+          org.gradle.caching=true
+          EOF
+          echo "✅ Gradle memory configured"
 
       - name: 📋 Write ProGuard rules
         run: |
@@ -178,6 +141,8 @@ jobs:
             -Pandroid.injected.signing.store.password=${{ secrets.ANDROID_STORE_PASSWORD }} \
             -Pandroid.injected.signing.key.alias=${{ secrets.ANDROID_KEY_ALIAS }} \
             -Pandroid.injected.signing.key.password=${{ secrets.ANDROID_KEY_PASSWORD }}
+        env:
+          GRADLE_OPTS: "-Xmx4g -XX:MaxMetaspaceSize=1g"
 
       - name: ✅ Verify AAB SHA1
         run: |
@@ -203,7 +168,7 @@ jobs:
 
       - name: 📊 Build Summary
         run: |
-          echo "### ✅ Build Complete!" >> $GITHUB_STEP_SUMMARY
+          echo "### ✅ Signed Build Complete!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| File | Size |" >> $GITHUB_STEP_SUMMARY
           echo "|------|------|" >> $GITHUB_STEP_SUMMARY
@@ -211,4 +176,4 @@ jobs:
           AAB_SIZE=$(du -sh android/app/build/outputs/bundle/release/app-release.aab 2>/dev/null | cut -f1 || echo "N/A")
           echo "| APK | $APK_SIZE |" >> $GITHUB_STEP_SUMMARY
           echo "| AAB | $AAB_SIZE |" >> $GITHUB_STEP_SUMMARY
-          echo "✅ OTA + Native build complete!" >> $GITHUB_STEP_SUMMARY
+          echo "✅ AAB signed — Play Store pe upload karo!" >> $GITHUB_STEP_SUMMARY
