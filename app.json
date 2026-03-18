@@ -14,8 +14,7 @@
     "updates": {
       "enabled": true,
       "checkAutomatically": "ON_LOAD",
-      "fallbackToCacheTimeout": 0,
-      "url": "https://u.expo.dev/d788a5f1-2db0-430f-88ce-bad30521bc19"
+      "fallbackToCacheTimeout": 0
     },
     "runtimeVersion": {
       "policy": "appVersion"
@@ -26,12 +25,11 @@
       "backgroundColor": "#FFFFFF"
     },
     "ios": {
-      "bundleIdentifier": "com.alfennzo.partner",
+      "bundleIdentifier": "com.alfennzo.alfennzo_partner",
       "supportsTablet": true,
       "jsEngine": "hermes",
       "infoPlist": {
         "UIBackgroundModes": [
-          "remote-notification",
           "remote-notification"
         ],
         "ITSAppUsesNonExemptEncryption": false
@@ -50,11 +48,6 @@
         "backgroundColor": "#FFFFFF"
       },
       "permissions": [
-        "INTERNET",
-        "RECEIVE_BOOT_COMPLETED",
-        "VIBRATE",
-        "WAKE_LOCK",
-        "com.google.android.c2dm.permission.RECEIVE",
         "INTERNET",
         "RECEIVE_BOOT_COMPLETED",
         "VIBRATE",

@@ -61,39 +61,54 @@ jobs:
       - name: 🏗️ Expo Prebuild
         run: npx expo prebuild --platform android --clean --no-install
 
-      # ── Increase Gradle memory — fixes OutOfMemoryError ───────────────────
-      - name: 🔧 Configure Gradle memory
-        run: |
-          cat >> android/gradle.properties << 'EOF'
-          org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
-          org.gradle.daemon=true
-          org.gradle.parallel=true
-          org.gradle.caching=true
-          EOF
-          echo "✅ Gradle memory configured"
-
+      # ── ProGuard rules — React Native + Expo crash na ho ──────────────────
       - name: 📋 Write ProGuard rules
         run: |
           cat > android/app/proguard-rules.pro << 'EOF'
+          # ── React Native ──────────────────────────────────────────────────
           -keep class com.facebook.react.**            { *; }
           -keep class com.facebook.hermes.**           { *; }
           -keep class com.facebook.jni.**              { *; }
+
+          # ── Expo ──────────────────────────────────────────────────────────
           -keep class expo.modules.**                  { *; }
+
+          # ── Firebase ──────────────────────────────────────────────────────
           -keep class com.google.firebase.**           { *; }
           -keep class com.google.android.gms.**        { *; }
+
+          # ── Gesture Handler ───────────────────────────────────────────────
           -keep class com.swmansion.gesturehandler.**  { *; }
+
+          # ── Reanimated ────────────────────────────────────────────────────
           -keep class com.swmansion.reanimated.**      { *; }
+
+          # ── Safe Area ─────────────────────────────────────────────────────
           -keep class com.th3rdwave.safeareacontext.** { *; }
+
+          # ── Screens ───────────────────────────────────────────────────────
           -keep class com.swmansion.rnscreens.**       { *; }
+
+          # ── Notifications ─────────────────────────────────────────────────
           -keep class expo.modules.notifications.**    { *; }
+
+          # ── JS Interface ──────────────────────────────────────────────────
           -keepclassmembers class * {
               @android.webkit.JavascriptInterface <methods>;
           }
+
+          # ── Hermes ────────────────────────────────────────────────────────
           -keep class com.facebook.hermes.unicode.**   { *; }
+
+          # ── App BuildConfig ───────────────────────────────────────────────
           -keep class com.alfennzo.alfennzo_partner.BuildConfig { *; }
+
+          # ── Keep all native methods ───────────────────────────────────────
           -keepclasseswithmembernames class * {
               native <methods>;
           }
+
+          # ── Serialization ─────────────────────────────────────────────────
           -keepclassmembers class * implements java.io.Serializable {
               static final long serialVersionUID;
               private static final java.io.ObjectStreamField[] serialPersistentFields;
@@ -114,13 +129,24 @@ jobs:
           with open(gradle_path, "r") as f:
               content = f.read()
 
-          content = re.sub(r'minifyEnabled\s+\w+',   'minifyEnabled true',   content)
-          content = re.sub(r'shrinkResources\s+\w+', 'shrinkResources false', content)
+          # minifyEnabled true — Proguard on hai app.json se
+          # shrinkResources false — resources mat hatao, crash ho sakta hai
+          content = re.sub(
+              r'minifyEnabled\s+\w+',
+              'minifyEnabled true',
+              content
+          )
+
+          content = re.sub(
+              r'shrinkResources\s+\w+',
+              'shrinkResources false',
+              content
+          )
 
           with open(gradle_path, "w") as f:
               f.write(content)
 
-          print("✅ build.gradle patched")
+          print("✅ build.gradle patched — minify ON, shrink OFF")
           PYEOF
 
       - name: 📦 Cache Gradle
@@ -141,8 +167,6 @@ jobs:
             -Pandroid.injected.signing.store.password=${{ secrets.ANDROID_STORE_PASSWORD }} \
             -Pandroid.injected.signing.key.alias=${{ secrets.ANDROID_KEY_ALIAS }} \
             -Pandroid.injected.signing.key.password=${{ secrets.ANDROID_KEY_PASSWORD }}
-        env:
-          GRADLE_OPTS: "-Xmx4g -XX:MaxMetaspaceSize=1g"
 
       - name: ✅ Verify AAB SHA1
         run: |
