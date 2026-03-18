@@ -8,6 +8,7 @@ export const useNotificationListener = () => {
   const notificationListener = useRef();
   const responseListener = useRef();
 
+  
   useEffect(() => {
     notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
       const { title, body, data } = notification.request.content;
