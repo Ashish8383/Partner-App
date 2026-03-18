@@ -41,8 +41,11 @@
       "versionCode": 31,
       "jsEngine": "hermes",
       "edgeToEdgeEnabled": true,
+      "minSdkVersion": 21,
+      "enableProguardInReleaseBuilds": true,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FFFFFF"
       },
       "permissions": [
         "INTERNET",

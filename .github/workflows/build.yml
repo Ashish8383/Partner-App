@@ -61,7 +61,66 @@ jobs:
       - name: 🏗️ Expo Prebuild
         run: npx expo prebuild --platform android --clean --no-install
 
-      - name: 🔧 Patch build.gradle (minify off only)
+      # ── ProGuard rules — React Native + Expo crash na ho ──────────────────
+      - name: 📋 Write ProGuard rules
+        run: |
+          cat > android/app/proguard-rules.pro << 'EOF'
+          # ── React Native ──────────────────────────────────────────────────
+          -keep class com.facebook.react.**            { *; }
+          -keep class com.facebook.hermes.**           { *; }
+          -keep class com.facebook.jni.**              { *; }
+
+          # ── Expo ──────────────────────────────────────────────────────────
+          -keep class expo.modules.**                  { *; }
+
+          # ── Firebase ──────────────────────────────────────────────────────
+          -keep class com.google.firebase.**           { *; }
+          -keep class com.google.android.gms.**        { *; }
+
+          # ── Gesture Handler ───────────────────────────────────────────────
+          -keep class com.swmansion.gesturehandler.**  { *; }
+
+          # ── Reanimated ────────────────────────────────────────────────────
+          -keep class com.swmansion.reanimated.**      { *; }
+
+          # ── Safe Area ─────────────────────────────────────────────────────
+          -keep class com.th3rdwave.safeareacontext.** { *; }
+
+          # ── Screens ───────────────────────────────────────────────────────
+          -keep class com.swmansion.rnscreens.**       { *; }
+
+          # ── Notifications ─────────────────────────────────────────────────
+          -keep class expo.modules.notifications.**    { *; }
+
+          # ── JS Interface ──────────────────────────────────────────────────
+          -keepclassmembers class * {
+              @android.webkit.JavascriptInterface <methods>;
+          }
+
+          # ── Hermes ────────────────────────────────────────────────────────
+          -keep class com.facebook.hermes.unicode.**   { *; }
+
+          # ── App BuildConfig ───────────────────────────────────────────────
+          -keep class com.alfennzo.alfennzo_partner.BuildConfig { *; }
+
+          # ── Keep all native methods ───────────────────────────────────────
+          -keepclasseswithmembernames class * {
+              native <methods>;
+          }
+
+          # ── Serialization ─────────────────────────────────────────────────
+          -keepclassmembers class * implements java.io.Serializable {
+              static final long serialVersionUID;
+              private static final java.io.ObjectStreamField[] serialPersistentFields;
+              private void writeObject(java.io.ObjectOutputStream);
+              private void readObject(java.io.ObjectInputStream);
+              java.lang.Object writeReplace();
+              java.lang.Object readResolve();
+          }
+          EOF
+          echo "✅ ProGuard rules written"
+
+      - name: 🔧 Patch build.gradle
         run: |
           python3 - <<'PYEOF'
           import re
@@ -70,30 +129,39 @@ jobs:
           with open(gradle_path, "r") as f:
               content = f.read()
 
-          # Sirf minifyEnabled false karo — signing command line se hogi
+          # minifyEnabled true — Proguard on hai app.json se
+          # shrinkResources false — resources mat hatao, crash ho sakta hai
           content = re.sub(
-              r'(buildTypes\s*\{[^}]*?release\s*\{)',
-              (
-                  r'\1'
-                  r'\n            minifyEnabled   false'
-                  r'\n            shrinkResources false'
-              ),
-              content,
-              count=1,
-              flags=re.DOTALL
+              r'minifyEnabled\s+\w+',
+              'minifyEnabled true',
+              content
+          )
+
+          content = re.sub(
+              r'shrinkResources\s+\w+',
+              'shrinkResources false',
+              content
           )
 
           with open(gradle_path, "w") as f:
               f.write(content)
 
-          print("✅ build.gradle patched")
+          print("✅ build.gradle patched — minify ON, shrink OFF")
           PYEOF
+
+      - name: 📦 Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: gradle-${{ runner.os }}-
 
       - name: 🔨 Build Signed APK + AAB
         run: |
           cd android
           chmod +x gradlew
-          # Signing directly command line se — build.gradle override hoga
           ./gradlew assembleRelease bundleRelease --no-daemon \
             -Pandroid.injected.signing.store.file=$(pwd)/../release.keystore \
             -Pandroid.injected.signing.store.password=${{ secrets.ANDROID_STORE_PASSWORD }} \
@@ -106,7 +174,6 @@ jobs:
           keytool -printcert -jarfile \
             android/app/build/outputs/bundle/release/app-release.aab \
             2>/dev/null | grep "SHA1"
-          echo ""
           echo "Expected: C2:11:92:F4:3F:F4:C1:75:0C:60:14:E5:89:34:24:26:10:9C:8D:0B"
 
       - name: 📤 Upload APK
