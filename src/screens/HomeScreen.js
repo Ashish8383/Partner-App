@@ -640,15 +640,12 @@ const TabScene = React.memo(({
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const { user, restaurantName } = useStore();
+  const { user, restaurantName,deviceFingerprint } = useStore();
   const navigation = useNavigation();
   const route = useRoute();
-
-  // initialTab: 0 = Live (default), passed from App.js when notification is tapped
   const [tabIndex, setTabIndex] = useState(route.params?.initialTab ?? 0);
   const [swipeEnabled, setSwipeEnabled] = useState(true);
 
-  // Reset to Live tab whenever the screen is focused via notification tap
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       const tab = route.params?.initialTab;
