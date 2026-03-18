@@ -38,7 +38,7 @@
     },
     "android": {
       "package": "com.alfennzo.alfennzo_partner",
-      "versionCode": 1,
+      "versionCode": 31,
       "jsEngine": "hermes",
       "edgeToEdgeEnabled": true,
       "adaptiveIcon": {
