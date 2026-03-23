@@ -64,7 +64,7 @@ jobs:
             2>/dev/null | grep "SHA1"
 
       - name: Expo Prebuild
-        run: npx expo prebuild --platform android --clean --no-install
+        run: npx expo prebuild --platform android --clean
 
       - name: Configure Gradle memory
         run: |
