@@ -40,12 +40,6 @@ jobs:
         run: |
           ls node_modules/@react-native-firebase/app/package.json && echo "Firebase package.json found — OK" || (echo "FATAL: Firebase not in node_modules" && exit 1)
 
-      - name: Decode google-services.json
-        run: |
-          echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 --decode > google-services.json
-          echo "google-services.json written"
-          cat google-services.json | python3 -c "import sys,json; d=json.load(sys.stdin); print('Project:', d['project_info']['project_id'])"
-
       - name: Create .env file
         run: |
           cat > .env << 'EOF'
