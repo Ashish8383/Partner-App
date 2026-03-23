@@ -37,7 +37,6 @@ export default function useAppVersion() {
         version: currentVersion,
         app:     APP_TYPE,
       });
-
       const isMatched = res?.data?.data?.isVersionMatched ?? true;
       setUpdateRequired(!isMatched);
     } catch {

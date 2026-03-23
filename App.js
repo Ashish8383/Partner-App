@@ -23,7 +23,7 @@ export default function App() {
   const liveOrderCount  = useStore((s) => s.liveOrderCount);
   const alertRunningRef = useRef(false);  
   const { updateRequired, checking: checkingVersion, currentVersion, checkVersion } = useAppVersion();
-
+ 
   useEffect(() => {
     loadPersistedState();
     loadSound('accept',           require('./assets/slide.mp3'));

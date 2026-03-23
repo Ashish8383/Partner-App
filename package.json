@@ -4,8 +4,8 @@
   "main": "index.js",
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "web": "expo start --web",
     "build:android": "eas build -p android --profile preview",
     "build:ios": "eas build -p ios --profile preview",
@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@react-native-community/datetimepicker": "8.4.4",
+    "@react-native-firebase/messaging": "^23.8.8",
     "@react-navigation/bottom-tabs": "^7.14.0",
     "@react-navigation/native": "^7.1.28",
     "@react-navigation/stack": "^7.7.2",
@@ -33,6 +34,7 @@
     "expo-status-bar": "~3.0.9",
     "expo-updates": "~29.0.16",
     "firebase": "^12.10.0",
+    "lottie-react-native": "~7.3.1",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-native": "0.81.5",

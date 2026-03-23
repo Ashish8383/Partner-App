@@ -26,12 +26,15 @@
       "backgroundColor": "#FFFFFF"
     },
     "ios": {
-      "bundleIdentifier": "com.alfennzo.partner",
+      "bundleIdentifier": "com.alfennzo.partnerapp",
       "supportsTablet": true,
+      "deploymentTarget": "17.0",
       "jsEngine": "hermes",
+      "entitlements": {
+        "aps-environment": "development"
+      },
       "infoPlist": {
         "UIBackgroundModes": [
-          "remote-notification",
           "remote-notification"
         ],
         "ITSAppUsesNonExemptEncryption": false
@@ -64,13 +67,17 @@
       "googleServicesFile": "./google-services.json"
     },
     "plugins": [
+      "./withModularHeaders",
+      "@react-native-firebase/app",
+      "@react-native-firebase/messaging",
       [
         "expo-notifications",
         {
           "icon": "./assets/adaptive-icon.png",
           "mode": "production",
           "sounds": [
-            "./assets/notification.mp3"
+            "./assets/notification.mp3",
+            "./assets/tone.caf"
           ]
         }
       ],

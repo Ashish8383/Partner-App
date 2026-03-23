@@ -1,4 +1,4 @@
-name: 🚀 Production Build — Signed APK + AAB
+name: :rocket: Production Build — Signed APK + AAB
 
 on:
   push:
@@ -12,31 +12,37 @@ jobs:
 
     steps:
 
-      - name: 📥 Checkout code
+      - name: :inbox_tray: Checkout code
         uses: actions/checkout@v4
 
-      - name: ⚙️ Setup Node.js 20
+      - name: :gear: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
 
-      - name: ☕ Setup Java 17
+      - name: :coffee: Setup Java 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: 📱 Setup Android SDK
+      - name: :iphone: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: 📦 Install dependencies
+      - name: :package: Install dependencies
         run: npm ci
 
-      - name: 🔧 Install Expo CLI
+      - name: :wrench: Install Expo CLI
         run: npm install -g @expo/cli
 
-      - name: 📄 Create .env file
+      # ── Remove expo-dev-client — this causes "Development Build" screen ───
+      - name: :broom: Remove expo-dev-client for production
+        run: |
+          npm uninstall expo-dev-client --legacy-peer-deps
+          echo ":white_check_mark: expo-dev-client removed — production build will be clean"
+
+      - name: :page_facing_up: Create .env file
         run: |
           cat > .env << 'EOF'
           EXPO_PUBLIC_BASE_URL=https://production.alfennzo.com/api/v1
@@ -46,23 +52,23 @@ jobs:
           EXPO_PUBLIC_FIREBASE_PROJECT_ID=partner-console-production
           EXPO_PUBLIC_FIREBASE_APP_ID=1:814221401570:web:2fdfbafd7fdedef80a6dbb
           EOF
-          echo "✅ .env created"
+          echo ":white_check_mark: .env created"
 
-      - name: 🔑 Decode Keystore
+      - name: :key: Decode Keystore
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > release.keystore
-          echo "✅ Keystore decoded"
+          echo ":white_check_mark: Keystore decoded"
           echo "--- Keystore SHA1 ---"
           keytool -list -v \
             -keystore release.keystore \
             -storepass "${{ secrets.ANDROID_STORE_PASSWORD }}" \
             2>/dev/null | grep "SHA1"
 
-      - name: 🏗️ Expo Prebuild
+      - name: :building_construction: Expo Prebuild
         run: npx expo prebuild --platform android --clean --no-install
 
       # ── Increase Gradle memory — fixes OutOfMemoryError ───────────────────
-      - name: 🔧 Configure Gradle memory
+      - name: :wrench: Configure Gradle memory
         run: |
           cat >> android/gradle.properties << 'EOF'
           org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
@@ -70,9 +76,9 @@ jobs:
           org.gradle.parallel=true
           org.gradle.caching=true
           EOF
-          echo "✅ Gradle memory configured"
+          echo ":white_check_mark: Gradle memory configured"
 
-      - name: 📋 Write ProGuard rules
+      - name: :clipboard: Write ProGuard rules
         run: |
           cat > android/app/proguard-rules.pro << 'EOF'
           -keep class com.facebook.react.**            { *; }
@@ -103,9 +109,9 @@ jobs:
               java.lang.Object readResolve();
           }
           EOF
-          echo "✅ ProGuard rules written"
+          echo ":white_check_mark: ProGuard rules written"
 
-      - name: 🔧 Patch build.gradle
+      - name: :wrench: Patch build.gradle
         run: |
           python3 - <<'PYEOF'
           import re
@@ -120,10 +126,10 @@ jobs:
           with open(gradle_path, "w") as f:
               f.write(content)
 
-          print("✅ build.gradle patched")
+          print(":white_check_mark: build.gradle patched")
           PYEOF
 
-      - name: 📦 Cache Gradle
+      - name: :package: Cache Gradle
         uses: actions/cache@v4
         with:
           path: |
@@ -132,7 +138,7 @@ jobs:
           key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: gradle-${{ runner.os }}-
 
-      - name: 🔨 Build Signed APK + AAB
+      - name: :hammer: Build Signed APK + AAB
         run: |
           cd android
           chmod +x gradlew
@@ -144,7 +150,7 @@ jobs:
         env:
           GRADLE_OPTS: "-Xmx4g -XX:MaxMetaspaceSize=1g"
 
-      - name: ✅ Verify AAB SHA1
+      - name: :white_check_mark: Verify AAB SHA1
         run: |
           echo "--- AAB SHA1 verify ---"
           keytool -printcert -jarfile \
@@ -152,23 +158,23 @@ jobs:
             2>/dev/null | grep "SHA1"
           echo "Expected: C2:11:92:F4:3F:F4:C1:75:0C:60:14:E5:89:34:24:26:10:9C:8D:0B"
 
-      - name: 📤 Upload APK
+      - name: :outbox_tray: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: alfennzo-partner-release-apk
           path: android/app/build/outputs/apk/release/app-release.apk
           retention-days: 1
 
-      - name: 📤 Upload AAB
+      - name: :outbox_tray: Upload AAB
         uses: actions/upload-artifact@v4
         with:
           name: alfennzo-partner-release-aab
           path: android/app/build/outputs/bundle/release/app-release.aab
           retention-days: 1
 
-      - name: 📊 Build Summary
+      - name: :bar_chart: Build Summary
         run: |
-          echo "### ✅ Signed Build Complete!" >> $GITHUB_STEP_SUMMARY
+          echo "### :white_check_mark: Signed Build Complete!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| File | Size |" >> $GITHUB_STEP_SUMMARY
           echo "|------|------|" >> $GITHUB_STEP_SUMMARY
@@ -176,4 +182,4 @@ jobs:
           AAB_SIZE=$(du -sh android/app/build/outputs/bundle/release/app-release.aab 2>/dev/null | cut -f1 || echo "N/A")
           echo "| APK | $APK_SIZE |" >> $GITHUB_STEP_SUMMARY
           echo "| AAB | $AAB_SIZE |" >> $GITHUB_STEP_SUMMARY
-          echo "✅ AAB signed — Play Store pe upload karo!" >> $GITHUB_STEP_SUMMARY
+          echo ":white_check_mark: AAB signed — Play Store pe upload karo!" >> $GITHUB_STEP_SUMMARY

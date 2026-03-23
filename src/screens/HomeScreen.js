@@ -16,6 +16,7 @@ import useStore from '../store/useStore';
 import { ordersAPI } from '../utils/api';
 import { db } from '../utils/firebaseConfig';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import LottieView from 'lottie-react-native';
 import { AppState } from 'react-native';
 
 const GREEN = '#03954E';
@@ -618,11 +619,24 @@ const TabScene = React.memo(({
           }
           ListEmptyComponent={
             <View style={s.empty}>
-              <Image
-                source={tabKey === 'live' ? require('../../assets/live.png') : require('../../assets/pending.png')}
-                style={s.emptyImage} resizeMode="contain"
-              />
-              <Text style={s.emptyTitle}>{tabKey === 'live' ? 'No Orders Yet' : 'All Caught Up'}</Text>
+              {tabKey === 'live' ? (
+                <LottieView
+                  source={require('../../assets/live.json')}
+                  autoPlay
+                  loop
+                  style={s.lottie}
+                />
+              ) : (
+                <LottieView
+                  source={require('../../assets/pending.json')}
+                  autoPlay
+                  loop
+                  style={s.lottie}
+                />
+              )}
+              <Text style={s.emptyTitle}>
+                {tabKey === 'live' ? 'No Orders Yet' : 'All Caught Up'}
+              </Text>
               <Text style={s.emptySub}>
                 {tabKey === 'live'
                   ? 'Your store is live and waiting for customers.'
@@ -640,7 +654,8 @@ const TabScene = React.memo(({
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const { user, restaurantName,deviceFingerprint } = useStore();
+  const { user, restaurantName, deviceFingerprint, fcmToken } = useStore();
+  console.log('Device Fingerprint:', deviceFingerprint, fcmToken, "fcmToken is here"); // Debug log for device fingerprint
   const navigation = useNavigation();
   const route = useRoute();
   const [tabIndex, setTabIndex] = useState(route.params?.initialTab ?? 0);
@@ -827,7 +842,7 @@ export default function HomeScreen() {
         setLoadingMoreMap((p) => ({ ...p, live: false, pending: false }));
         Promise.all([loadTab('live'), loadTab('pending')]);
 
-      } else if (eventType === 'ORDERDELIVERED') {      
+      } else if (eventType === 'ORDERDELIVERED') {
         tabs.current.pending = makeTabState();
         setExhaustedMap((p) => ({ ...p, pending: false }));
         setLoadingMoreMap((p) => ({ ...p, pending: false }));
@@ -971,6 +986,7 @@ const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#fff' },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingHorizontal: rs(20), paddingTop: rs(14), paddingBottom: rs(12), backgroundColor: '#fff' },
   title: { fontSize: nz(18), fontWeight: '800', color: '#0D0D0D', letterSpacing: -0.5 },
+  lottie: { width: rs(350), height: rs(280), marginBottom: rs(0) },
   date: { fontSize: nz(12), color: '#363535', marginTop: rs(2) },
   tabSection: { backgroundColor: '#fff', paddingTop: rs(2), paddingBottom: rs(14) },
   listContent: { paddingHorizontal: rs(14), paddingTop: rs(6) },
