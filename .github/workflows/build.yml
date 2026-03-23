@@ -30,16 +30,17 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install dependencies
-        run: npm ci
-
       - name: Install Expo CLI
         run: npm install -g @expo/cli
 
-      - name: Remove expo-dev-client for production
+      - name: Install dependencies (with expo-dev-client removed)
         run: |
-          npm uninstall expo-dev-client --legacy-peer-deps
-          echo "expo-dev-client removed — production build will be clean"
+          npm ci
+          npm uninstall expo-dev-client --save
+          echo "Dependencies installed, expo-dev-client removed"
+
+      - name: Verify Firebase plugin is resolvable
+        run: node -e "require('@react-native-firebase/app')" && echo "Firebase OK"
 
       - name: Create .env file
         run: |
