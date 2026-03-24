@@ -6,17 +6,17 @@ import {
   FlatList,
   RefreshControl,
   StatusBar,
-  Image,
-  ActivityIndicator,
-  Platform,
   Animated,
   Dimensions,
   TouchableOpacity,
+  ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { TabView } from 'react-native-tab-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import LottieView from 'lottie-react-native';
 import { HapticTouchable } from '../components/GlobalHaptic';
 import { nz, rs } from '../utils/constant';
 import useStore from '../store/useStore';
@@ -75,6 +75,7 @@ const normaliseOrder = (o) => {
   };
 };
 
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
 const SkeletonPulse = ({ style }) => {
   const anim = useRef(new Animated.Value(0.4)).current;
   useEffect(() => {
@@ -125,6 +126,7 @@ const sk = StyleSheet.create({
   btnSkeleton: { height: rs(50), borderRadius: rs(26), marginTop: rs(16) },
 });
 
+// ─── Tab Bar ──────────────────────────────────────────────────────────────────
 const TAB_BAR_INNER_W = SW - rs(40) - rs(8);
 const TAB_W           = TAB_BAR_INNER_W / 3;
 const PILL_POSITIONS  = [0, TAB_W, TAB_W * 2];
@@ -192,6 +194,58 @@ const tb = StyleSheet.create({
   labelInactive: { color: '#1A1A1A' },
 });
 
+// ─── Empty States — each tab gets its own Lottie + text ───────────────────────
+
+// Today tab empty — uses empty.json
+const TodayEmpty = React.memo(() => (
+  <View style={em.wrap}>
+    <LottieView
+      source={require('../../assets/empty.json')}
+      autoPlay
+      loop
+      style={em.lottie}
+    />
+    <Text style={em.title}>No Orders Today</Text>
+    <Text style={em.sub}>No orders have been received today yet.</Text>
+  </View>
+));
+
+// Yesterday tab empty — uses empty.json
+const YesterdayEmpty = React.memo(() => (
+  <View style={em.wrap}>
+    <LottieView
+      source={require('../../assets/yesterday.json')}
+      autoPlay
+      loop
+      style={em.lottie}
+    />
+    <Text style={em.title}>No Orders Yesterday</Text>
+    <Text style={em.sub}>No orders were received yesterday.</Text>
+  </View>
+));
+
+// Custom tab empty (date selected but no results) — uses Calendar.json
+const CalendarEmpty = React.memo(({ title, sub }) => (
+  <View style={em.wrap}>
+    <LottieView
+      source={require('../../assets/Calendar.json')}
+      autoPlay
+      loop
+      style={em.lottie}
+    />
+    <Text style={em.title}>{title}</Text>
+    <Text style={em.sub}>{sub}</Text>
+  </View>
+));
+
+const em = StyleSheet.create({
+  wrap:   { alignItems: 'center', paddingTop: rs(40), paddingHorizontal: rs(30) },
+  lottie: { width: rs(300), height: rs(300) },
+  title:  { fontSize: nz(17), fontWeight: '700', color: '#1A1A1A', marginTop: rs(8), textAlign: 'center' },
+  sub:    { fontSize: nz(13), color: '#AAAAAA', marginTop: rs(4), textAlign: 'center', lineHeight: nz(20) },
+});
+
+// ─── Order Card ───────────────────────────────────────────────────────────────
 const HistoryOrderCard = React.memo(({ item }) => {
   const statusColor = item.isDelivered ? '#4CAF50' : item.isCancelled ? '#F44336' : '#FF9800';
   const statusText  = item.isDelivered ? 'Delivered' : item.isCancelled ? 'Cancelled' : 'Completed';
@@ -265,7 +319,9 @@ const hc = StyleSheet.create({
   noteText:    { flex: 1, fontSize: nz(12.5), color: '#885500', lineHeight: nz(19) },
 });
 
+// ─── Tab Scene ────────────────────────────────────────────────────────────────
 const makeTabState = () => ({ data: [], page: 1, totalDocs: 0, exhausted: false, fetching: false });
+
 const TabScene = React.memo(({
   tabKey, loading, list, refreshing, onRefresh,
   isLoadingMore, isExhausted, onEndReached,
@@ -274,12 +330,22 @@ const TabScene = React.memo(({
 }) => {
   const renderItem = useCallback(({ item }) => <HistoryOrderCard item={item} />, []);
 
+  const footer = isLoadingMore
+    ? <View style={s.loadingMore}><ActivityIndicator size="small" color={GREEN} /><Text style={s.loadingMoreText}>Loading more...</Text></View>
+    : isExhausted && list.length > 0
+      ? <Text style={s.noMoreText}>— All orders loaded —</Text>
+      : null;
+
+  // ── Custom tab — no date selected yet ──────────────────────────────────────
   if (isCustom && !hasCustomRange) {
     return (
       <View style={s.customPrompt}>
-        <View style={s.promptIconWrap}>
-          <Feather name="calendar" size={nz(40)} color={GREEN} />
-        </View>
+        <LottieView
+          source={require('../../assets/Calendar.json')}
+          autoPlay
+          loop
+          style={s.promptLottie}
+        />
         <Text style={s.customPromptTitle}>No Date Range Selected</Text>
         <Text style={s.customPromptSub}>
           Tap the button below to choose a start and end date and view your order history.
@@ -292,6 +358,7 @@ const TabScene = React.memo(({
     );
   }
 
+  // ── Custom tab — date selected ─────────────────────────────────────────────
   if (isCustom && hasCustomRange) {
     return (
       <View style={{ flex: 1 }}>
@@ -305,43 +372,50 @@ const TabScene = React.memo(({
             <Text style={s.changeRangeBtnText}>Change Range</Text>
           </TouchableOpacity>
         </View>
-
         {loading ? (
-          <FlatList data={[1,2,3]} keyExtractor={(i)=>String(i)} renderItem={()=><SkeletonCard/>} contentContainerStyle={s.listContent} showsVerticalScrollIndicator={false} scrollEnabled={false} />
+          <FlatList data={[1,2,3]} keyExtractor={(i) => String(i)} renderItem={() => <SkeletonCard />} contentContainerStyle={s.listContent} showsVerticalScrollIndicator={false} scrollEnabled={false} />
         ) : (
           <FlatList
-            data={list} keyExtractor={(o)=>o.id} renderItem={renderItem}
-            removeClippedSubviews={Platform.OS==='android'} initialNumToRender={6} maxToRenderPerBatch={4} windowSize={5}
+            data={list} keyExtractor={(o) => o.id} renderItem={renderItem}
+            removeClippedSubviews={Platform.OS === 'android'} initialNumToRender={6} maxToRenderPerBatch={4} windowSize={5}
             contentContainerStyle={s.listContent} showsVerticalScrollIndicator={false}
             onEndReached={onEndReached} onEndReachedThreshold={0.4}
-            ListFooterComponent={isLoadingMore?(<View style={s.loadingMore}><ActivityIndicator size="small" color={GREEN}/><Text style={s.loadingMoreText}>Loading more...</Text></View>):isExhausted&&list.length>0?(<Text style={s.noMoreText}>— All orders loaded —</Text>):null}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[GREEN]} tintColor={GREEN}/>}
-            ListEmptyComponent={!loading&&(<View style={s.empty}><Image source={require('../../assets/history.png')} style={s.emptyImage} resizeMode="contain"/><Text style={s.emptyTitle}>No Orders Found</Text><Text style={s.emptySub}>No orders found for the selected date range.</Text></View>)}
+            ListFooterComponent={footer}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[GREEN]} tintColor={GREEN} />}
+            ListEmptyComponent={!loading && <CalendarEmpty title="No Orders Found" sub="No orders found for the selected date range." />}
           />
         )}
       </View>
     );
   }
 
+  // ── Today / Yesterday tabs ─────────────────────────────────────────────────
   return (
     <View style={{ flex: 1 }}>
       {loading ? (
-        <FlatList data={[1,2,3]} keyExtractor={(i)=>String(i)} renderItem={()=><SkeletonCard/>} contentContainerStyle={s.listContent} showsVerticalScrollIndicator={false} scrollEnabled={false}/>
+        <FlatList data={[1,2,3]} keyExtractor={(i) => String(i)} renderItem={() => <SkeletonCard />} contentContainerStyle={s.listContent} showsVerticalScrollIndicator={false} scrollEnabled={false} />
       ) : (
         <FlatList
-          data={list} keyExtractor={(o)=>o.id} renderItem={renderItem}
-          removeClippedSubviews={Platform.OS==='android'} initialNumToRender={6} maxToRenderPerBatch={4} windowSize={5}
+          data={list} keyExtractor={(o) => o.id} renderItem={renderItem}
+          removeClippedSubviews={Platform.OS === 'android'} initialNumToRender={6} maxToRenderPerBatch={4} windowSize={5}
           contentContainerStyle={s.listContent} showsVerticalScrollIndicator={false}
           onEndReached={onEndReached} onEndReachedThreshold={0.4}
-          ListFooterComponent={isLoadingMore?(<View style={s.loadingMore}><ActivityIndicator size="small" color={GREEN}/><Text style={s.loadingMoreText}>Loading more...</Text></View>):isExhausted&&list.length>0?(<Text style={s.noMoreText}>— All orders loaded —</Text>):null}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[GREEN]} tintColor={GREEN}/>}
-          ListEmptyComponent={!loading&&(<View style={s.empty}><Image source={require('../../assets/history.png')} style={s.emptyImage} resizeMode="contain"/><Text style={s.emptyTitle}>No Orders Found</Text><Text style={s.emptySub}>No orders found for the selected date range.</Text></View>)}
+          ListFooterComponent={footer}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[GREEN]} tintColor={GREEN} />}
+          ListEmptyComponent={
+            !loading && (
+              tabKey === 'today'
+                ? <TodayEmpty />
+                : <YesterdayEmpty />
+            )
+          }
         />
       )}
     </View>
   );
 });
 
+// ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function OrderHistoryScreen() {
   const insets     = useSafeAreaInsets();
   const navigation = useNavigation();
@@ -359,7 +433,8 @@ export default function OrderHistoryScreen() {
   const [loadingMoreMap, setLoadingMoreMap] = useState({ today: false, yesterday: false, custom: false });
   const [exhaustedMap,   setExhaustedMap]   = useState({ today: false, yesterday: false, custom: false });
   const [refreshing,     setRefreshing]     = useState(false);
-  const flushTab = useCallback((tab) => { setListMap[tab]([...tabsRef.current[tab].data]); }, []);
+
+  const flushTab   = useCallback((tab) => { setListMap[tab]([...tabsRef.current[tab].data]); }, []);
   const exhaustTab = useCallback((tab) => { tabsRef.current[tab].exhausted = true; setExhaustedMap((p) => ({ ...p, [tab]: true })); }, []);
 
   const loadTab = useCallback(async (tab, page = 1, isRefresh = false, overrideStart, overrideEnd) => {
@@ -379,17 +454,17 @@ export default function OrderHistoryScreen() {
     const id = user?.restaurantId ?? '';
 
     try {
-      const res       = await ordersAPI.getHistoryOrders({ page, limit: LIMIT }, id, dateParams);
-      const meta      = res?.data?.data?.orderData;
-      const raw       = Array.isArray(meta?.data) ? meta.data : [];
-      const totalDocs = meta?.totalDocuments ?? 0;
+      const res        = await ordersAPI.getHistoryOrders({ page, limit: LIMIT }, id, dateParams);
+      const meta       = res?.data?.data?.orderData;
+      const raw        = Array.isArray(meta?.data) ? meta.data : [];
+      const totalDocs  = meta?.totalDocuments ?? 0;
       const normalised = raw.map(normaliseOrder);
 
       if (isRefresh || page === 1) {
         t.data = normalised; t.page = 1; t.totalDocs = totalDocs;
         t.exhausted = normalised.length === 0 || normalised.length >= totalDocs;
       } else {
-        const ids = new Set(t.data.map((o) => o.id));
+        const ids   = new Set(t.data.map((o) => o.id));
         const fresh = normalised.filter((o) => !ids.has(o.id));
         t.data = [...t.data, ...fresh]; t.page = page; t.totalDocs = totalDocs;
         t.exhausted = fresh.length === 0 || page * LIMIT >= totalDocs;
@@ -411,7 +486,7 @@ export default function OrderHistoryScreen() {
       await Promise.all([loadTab('today', 1, true), loadTab('yesterday', 1, true)]);
       setLoadingMap((p) => ({ ...p, today: false, yesterday: false }));
     })();
-  }, []); 
+  }, []);
 
   const onRefresh = useCallback(async () => {
     const key = ROUTES[tabIndex].key;
@@ -468,7 +543,6 @@ export default function OrderHistoryScreen() {
   const renderTabBar = useCallback((props) => (
     <View style={s.tabSection}>
       <CustomTabBar {...props} customLabel={customLabel} />
-
       <View style={{ height: 0, overflow: 'hidden' }}>
         <DateFilterBar
           activeChip="custom"
@@ -510,44 +584,25 @@ export default function OrderHistoryScreen() {
 }
 
 const s = StyleSheet.create({
-  root:    { flex: 1, backgroundColor: '#fff' },
-  header:  {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: rs(16), paddingVertical: rs(12),
-    backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#F0F0F0',
-  },
-  backButton:   { padding: rs(4) },
-  headerTitle:  { fontSize: nz(18), fontWeight: '700', color: '#1A1A1A' },
-  placeholder:  { width: rs(28) },
-  tabSection:   { backgroundColor: '#fff', paddingTop: rs(12), paddingBottom: rs(4) },
-  listContent:  { paddingHorizontal: rs(14), paddingTop: rs(6), paddingBottom: rs(24) },
-  loadingMore:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: rs(16), gap: rs(8) },
-  loadingMoreText: { fontSize: nz(13), color: '#AAAAAA' },
-  noMoreText:   { textAlign: 'center', color: '#CCCCCC', fontSize: nz(12), paddingVertical: rs(16) },
-  empty:        { alignItems: 'center', paddingTop: rs(50), gap: rs(4) },
-  emptyImage:   { width: rs(180), height: rs(180), marginBottom: rs(8) },
-  emptyTitle:   { fontSize: nz(18), fontWeight: '700', color: '#1A1A1A' },
-  emptySub:     { fontSize: nz(13), color: '#888', textAlign: 'center', paddingHorizontal: rs(30), marginTop: rs(4) },
-  customPrompt:      { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: rs(40), gap: rs(16) },
-  promptIconWrap:    { width: rs(80), height: rs(80), borderRadius: rs(40), backgroundColor: `${GREEN}15`, alignItems: 'center', justifyContent: 'center' },
+  root:              { flex: 1, backgroundColor: '#fff' },
+  header:            { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: rs(16), paddingVertical: rs(12), backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
+  backButton:        { padding: rs(4) },
+  headerTitle:       { fontSize: nz(18), fontWeight: '700', color: '#1A1A1A' },
+  placeholder:       { width: rs(28) },
+  tabSection:        { backgroundColor: '#fff', paddingTop: rs(12), paddingBottom: rs(4) },
+  listContent:       { paddingHorizontal: rs(14), paddingTop: rs(6), paddingBottom: rs(24) },
+  loadingMore:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: rs(16), gap: rs(8) },
+  loadingMoreText:   { fontSize: nz(13), color: '#AAAAAA' },
+  noMoreText:        { textAlign: 'center', color: '#CCCCCC', fontSize: nz(12), paddingVertical: rs(16) },
+  customPrompt:      { flex: 1, alignItems: 'center', justifyContent: 'flex-start', paddingHorizontal: rs(40), gap: rs(8), paddingTop: rs(10) },
+  promptLottie:      { width: rs(300), height: rs(300) },
   customPromptTitle: { fontSize: nz(18), fontWeight: '700', color: '#1A1A1A', textAlign: 'center' },
   customPromptSub:   { fontSize: nz(13), color: '#888', textAlign: 'center', lineHeight: nz(20) },
-  dateRangeBtn:      {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    backgroundColor: GREEN, borderRadius: rs(30),
-    paddingVertical: rs(14), paddingHorizontal: rs(28), marginTop: rs(8),
-    elevation: 4, shadowColor: GREEN, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8,
-  },
-  dateRangeBtnText: { fontSize: nz(14), fontWeight: '700', color: '#fff' },
-  changeRangeStrip: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    marginHorizontal: rs(14), marginTop: rs(10), marginBottom: rs(4),
-    backgroundColor: `${GREEN}0D`, borderRadius: rs(10),
-    paddingHorizontal: rs(14), paddingVertical: rs(10),
-    borderWidth: 1, borderColor: `${GREEN}30`,
-  },
-  rangeInfo:          { flexDirection: 'row', alignItems: 'center' },
-  rangeInfoText:      { fontSize: nz(13), fontWeight: '600', color: '#1A1A1A' },
-  changeRangeBtn:     { flexDirection: 'row', alignItems: 'center', paddingHorizontal: rs(10), paddingVertical: rs(5), borderRadius: rs(20), borderWidth: 1, borderColor: GREEN },
-  changeRangeBtnText: { fontSize: nz(12), fontWeight: '600', color: GREEN },
+  dateRangeBtn:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: GREEN, borderRadius: rs(30), paddingVertical: rs(14), paddingHorizontal: rs(28), marginTop: rs(8), elevation: 4, shadowColor: GREEN, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
+  dateRangeBtnText:  { fontSize: nz(14), fontWeight: '700', color: '#fff' },
+  changeRangeStrip:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: rs(14), marginTop: rs(10), marginBottom: rs(4), backgroundColor: `${GREEN}0D`, borderRadius: rs(10), paddingHorizontal: rs(14), paddingVertical: rs(10), borderWidth: 1, borderColor: `${GREEN}30` },
+  rangeInfo:         { flexDirection: 'row', alignItems: 'center' },
+  rangeInfoText:     { fontSize: nz(13), fontWeight: '600', color: '#1A1A1A' },
+  changeRangeBtn:    { flexDirection: 'row', alignItems: 'center', paddingHorizontal: rs(10), paddingVertical: rs(5), borderRadius: rs(20), borderWidth: 1, borderColor: GREEN },
+  changeRangeBtnText:{ fontSize: nz(12), fontWeight: '600', color: GREEN },
 });

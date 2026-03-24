@@ -21,11 +21,11 @@ export const playSound = async (key) => {
   try {
     await sound.stopAsync();
     await sound.setPositionAsync(0);
+    await sound.setIsLoopingAsync(false);
     await sound.playAsync();
   } catch {}
 };
 
-// ── Loop a sound indefinitely until stopSound(key) is called ─────────────────
 export const playLoopSound = async (key) => {
   const sound = sounds[key];
   if (!sound) return;
@@ -37,7 +37,6 @@ export const playLoopSound = async (key) => {
   } catch {}
 };
 
-// ── Stop a looping (or any) sound ────────────────────────────────────────────
 export const stopSound = async (key) => {
   const sound = sounds[key];
   if (!sound) return;
@@ -50,7 +49,9 @@ export const stopSound = async (key) => {
 
 export const releaseSounds = async () => {
   for (const sound of Object.values(sounds)) {
-    await sound.unloadAsync();
+    try {
+      await sound.unloadAsync();
+    } catch {}
   }
   sounds = {};
 };

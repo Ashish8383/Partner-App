@@ -7,7 +7,6 @@
     "scheme": "alfennzo",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "developmentClient": false,
     "assetBundlePatterns": [
       "assets/**/*"
     ],
@@ -15,7 +14,8 @@
     "updates": {
       "enabled": true,
       "checkAutomatically": "ON_LOAD",
-      "fallbackToCacheTimeout": 0
+      "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/d788a5f1-2db0-430f-88ce-bad30521bc19"
     },
     "runtimeVersion": {
       "policy": "appVersion"
@@ -31,7 +31,7 @@
       "deploymentTarget": "17.0",
       "jsEngine": "hermes",
       "entitlements": {
-        "aps-environment": "development"
+        "aps-environment": "production"
       },
       "infoPlist": {
         "UIBackgroundModes": [

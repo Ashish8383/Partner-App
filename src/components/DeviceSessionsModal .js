@@ -50,7 +50,6 @@ const DeviceSessionsModal = ({
 
   const handleLogoutDevice = async (deviceFingerprint) => {
     setLoadingDevices(prev => ({ ...prev, [deviceFingerprint]: true }));
-    console.log(deviceFingerprint, "sadhsad")
     try {
       const response = await logoutfromdevice({
         targetDeviceFingerprint: deviceFingerprint,

@@ -5,7 +5,7 @@ import AppNavigator from './src/navigation/AppNavigator';
 import useStore from './src/store/useStore';
 import { COLORS } from './src/constants/theme';
 import * as Notifications from 'expo-notifications';
-import { setupNotificationChannel} from './src/utils/fcmToken';
+import { setupNotificationChannel } from './src/utils/fcmToken';
 import InAppNotification from './src/components/InAppNotification';
 import { ThemeProvider } from './src/theme/themeContext';
 import { loadSound, playLoopSound, stopSound } from './src/utils/sound';
@@ -13,58 +13,62 @@ import OfflineScreen from './src/screens/NoInternetScreen';
 import useAppVersion from './src/utils/useAppVersion';
 import UpdateRequiredScreen from './src/screens/UpdateRequiredScreen';
 
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: false,
+    shouldPlaySound: false,
+    shouldSetBadge: false,
+  }),
+});
+
 export default function App() {
   const [inAppNotif, setInAppNotif] = useState(null);
-  const [isOnline,   setIsOnline]   = useState(null);
+  const [isOnline, setIsOnline] = useState(null);
   const navigationRef = useRef(null);
-  const loadPersistedState      = useStore((s) => s.loadPersistedState);
+  const loadPersistedState = useStore((s) => s.loadPersistedState);
   const setNotificationsEnabled = useStore((s) => s.setNotificationsEnabled);
-  const notificationsEnabled    = useStore((s) => s.notificationsEnabled);
-  const liveOrderCount  = useStore((s) => s.liveOrderCount);
-  const alertRunningRef = useRef(false);  
+  const liveOrderCount = useStore((s) => s.liveOrderCount);
   const { updateRequired, checking: checkingVersion, currentVersion, checkVersion } = useAppVersion();
- 
+
+  // ── Load sounds once ────────────────────────────────────────────────────
   useEffect(() => {
     loadPersistedState();
-    loadSound('accept',           require('./assets/slide.mp3'));
-    loadSound('deliver',          require('./assets/deliver.mp3'));
+    loadSound('accept', require('./assets/slide.mp3'));
+    loadSound('deliver', require('./assets/deliver.mp3'));
     loadSound('order_auto_sound', require('./assets/notification.mp3'));
   }, []);
 
-  
+  // ── Sound: strictly tied to liveOrderCount ──────────────────────────────
   useEffect(() => {
     if (liveOrderCount > 0) {
-      if (!alertRunningRef.current) {
-        alertRunningRef.current = true;
-        playLoopSound('order_auto_sound');
-      }
+      playLoopSound('order_auto_sound');
     } else {
-      if (alertRunningRef.current) {
-        alertRunningRef.current = false;
-        stopSound('order_auto_sound');
-      }
+      stopSound('order_auto_sound');
     }
   }, [liveOrderCount]);
 
+  // ── AppState: resume/stop sound based on current count ─────────────────
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
-        if (liveOrderCount > 0 && !alertRunningRef.current) {
-          alertRunningRef.current = true;
+        if (liveOrderCount > 0) {
           playLoopSound('order_auto_sound');
+        } else {
+          stopSound('order_auto_sound');
         }
       } else if (state === 'background' || state === 'inactive') {
-        alertRunningRef.current = false;
         stopSound('order_auto_sound');
       }
     });
     return () => sub.remove();
   }, [liveOrderCount]);
 
+  // ── Internet check ──────────────────────────────────────────────────────
   const checkConnection = useCallback(async () => {
     try {
       const res = await fetch('https://www.google.com/generate_204', {
-        method: 'HEAD', cache: 'no-cache',
+        method: 'HEAD',
+        cache: 'no-cache',
       });
       setIsOnline(res.status === 204 || res.ok);
     } catch {
@@ -80,6 +84,7 @@ export default function App() {
     return () => sub.remove();
   }, [checkConnection]);
 
+  // ── Notification permission sync ────────────────────────────────────────
   const syncPermission = useCallback(async () => {
     const { status } = await Notifications.getPermissionsAsync();
     await setNotificationsEnabled(status === 'granted');
@@ -97,19 +102,19 @@ export default function App() {
     return () => sub.remove();
   }, [syncPermission]);
 
-  console.log(inAppNotif,"asfsafsaf")
+  // ── In-app notification banner ──────────────────────────────────────────
   useEffect(() => {
-    const sub = Notifications.addNotificationReceivedListener(async (notification) => {
-      if (!notificationsEnabled) return;
+    const sub = Notifications.addNotificationReceivedListener((notification) => {
       const title = notification?.request?.content?.title;
-      const body  = notification?.request?.content?.body;
-      if (!title && !body) return;
-  
-      setInAppNotif({ title: title ?? '', body: body ?? '' });
+      const body = notification?.request?.content?.body;
+      if (title || body) {
+        setInAppNotif({ title: title ?? '', body: body ?? '' });
+      }
     });
     return () => sub.remove();
-  }, [notificationsEnabled]);
+  }, []);
 
+  // ── Navigate to Live tab on notification press ──────────────────────────
   const goToHomeLiveTab = useCallback(() => {
     const nav = navigationRef.current;
     if (!nav || !nav.isReady()) return;
@@ -121,7 +126,6 @@ export default function App() {
       },
     });
   }, []);
-
 
   if (!checkingVersion && updateRequired) {
     return (

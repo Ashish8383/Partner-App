@@ -655,7 +655,6 @@ const TabScene = React.memo(({
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { user, restaurantName, deviceFingerprint, fcmToken } = useStore();
-  console.log('Device Fingerprint:', deviceFingerprint, fcmToken, "fcmToken is here"); // Debug log for device fingerprint
   const navigation = useNavigation();
   const route = useRoute();
   const [tabIndex, setTabIndex] = useState(route.params?.initialTab ?? 0);
@@ -852,7 +851,13 @@ export default function HomeScreen() {
 
     return () => { clearTimeout(timer); unsub(); };
   }, [user?.restaurantId, loadTab]);
-
+  
+useEffect(() => {
+  return () => {
+    blinkLoopRef.current?.stop();
+    setLiveOrderCount(0); 
+  };
+}, []);
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     tabs.current = { live: makeTabState(), pending: makeTabState() };

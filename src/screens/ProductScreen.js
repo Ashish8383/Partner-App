@@ -8,6 +8,7 @@ import { TabView } from 'react-native-tab-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import LottieView from 'lottie-react-native';
 import HapticTouchable from '../components/GlobalHaptic';
 import useStore from '../store/useStore';
 import api from '../utils/api';
@@ -55,7 +56,6 @@ const menuAPI = {
 
 // ─── Normalise menu ───────────────────────────────────────────────────────────
 const normaliseMenu = (menuCategories = []) => {
-  // "Combo" pill sits right after "All" in the scroll
   const categories = [
     { id: '__all__',    label: 'All',   emoji: '🍽️', categoryId: null },
     { id: COMBO_CAT_ID, label: 'Combo', emoji: '🍱', categoryId: null },
@@ -92,7 +92,6 @@ const normaliseMenu = (menuCategories = []) => {
 // ─── Normalise combos → exact same shape as products ─────────────────────────
 const normaliseCombo = (raw = []) =>
   raw.map((c) => {
-    // Support discount fields on combos if present in API response
     const discountPct = c.discountinPercentageByRestraurant ?? 0;
     const discountedPrice =
       c.isDiscountedByRestraurant && discountPct > 0
@@ -168,9 +167,6 @@ const cp = StyleSheet.create({
 });
 
 // ─── Toggle Switch ────────────────────────────────────────────────────────────
-// Classic iOS-style switch — bigger, centered, clean look.
-// Card-width centered row: "Off" label ── [track] ── "Live" label
-
 const T_TRACK_W   = rs(58);
 const T_TRACK_H   = rs(32);
 const T_THUMB_SZ  = rs(26);
@@ -192,17 +188,12 @@ const ToggleBtn = React.memo(({ isOn, loading, onToggle }) => {
 
   const trackBg = anim.interpolate({ inputRange: [0, 1], outputRange: ['#C8C8CA', GREEN] });
   const thumbX  = anim.interpolate({ inputRange: [0, 1], outputRange: [T_THUMB_OFF, T_THUMB_ON] });
-
-  // Classic squish: thumb flattens slightly at mid-travel
   const thumbScaleX = anim.interpolate({ inputRange: [0, 0.3, 0.7, 1], outputRange: [1, 1.15, 1.15, 1] });
   const thumbScaleY = anim.interpolate({ inputRange: [0, 0.3, 0.7, 1], outputRange: [1, 0.85, 0.85, 1] });
 
   return (
     <HapticTouchable onPress={onToggle} activeOpacity={0.9} disabled={loading} style={sw.row}>
-      {/* Off label */}
       <Text style={[sw.sideLabel, isOn && sw.sideLabelFade]}>Off</Text>
-
-      {/* Track */}
       <Animated.View style={[sw.track, { backgroundColor: trackBg, opacity: loading ? 0.55 : 1 }]}>
         {loading ? (
           <ActivityIndicator size="small" color="#fff" style={sw.spinner} />
@@ -213,8 +204,6 @@ const ToggleBtn = React.memo(({ isOn, loading, onToggle }) => {
           ]} />
         )}
       </Animated.View>
-
-      {/* Live label */}
       <Text style={[sw.sideLabel, sw.sideLabelLive, !isOn && sw.sideLabelFade]}>Live</Text>
     </HapticTouchable>
   );
@@ -242,9 +231,8 @@ const pd = StyleSheet.create({
 });
 
 // ─── Combo Items Bottom-Sheet Modal ───────────────────────────────────────────
-
 const ComboItemsModal = React.memo(({ visible, combo, onClose, bottomInset }) => {
-  const slideY   = useRef(new Animated.Value(400)).current;
+  const slideY    = useRef(new Animated.Value(400)).current;
   const bgOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -265,17 +253,11 @@ const ComboItemsModal = React.memo(({ visible, combo, onClose, bottomInset }) =>
 
   return (
     <Modal transparent visible={visible} animationType="none" onRequestClose={onClose} statusBarTranslucent>
-      {/* Backdrop */}
       <Animated.View style={[mo.backdrop, { opacity: bgOpacity }]}>
         <HapticTouchable style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
       </Animated.View>
-
-      {/* Sheet */}
       <Animated.View style={[mo.sheet, { transform: [{ translateY: slideY }] }]}>
-        {/* Handle */}
         <View style={mo.handle} />
-
-        {/* Header */}
         <View style={mo.header}>
           <View style={mo.headerLeft}>
             <View style={mo.comboDot} />
@@ -288,16 +270,8 @@ const ComboItemsModal = React.memo(({ visible, combo, onClose, bottomInset }) =>
             <Feather name="x" size={nz(18)} color="#666" />
           </HapticTouchable>
         </View>
-
         <View style={mo.divider} />
-
-        {/* Items list */}
-        <ScrollView
-          style={mo.scroll}
-          contentContainerStyle={mo.scrollContent}
-          showsVerticalScrollIndicator={false}
-          bounces={false}
-        >
+        <ScrollView style={mo.scroll} contentContainerStyle={mo.scrollContent} showsVerticalScrollIndicator={false} bounces={false}>
           {(combo.comboItems ?? []).map((ci, i) => (
             <View key={i} style={[mo.itemRow, i < (combo.comboItems.length - 1) && mo.itemRowBorder]}>
               <View style={mo.itemLeft}>
@@ -313,8 +287,6 @@ const ComboItemsModal = React.memo(({ visible, combo, onClose, bottomInset }) =>
             </View>
           ))}
         </ScrollView>
-
-        {/* Total footer — shows original + discounted price if applicable */}
         <View style={[mo.footer, { marginBottom: rs(12) + (bottomInset ?? 0) }]}>
           <View>
             <Text style={mo.footerLabel}>Combo Price</Text>
@@ -341,27 +313,27 @@ const ComboItemsModal = React.memo(({ visible, combo, onClose, bottomInset }) =>
 });
 
 const mo = StyleSheet.create({
-  backdrop:     { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)', zIndex: 10 },
-  sheet:        { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', borderTopLeftRadius: rs(24), borderTopRightRadius: rs(24), zIndex: 20, maxHeight: '75%' },
-  handle:       { width: rs(40), height: rs(4), borderRadius: rs(2), backgroundColor: '#DDDDDD', alignSelf: 'center', marginTop: rs(12), marginBottom: rs(4) },
-  header:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: rs(20), paddingVertical: rs(14) },
-  headerLeft:   { flexDirection: 'row', alignItems: 'center', gap: rs(10), flex: 1 },
-  comboDot:     { width: rs(10), height: rs(10), borderRadius: rs(5), backgroundColor: GREEN },
-  title:        { fontSize: nz(15), fontWeight: '800', color: '#1A1A1A', maxWidth: SW * 0.55 },
-  subtitle:     { fontSize: nz(11), color: '#888', marginTop: rs(2), fontWeight: '500' },
-  closeBtn:     { width: rs(32), height: rs(32), borderRadius: rs(16), backgroundColor: '#F3F3F3', alignItems: 'center', justifyContent: 'center' },
-  divider:      { height: rs(1), backgroundColor: '#F0F0F0', marginHorizontal: rs(20) },
-  scroll:       { flexShrink: 1 },
-  scrollContent:{ paddingHorizontal: rs(20), paddingTop: rs(8), paddingBottom: rs(4) },
-  itemRow:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: rs(13) },
-  itemRowBorder:{ borderBottomWidth: rs(1), borderBottomColor: '#F5F5F5' },
-  itemLeft:     { flexDirection: 'row', alignItems: 'center', gap: rs(10), flex: 1 },
-  qtyBadge:     { width: rs(30), height: rs(30), borderRadius: rs(8), backgroundColor: '#EAF5EE', alignItems: 'center', justifyContent: 'center' },
-  qtyTxt:       { fontSize: nz(11), fontWeight: '800', color: GREEN },
-  itemName:     { fontSize: nz(13), fontWeight: '600', color: '#1A1A1A', maxWidth: SW * 0.5 },
-  itemCat:      { fontSize: nz(11), color: '#AAAAAA', marginTop: rs(2) },
-  itemPrice:    { fontSize: nz(13), fontWeight: '700', color: '#333' },
-  footer:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginHorizontal: rs(20), marginTop: rs(12), backgroundColor: '#F5FAF5', borderRadius: rs(14), paddingHorizontal: rs(16), paddingVertical: rs(14), borderWidth: rs(1), borderColor: '#D4EBDA' },
+  backdrop:           { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)', zIndex: 10 },
+  sheet:              { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', borderTopLeftRadius: rs(24), borderTopRightRadius: rs(24), zIndex: 20, maxHeight: '75%' },
+  handle:             { width: rs(40), height: rs(4), borderRadius: rs(2), backgroundColor: '#DDDDDD', alignSelf: 'center', marginTop: rs(12), marginBottom: rs(4) },
+  header:             { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: rs(20), paddingVertical: rs(14) },
+  headerLeft:         { flexDirection: 'row', alignItems: 'center', gap: rs(10), flex: 1 },
+  comboDot:           { width: rs(10), height: rs(10), borderRadius: rs(5), backgroundColor: GREEN },
+  title:              { fontSize: nz(15), fontWeight: '800', color: '#1A1A1A', maxWidth: SW * 0.55 },
+  subtitle:           { fontSize: nz(11), color: '#888', marginTop: rs(2), fontWeight: '500' },
+  closeBtn:           { width: rs(32), height: rs(32), borderRadius: rs(16), backgroundColor: '#F3F3F3', alignItems: 'center', justifyContent: 'center' },
+  divider:            { height: rs(1), backgroundColor: '#F0F0F0', marginHorizontal: rs(20) },
+  scroll:             { flexShrink: 1 },
+  scrollContent:      { paddingHorizontal: rs(20), paddingTop: rs(8), paddingBottom: rs(4) },
+  itemRow:            { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: rs(13) },
+  itemRowBorder:      { borderBottomWidth: rs(1), borderBottomColor: '#F5F5F5' },
+  itemLeft:           { flexDirection: 'row', alignItems: 'center', gap: rs(10), flex: 1 },
+  qtyBadge:           { width: rs(30), height: rs(30), borderRadius: rs(8), backgroundColor: '#EAF5EE', alignItems: 'center', justifyContent: 'center' },
+  qtyTxt:             { fontSize: nz(11), fontWeight: '800', color: GREEN },
+  itemName:           { fontSize: nz(13), fontWeight: '600', color: '#1A1A1A', maxWidth: SW * 0.5 },
+  itemCat:            { fontSize: nz(11), color: '#AAAAAA', marginTop: rs(2) },
+  itemPrice:          { fontSize: nz(13), fontWeight: '700', color: '#333' },
+  footer:             { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginHorizontal: rs(20), marginTop: rs(12), backgroundColor: '#F5FAF5', borderRadius: rs(14), paddingHorizontal: rs(16), paddingVertical: rs(14), borderWidth: rs(1), borderColor: '#D4EBDA' },
   footerLabel:        { fontSize: nz(13), fontWeight: '700', color: '#555' },
   footerPriceWrap:    { alignItems: 'flex-end', gap: rs(2) },
   footerOriginalPrice:{ fontSize: nz(12), color: '#BBBBBB', textDecorationLine: 'line-through' },
@@ -370,10 +342,42 @@ const mo = StyleSheet.create({
   footerDiscountTxt:  { fontSize: nz(9), fontWeight: '800', color: '#fff', letterSpacing: 0.3 },
 });
 
-// ─── Unified Card — identical look for regular items AND combos ───────────────
+// ─── Empty State — Lottie for disabled tab, default for active ────────────────
+const EmptyState = React.memo(({ tabKey }) => {
+  if (tabKey === 'disabled') {
+    return (
+      <View style={es.wrap}>
+        <LottieView
+          source={require('../../assets/disabled.json')}
+          autoPlay
+          loop
+          style={es.lottie}
+        />
+        <Text style={es.title}>No disabled items</Text>
+        <Text style={es.sub}>All your items are currently live</Text>
+      </View>
+    );
+  }
+  return (
+    <View style={s.empty}>
+      <Text style={s.emptyEmoji}>📭</Text>
+      <Text style={s.emptyTitle}>No items here</Text>
+      <Text style={s.emptySub}>Try a different category or search</Text>
+    </View>
+  );
+});
+
+const es = StyleSheet.create({
+  wrap:   { alignItems: 'center', paddingTop: rs(40) },
+  lottie: { width: rs(220), height: rs(220) },
+  title:  { fontSize: nz(17), fontWeight: '700', color: '#1A1A1A', marginTop: rs(8) },
+  sub:    { fontSize: nz(13), color: '#AAAAAA', marginTop: rs(4) },
+});
+
+// ─── Unified Card ─────────────────────────────────────────────────────────────
 const ProductCard = React.memo(({ item, restaurantId, onToggle, onToast, bottomInset, tabKey }) => {
-  const [toggling,    setToggling]    = useState(false);
-  const [showModal,   setShowModal]   = useState(false);   // combo popup
+  const [toggling,  setToggling]  = useState(false);
+  const [showModal, setShowModal] = useState(false);
 
   const handleToggle = useCallback(async () => {
     setToggling(true);
@@ -397,8 +401,6 @@ const ProductCard = React.memo(({ item, restaurantId, onToggle, onToast, bottomI
   return (
     <>
       <View style={[pc.wrap, isDisabled && pc.wrapDisabled]}>
-
-        {/* Image */}
         <View style={pc.imageWrap}>
           {item.image
             ? <Image source={{ uri: item.image }} style={StyleSheet.absoluteFill} resizeMode="cover" />
@@ -408,18 +410,14 @@ const ProductCard = React.memo(({ item, restaurantId, onToggle, onToast, bottomI
           {item.discountedPrice ? (
             <View style={pc.discountBadge}><Text style={pc.discountTxt}>{item.discountPct}% OFF</Text></View>
           ) : null}
-          {(item.isCombo) ? (
+          {item.isCombo ? (
             <View style={pc.comboBadge}><Text style={pc.comboTxt}>Combo</Text></View>
           ) : null}
         </View>
-
-        {/* Name */}
         <View style={pc.nameRow}>
           <VegDot isVeg={item.isVeg} />
           <Text style={[pc.name, isDisabled && pc.nameDisabled]} numberOfLines={1}>{item.name}</Text>
         </View>
-
-        {/* Price */}
         <View style={pc.priceRow}>
           {item.discountedPrice ? (
             <>
@@ -430,31 +428,16 @@ const ProductCard = React.memo(({ item, restaurantId, onToggle, onToast, bottomI
             <Text style={[pc.price, isDisabled && pc.priceDisabled]}>₹{item.price}</Text>
           )}
         </View>
-
-        {/* "View Items" button — combo only, replaces inline list */}
         {item.isCombo && item.comboItems?.length > 0 && (
-          <HapticTouchable
-            onPress={() => setShowModal(true)}
-            activeOpacity={0.75}
-            style={pc.viewItemsBtn}
-          >
+          <HapticTouchable onPress={() => setShowModal(true)} activeOpacity={0.75} style={pc.viewItemsBtn}>
             <Feather name="list" size={nz(12)} color={GREEN} style={{ marginRight: rs(4) }} />
             <Text style={pc.viewItemsTxt}>View Items ({item.comboItems.length})</Text>
           </HapticTouchable>
         )}
-
-        {/* Toggle on both tabs — lets user re-enable from Disabled listing */}
         <ToggleBtn isOn={item.on} loading={toggling} onToggle={handleToggle} />
       </View>
-
-      {/* Combo popup — only rendered for combo items */}
       {item.isCombo && (
-        <ComboItemsModal
-          visible={showModal}
-          combo={item}
-          onClose={() => setShowModal(false)}
-          bottomInset={bottomInset}
-        />
+        <ComboItemsModal visible={showModal} combo={item} onClose={() => setShowModal(false)} bottomInset={bottomInset} />
       )}
     </>
   );
@@ -487,9 +470,6 @@ const pc = StyleSheet.create({
   priceDisabled:   { color: '#BBBBBB' },
   viewItemsBtn:    { flexDirection: 'row', alignItems: 'center', backgroundColor: '#EAF5EE', borderRadius: rs(8), paddingHorizontal: rs(8), paddingVertical: rs(5), marginBottom: rs(7), alignSelf: 'center', borderWidth: rs(1), borderColor: '#C5E0C5' },
   viewItemsTxt:    { fontSize: nz(11), fontWeight: '700', color: GREEN },
-  disabledBadge:   { flexDirection: 'row', alignItems: 'center', alignSelf: 'center', marginTop: rs(10), backgroundColor: '#F5F5F5', borderRadius: rs(20), paddingHorizontal: rs(10), paddingVertical: rs(5), gap: rs(5), borderWidth: rs(1), borderColor: '#E0E0E0' },
-  disabledDot:     { width: rs(6), height: rs(6), borderRadius: rs(3), backgroundColor: '#BBBBBB' },
-  disabledBadgeTxt:{ fontSize: nz(11), fontWeight: '600', color: '#BBBBBB' },
 });
 
 // ─── Custom Tab Bar ───────────────────────────────────────────────────────────
@@ -566,13 +546,7 @@ const TabScene = React.memo(({ list, loading, restaurantId, onToggle, onToast, b
       maxToRenderPerBatch={6}
       windowSize={7}
       updateCellsBatchingPeriod={50}
-      ListEmptyComponent={
-        <View style={s.empty}>
-          <Text style={s.emptyEmoji}>📭</Text>
-          <Text style={s.emptyTitle}>No items here</Text>
-          <Text style={s.emptySub}>Try a different category or search</Text>
-        </View>
-      }
+      ListEmptyComponent={<EmptyState tabKey={tabKey} />}
     />
   );
 });
@@ -605,7 +579,6 @@ export default function YourListingScreen() {
   const toastScale   = useRef(new Animated.Value(0.88)).current;
   const toastTimer   = useRef(null);
 
-  // ── Toast ─────────────────────────────────────────────────────────────────
   const showToast = useCallback((text) => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     setToastMsg(text);
@@ -622,7 +595,6 @@ export default function YourListingScreen() {
     }, 2200);
   }, []);
 
-  // ── Search ────────────────────────────────────────────────────────────────
   const openSearch = useCallback(() => {
     setSearchOpen(true);
     Animated.spring(searchAnim, { toValue: 1, useNativeDriver: false, damping: 18, stiffness: 220, mass: 0.5 })
@@ -639,7 +611,6 @@ export default function YourListingScreen() {
   const searchBarH    = searchAnim.interpolate({ inputRange: [0, 1], outputRange: [0, SEARCH_H + rs(10)] });
   const searchOpacity = searchAnim;
 
-  // ── Fetch ─────────────────────────────────────────────────────────────────
   const fetchMenu = useCallback(async () => {
     if (!restaurantId) return;
     setLoading(true); setError(null);
@@ -670,7 +641,6 @@ export default function YourListingScreen() {
 
   useEffect(() => { fetchMenu(); fetchCombos(); }, [fetchMenu, fetchCombos]);
 
-  // ── Toggle — routes to right state array via isCombo flag ─────────────────
   const handleToggle = useCallback((id, isCombo) => {
     if (isCombo) {
       setCombos((prev) => prev.map((c) => c.id === id ? { ...c, on: !c.on, isLive: !c.on } : c));
@@ -679,27 +649,23 @@ export default function YourListingScreen() {
     }
   }, []);
 
-  // ── Filter logic ──────────────────────────────────────────────────────────
   const q             = searchQuery.trim().toLowerCase();
   const isComboFilter = activeCatId === COMBO_CAT_ID;
 
-  // When Combo pill active → show combos; otherwise show regular products filtered by category
   const baseList = isComboFilter
     ? combos
     : products.filter((p) => activeCatId === '__all__' || p.catRowId === activeCatId);
 
-  // comboOnly items are only sold as part of a combo — never shown standalone
   const filteredList = baseList.filter((p) =>
     !p.comboOnly && (!q || p.name.toLowerCase().includes(q))
   );
-  const isLoading    = isComboFilter ? comboLoading : loading;
+  const isLoading = isComboFilter ? comboLoading : loading;
 
   const activeLists = {
     active:   filteredList.filter((p) =>  p.on),
     disabled: filteredList.filter((p) => !p.on),
   };
 
-  // ── Render ────────────────────────────────────────────────────────────────
   const renderScene = useCallback(({ route }) => (
     <TabScene
       list={activeLists[route.key]}
@@ -770,7 +736,7 @@ export default function YourListingScreen() {
           </HapticTouchable>
         )}
 
-        {/* Category pills — All | Combo | Pizza | Beverages | ... */}
+        {/* Category pills */}
         <View style={s.categorySection}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.categoryScroll}>
             {categories.map((cat) => (

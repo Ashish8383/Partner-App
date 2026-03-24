@@ -19,14 +19,18 @@ const rs = (s) => Math.round(s * Math.min(sc, 1.25));
 const GREEN = '#03954E';
 
 const TABS = [
-  { name: 'Home', label: 'Home', iconLib: 'material', icon: 'home' },
-  { name: 'List', label: 'List', iconLib: 'feather', icon: 'check-circle' },
-  { name: 'Settings', label: 'Settings', iconLib: 'feather', icon: 'settings' },
+  { name: 'Home',     label: 'Home',     iconLib: 'material', icon: 'home'         },
+  { name: 'List',     label: 'List',     iconLib: 'feather',  icon: 'check-circle' },
+  { name: 'Settings', label: 'Settings', iconLib: 'feather',  icon: 'settings'     },
 ];
 
 const BottomTabs = ({ state, navigation }) => {
   const insets = useSafeAreaInsets();
-  const gestureBarH = insets.bottom;
+
+  const hasGestureNav = insets.bottom > 0;
+  // Gesture nav: use half the safe area inset to keep it tight but safe
+  // Button nav: just 4px fixed
+  const bottomPad = hasGestureNav ? Math.round(insets.bottom * 0.5) : rs(4);
 
   const pillX = useRef(new Animated.Value(0)).current;
 
@@ -34,7 +38,7 @@ const BottomTabs = ({ state, navigation }) => {
     TABS.reduce((acc, t, i) => {
       const isFirst = i === 0;
       acc[t.name] = {
-        scale: new Animated.Value(isFirst ? 1 : 0.9),
+        scale:   new Animated.Value(isFirst ? 1 : 0.9),
         opacity: new Animated.Value(isFirst ? 1 : 0.6),
       };
       return acc;
@@ -54,25 +58,24 @@ const BottomTabs = ({ state, navigation }) => {
     if (!lay) return;
 
     Animated.spring(pillX, {
-      toValue: lay.x,
+      toValue:         lay.x,
       useNativeDriver: true,
-      speed: 30,
-      bounciness: 6,
+      speed:           30,
+      bounciness:      6,
     }).start();
 
     TABS.forEach((t) => {
       const active = t.name === focusedName;
-
       Animated.parallel([
         Animated.spring(anims[t.name].scale, {
-          toValue: active ? 1 : 0.9,
+          toValue:         active ? 1 : 0.9,
           useNativeDriver: true,
-          speed: 25,
-          bounciness: 4,
+          speed:           25,
+          bounciness:      4,
         }),
         Animated.timing(anims[t.name].opacity, {
-          toValue: active ? 1 : 0.6,
-          duration: 180,
+          toValue:         active ? 1 : 0.6,
+          duration:        180,
           useNativeDriver: true,
         }),
       ]).start();
@@ -80,39 +83,26 @@ const BottomTabs = ({ state, navigation }) => {
   }, [state.index, layouts]);
 
   const focusedName = TABS[state.index]?.name;
-  const pillWidth = layouts[focusedName]?.width ?? rs(110);
+  const pillWidth   = layouts[focusedName]?.width ?? rs(110);
 
   return (
-    <View style={[s.outer, { paddingBottom: rs(12) + gestureBarH }]}>
+    <View style={[s.outer, { paddingBottom: bottomPad }]}>
       <View style={s.container}>
 
         <Animated.View
           pointerEvents="none"
-          style={[
-            s.pill,
-            {
-              width: pillWidth,
-              transform: [{ translateX: pillX }],
-            },
-          ]}
+          style={[s.pill, { width: pillWidth, transform: [{ translateX: pillX }] }]}
         />
 
         <View style={s.row}>
           {state.routes.map((route, index) => {
             const isFocused = state.index === index;
-            const tab = TABS[index] ?? TABS[0];
+            const tab       = TABS[index] ?? TABS[0];
 
             const onPress = () => {
               Animated.sequence([
-                Animated.timing(anims[tab.name].scale, {
-                  toValue: 0.92,
-                  duration: 70,
-                  useNativeDriver: true,
-                }),
-                Animated.spring(anims[tab.name].scale, {
-                  toValue: 1,
-                  useNativeDriver: true,
-                }),
+                Animated.timing(anims[tab.name].scale, { toValue: 0.92, duration: 70, useNativeDriver: true }),
+                Animated.spring(anims[tab.name].scale, { toValue: 1, useNativeDriver: true }),
               ]).start();
 
               const event = navigation.emit({
@@ -145,11 +135,10 @@ const BottomTabs = ({ state, navigation }) => {
                     s.inner,
                     {
                       transform: [{ scale: anims[tab.name].scale }],
-                      opacity: anims[tab.name].opacity,
+                      opacity:   anims[tab.name].opacity,
                     },
                   ]}
                 >
-
                   {tab.iconLib === 'material' ? (
                     <MaterialIcons
                       name={tab.icon}
@@ -165,16 +154,14 @@ const BottomTabs = ({ state, navigation }) => {
                   )}
 
                   {isFocused && (
-                    <Animated.Text style={s.label}>
-                      {tab.label}
-                    </Animated.Text>
+                    <Animated.Text style={s.label}>{tab.label}</Animated.Text>
                   )}
-
                 </Animated.View>
               </HapticTouchable>
             );
           })}
         </View>
+
       </View>
     </View>
   );
@@ -183,72 +170,62 @@ const BottomTabs = ({ state, navigation }) => {
 const s = StyleSheet.create({
   outer: {
     paddingHorizontal: rs(10),
-    backgroundColor: '#fff',
+    paddingTop:        rs(6),
+    backgroundColor:   '#fff',
   },
-
   container: {
     backgroundColor: '#FFFFFF',
-    borderRadius: rs(50),
-    borderWidth: rs(1),
-    borderColor: '#e7e7e7',
-    position: 'relative',
-    overflow: 'hidden',
-
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-
-    elevation: 20,
+    borderRadius:    rs(50),
+    borderWidth:     rs(1),
+    borderColor:     '#e7e7e7',
+    position:        'relative',
+    overflow:        'hidden',
+    shadowColor:     '#000',
+    shadowOffset:    { width: 0, height: 10 },
+    shadowOpacity:   0.1,
+    shadowRadius:    20,
+    elevation:       20,
   },
-
   pill: {
-    position: 'absolute',
-    top: rs(6),
-    bottom: rs(6),
-    left: 0,
-    borderRadius: rs(30),
+    position:        'absolute',
+    top:             rs(6),
+    bottom:          rs(6),
+    left:            0,
+    borderRadius:    rs(30),
     backgroundColor: GREEN,
-
-    shadowColor: GREEN,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-
-    elevation: 8,
+    shadowColor:     GREEN,
+    shadowOffset:    { width: 0, height: 6 },
+    shadowOpacity:   0.35,
+    shadowRadius:    12,
+    elevation:       8,
   },
-
   row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
+    flexDirection:     'row',
+    alignItems:        'center',
+    justifyContent:    'space-around',
     paddingHorizontal: rs(12),
-    height: rs(66),
-    zIndex: 1,
+    height:            rs(66),
+    zIndex:            1,
   },
-
   btn: {
-    flex: 1,
-    alignItems: 'center',
+    flex:           1,
+    alignItems:     'center',
     justifyContent: 'center',
-    height: rs(54),
+    height:         rs(54),
   },
-
   inner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: rs(6),
+    flexDirection:     'row',
+    alignItems:        'center',
+    justifyContent:    'center',
+    gap:               rs(6),
     paddingHorizontal: rs(6),
   },
-
   label: {
-    color: '#FFFFFF',
-    fontSize: nz(14),
+    color:      '#FFFFFF',
+    fontSize:   nz(14),
     fontWeight: '700',
     marginLeft: rs(2),
   },
 });
-
 
 export default BottomTabs;

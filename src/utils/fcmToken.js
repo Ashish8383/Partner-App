@@ -157,7 +157,6 @@ export const setupNotificationChannel = async () => {
 export const getFCMToken = async () => {
   try {
     if (!Device.isDevice) {
-      console.log('NOT A REAL DEVICE');
       return null;
     }
 
@@ -170,26 +169,19 @@ export const getFCMToken = async () => {
     }
 
     if (finalStatus !== 'granted') {
-      console.log('Permission NOT granted');
       return null;
     }
 
-    console.log('Permission granted', Platform.OS);
-
     if (Platform.OS === 'android') {
       const token = (await Notifications.getExpoPushTokenAsync()).data;
-      console.log('Android Expo Token:', token);
       return token;
     } else {
-      // ✅ iOS — get real FCM token via Firebase, not APNs token
       await messaging().registerDeviceForRemoteMessages();
       const fcmToken = await messaging().getToken();
-      console.log('iOS FCM Token:', fcmToken);
       return fcmToken;
     }
 
   } catch (error) {
-    console.log('FCM Error:', error);
     return null;
   }
 };
