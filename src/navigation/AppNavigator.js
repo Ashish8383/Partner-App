@@ -43,26 +43,19 @@ const AuthStack = () => (
 
 const AppNavigator = ({ onStateChange, navigationRef }) => {
   const isAuthenticated    = useStore((state) => state.isAuthenticated);
+  const isHydrated         = useStore((state) => state.isHydrated); 
   const loadPersistedState = useStore((state) => state.loadPersistedState);
-  const [appReady, setAppReady] = useState(false);
 
   useEffect(() => {
-    const bootstrap = async () => {
-      try {
-        await loadPersistedState();
-      } catch (e) {
-      } finally {
-        setAppReady(true);
-      }
-    };
-    bootstrap();
+    loadPersistedState();
   }, []);
 
   const onRootLayout = useCallback(async () => {
-    if (appReady) await SplashScreen.hideAsync();
-  }, [appReady]);
+    if (isHydrated) await SplashScreen.hideAsync();
+  }, [isHydrated]);
 
-  if (!appReady) return null;
+  // ✅ Wait for hydration before rendering anything
+  if (!isHydrated) return null;
 
   return (
     <View style={styles.root} onLayout={onRootLayout}>
@@ -77,7 +70,6 @@ const AppNavigator = ({ onStateChange, navigationRef }) => {
     </View>
   );
 };
-
 const styles = StyleSheet.create({ root: { flex: 1 } });
 
 export default AppNavigator;

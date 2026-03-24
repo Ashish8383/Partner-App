@@ -24,12 +24,16 @@ const SKIP_AUTH_URLS = ['/restaurant/login', '/restaurant/logout', '/restaurant/
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const url         = error.config?.url ?? '';
-    const is401       = error.response?.status === 401;
+    const url = error.config?.url ?? '';
+    const is401 = error.response?.status === 401;
     const isAuthRoute = SKIP_AUTH_URLS.some((r) => url.includes(r));
-    if (is401 && !isAuthRoute) {
+    const { isAuthenticated, token } = useStore.getState();
+
+    // ✅ Only logout if fully authenticated with valid token
+    if (is401 && !isAuthRoute && isAuthenticated && token) {
       await useStore.getState().logout();
     }
+
     return Promise.reject(error);
   }
 );

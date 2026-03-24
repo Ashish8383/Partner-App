@@ -30,14 +30,35 @@ export default function App() {
   const liveOrderCount = useStore((s) => s.liveOrderCount);
   const { updateRequired, checking: checkingVersion, currentVersion, checkVersion } = useAppVersion();
 
-  // ── Load sounds once ────────────────────────────────────────────────────
-  useEffect(() => {
-    loadPersistedState();
-    loadSound('accept', require('./assets/slide.mp3'));
-    loadSound('deliver', require('./assets/deliver.mp3'));
-    loadSound('order_auto_sound', require('./assets/notification.mp3'));
-  }, []);
+// ── Load sounds once — remove loadPersistedState from here ─────────────
+useEffect(() => {
+  // ✅ REMOVED loadPersistedState() — AppNavigator already handles it
+  loadSound('accept', require('./assets/slide.mp3'));
+  loadSound('deliver', require('./assets/deliver.mp3'));
+  loadSound('order_auto_sound', require('./assets/notification.mp3'));
+}, []);
 
+// ── Fix goToHomeLiveTab — safe navigation ───────────────────────────────
+const goToHomeLiveTab = useCallback(() => {
+  const nav = navigationRef.current;
+  if (!nav || !nav.isReady()) return;
+
+  const state = nav.getState();
+  const isAuthenticated = useStore.getState().isAuthenticated;
+  if (!isAuthenticated) return; // ✅ don't navigate if not logged in
+
+  try {
+    nav.navigate('Auth', {
+      screen: 'Main',
+      params: {
+        screen: 'Home',
+        params: { initialTab: 0 },
+      },
+    });
+  } catch (e) {
+    // ✅ silently ignore navigation errors
+  }
+}, []);
   // ── Sound: strictly tied to liveOrderCount ──────────────────────────────
   useEffect(() => {
     if (liveOrderCount > 0) {
@@ -112,19 +133,6 @@ export default function App() {
       }
     });
     return () => sub.remove();
-  }, []);
-
-  // ── Navigate to Live tab on notification press ──────────────────────────
-  const goToHomeLiveTab = useCallback(() => {
-    const nav = navigationRef.current;
-    if (!nav || !nav.isReady()) return;
-    nav.navigate('Auth', {
-      screen: 'Main',
-      params: {
-        screen: 'Home',
-        params: { initialTab: 0 },
-      },
-    });
   }, []);
 
   if (!checkingVersion && updateRequired) {

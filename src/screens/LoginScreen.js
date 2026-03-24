@@ -94,6 +94,7 @@ const LoginScreen = () => {
     try {
       const storedToken = useStore.getState().fcmToken;
       const fcmToken = storedToken ?? (await getFCMToken());
+      console.log('FCM Token for Login:', fcmToken); // Debug log for FCM token --- IGNORE ---
       if (fcmToken && !storedToken) await setFcmToken(fcmToken);
       const loginType = determineLoginType(credIdentifier);
       const loginPayload = {

@@ -160,22 +160,37 @@ export const getFCMToken = async () => {
       return null;
     }
 
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-
-    if (finalStatus !== 'granted') {
-      return null;
-    }
-
     if (Platform.OS === 'android') {
-      const token = (await Notifications.getExpoPushTokenAsync()).data;
-      return token;
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+
+      if (finalStatus !== 'granted') {
+        return null;
+      }
+
+      const tokenData = await Notifications.getDevicePushTokenAsync();
+      return tokenData.data;
+
     } else {
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+
+        
+      }
+
+      if (finalStatus !== 'granted') {
+        return null;
+      }
+
       await messaging().registerDeviceForRemoteMessages();
       const fcmToken = await messaging().getToken();
       return fcmToken;
