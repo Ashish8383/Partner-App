@@ -1,6 +1,6 @@
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
-import { Platform } from 'react-native';
+import { Platform, AppState } from 'react-native';
 import { Audio } from 'expo-av';
 import messaging from '@react-native-firebase/messaging';
 
@@ -14,6 +14,19 @@ const isNotificationPermitted = async () => {
 };
 
 let soundInstance = null;
+
+// Badge management function
+const resetBadgeCount = async () => {
+  try {
+    await Notifications.setBadgeCountAsync(0);
+    if (Platform.OS === 'ios') {
+      await Notifications.setBadgeCountAsync(0);
+    }
+    await Notifications.dismissAllNotificationsAsync();
+  } catch (error) {
+    console.error('Failed to reset badge:', error);
+  }
+};
 
 export const playCustomSound = async () => {
   const permitted = await isNotificationPermitted();
@@ -48,6 +61,7 @@ export const playCustomSound = async () => {
       }
     });
   } catch (error) {
+    console.error('Play sound error:', error);
   }
 };
 
@@ -151,6 +165,7 @@ export const setupNotificationChannel = async () => {
     );
     await Notifications.getNotificationChannelsAsync();
   } catch (error) {
+    console.error('Channel setup error:', error);
   }
 };
 
@@ -184,7 +199,7 @@ export const getFCMToken = async () => {
         const { status } = await Notifications.requestPermissionsAsync();
         finalStatus = status;
 
-        
+
       }
 
       if (finalStatus !== 'granted') {
@@ -197,6 +212,45 @@ export const getFCMToken = async () => {
     }
 
   } catch (error) {
+    console.error('FCM token error:', error);
     return null;
   }
+};
+
+// Add this to manage badge count
+let appStateSubscription = null;
+let responseListener = null;
+
+export const setupBadgeManagement = () => {
+  // Reset badge immediately when called
+  resetBadgeCount();
+  
+  // Reset badge when app comes to foreground
+  appStateSubscription = AppState.addEventListener('change', (nextAppState) => {
+    if (nextAppState === 'active') {
+      resetBadgeCount();
+    }
+  });
+  
+  // Reset badge when notification is tapped
+  responseListener = Notifications.addNotificationResponseReceivedListener(() => {
+    resetBadgeCount();
+  });
+};
+
+export const cleanupBadgeManagement = () => {
+  if (appStateSubscription) {
+    appStateSubscription.remove();
+    appStateSubscription = null;
+  }
+  if (responseListener) {
+    responseListener.remove();
+    responseListener = null;
+  }
+};
+
+// Optional: Call this when your app initializes
+export const initBadgeManagement = () => {
+  setupBadgeManagement();
+  return cleanupBadgeManagement;
 };

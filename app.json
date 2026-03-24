@@ -30,9 +30,6 @@
       "supportsTablet": true,
       "deploymentTarget": "17.0",
       "jsEngine": "hermes",
-      "entitlements": {
-        "aps-environment": "production"
-      },
       "infoPlist": {
         "UIBackgroundModes": [
           "remote-notification"

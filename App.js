@@ -5,7 +5,7 @@ import AppNavigator from './src/navigation/AppNavigator';
 import useStore from './src/store/useStore';
 import { COLORS } from './src/constants/theme';
 import * as Notifications from 'expo-notifications';
-import { setupNotificationChannel } from './src/utils/fcmToken';
+import { initBadgeManagement, setupNotificationChannel } from './src/utils/fcmToken';
 import InAppNotification from './src/components/InAppNotification';
 import { ThemeProvider } from './src/theme/themeContext';
 import { loadSound, playLoopSound, stopSound } from './src/utils/sound';
@@ -133,6 +133,16 @@ const goToHomeLiveTab = useCallback(() => {
       }
     });
     return () => sub.remove();
+  }, []);
+
+   useEffect(() => {
+    // Initialize badge management
+    const cleanup = initBadgeManagement();
+    
+    return () => {
+      // Cleanup on app unmount
+      if (cleanup) cleanup();
+    };
   }, []);
 
   if (!checkingVersion && updateRequired) {

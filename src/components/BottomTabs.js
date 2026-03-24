@@ -27,11 +27,6 @@ const TABS = [
 const BottomTabs = ({ state, navigation }) => {
   const insets = useSafeAreaInsets();
 
-  const hasGestureNav = insets.bottom > 0;
-  // Gesture nav: use half the safe area inset to keep it tight but safe
-  // Button nav: just 4px fixed
-  const bottomPad = hasGestureNav ? Math.round(insets.bottom * 0.5) : rs(4);
-
   const pillX = useRef(new Animated.Value(0)).current;
 
   const anims = useRef(
@@ -86,7 +81,7 @@ const BottomTabs = ({ state, navigation }) => {
   const pillWidth   = layouts[focusedName]?.width ?? rs(110);
 
   return (
-    <View style={[s.outer, { paddingBottom: bottomPad }]}>
+    <View style={[s.outer, { paddingBottom: insets.bottom > 0 ? insets.bottom : rs(8) }]}>
       <View style={s.container}>
 
         <Animated.View
@@ -172,6 +167,7 @@ const s = StyleSheet.create({
     paddingHorizontal: rs(10),
     paddingTop:        rs(6),
     backgroundColor:   '#fff',
+    // ✅ No hardcoded paddingBottom — handled dynamically via insets
   },
   container: {
     backgroundColor: '#FFFFFF',
