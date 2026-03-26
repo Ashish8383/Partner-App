@@ -109,4 +109,8 @@ export const appVersionAPI = {
     api.get('/admin/appSettingList', { params: { app: appType } }),
 };
 
+export const supportAPI = {
+  addContact: (data) => api.post('/admin/AddContact', data),
+};
+
 export default api;

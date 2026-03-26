@@ -13,6 +13,10 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  TextInput,
+  KeyboardAvoidingView,
+  Modal,
+  TouchableOpacity,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -21,11 +25,14 @@ import useStore from '../store/useStore';
 import HapticTouchable from '../components/GlobalHaptic';
 import { useNavigation } from '@react-navigation/native';
 import useAppVersion from '../utils/useAppVersion';
-const { width: SW } = Dimensions.get('window');
+import { supportAPI } from '../utils/api';
+
+const { width: SW, height: SH } = Dimensions.get('window');
 const BASE = 390;
 const sc   = SW / BASE;
 const rs   = (n) => Math.round(n * Math.min(sc, 1.35));
 const nz   = (n) => Math.round(PixelRatio.roundToNearestPixel(n * Math.min(sc, 1.35)));
+
 const G1 = '#03954E';
 const G2 = '#027A40';
 const G3 = '#E8F7EF';
@@ -36,6 +43,7 @@ const SB = '#6B7280';
 const BD = '#E5E7EB';
 const RD = '#EF4444';
 
+// ─── FadeRow ──────────────────────────────────────────────────────────────────
 const FadeRow = ({ delay = 0, children }) => {
   const anim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -80,6 +88,201 @@ const RowItem = ({
     <View style={c.rowRight}>{right}</View>
   </HapticTouchable>
 );
+
+// ─── Help & Support Modal ─────────────────────────────────────────────────────
+const HelpSupportModal = ({ visible, onClose, user }) => {
+  const [fname,   setFname]   = useState('');
+  const [lname,   setLname]   = useState('');
+  const [phone,   setPhone]   = useState('');
+  const [email,   setEmail]   = useState('');
+  const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  // Auto-fill from user on open
+  useEffect(() => {
+    if (visible) {
+      const nameParts = (user?.name || '').trim().split(' ');
+      setFname(nameParts[0] || '');
+      setLname(nameParts.slice(1).join(' ') || '');
+      setPhone(user?.phone || '');   // ← auto-fill phone from user.phone
+      setEmail(user?.email || '');
+      setMessage('');
+    }
+  }, [visible]);
+
+  const handleSubmit = async () => {
+    if (!fname.trim()) {
+      Alert.alert('Required', 'Please enter your first name.');
+      return;
+    }
+    if (!phone.trim()) {
+      Alert.alert('Required', 'Please enter your phone number.');
+      return;
+    }
+    if (!message.trim()) {
+      Alert.alert('Required', 'Please describe your issue or question.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await supportAPI.addContact({
+        Fname:   fname.trim(),
+        Lname:   lname.trim(),
+        phone:   phone.trim(),
+        email:   email.trim(),
+        message: message.trim(),
+      });
+
+      const data = response?.data;
+      if (data?.statusCode === 200) {
+        Alert.alert(
+          '✅ Message Sent!',
+          'Our support team will get back to you shortly.',
+          [{ text: 'OK', onPress: onClose }]
+        );
+      } else {
+        Alert.alert('Error', data?.message || 'Something went wrong. Please try again.');
+      }
+    } catch (error) {
+        Alert.alert('Error', 'Network error. Please check your connection and try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      onRequestClose={onClose}
+    >
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={m.overlay}
+      >
+        <TouchableOpacity style={m.backdrop} activeOpacity={1} onPress={onClose} />
+
+        <View style={m.sheet}>
+          <View style={m.handle} />
+
+          {/* Header */}
+          <View style={m.header}>
+            <View style={m.headerIconWrap}>
+              <Feather name="headphones" size={nz(20)} color="#8B5CF6" />
+            </View>
+            <View style={{ flex: 1, marginLeft: rs(12) }}>
+              <Text style={m.headerTitle}>Help & Support</Text>
+            </View>
+            <HapticTouchable onPress={onClose} style={m.closeBtn}>
+              <Feather name="x" size={nz(18)} color={SB} />
+            </HapticTouchable>
+          </View>
+
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={m.formScroll}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* Name Row */}
+            <View style={m.nameRow}>
+              <View style={[m.inputGroup, { flex: 1, marginRight: rs(8) }]}>
+                <Text style={m.label}>First Name <Text style={m.required}>*</Text></Text>
+                <TextInput
+                  style={m.input}
+                  placeholder="First name"
+                  placeholderTextColor="#9CA3AF"
+                  value={fname}
+                  onChangeText={setFname}
+                  autoCapitalize="words"
+                />
+              </View>
+              <View style={[m.inputGroup, { flex: 1 }]}>
+                <Text style={m.label}>Last Name</Text>
+                <TextInput
+                  style={m.input}
+                  placeholder="Last name"
+                  placeholderTextColor="#9CA3AF"
+                  value={lname}
+                  onChangeText={setLname}
+                  autoCapitalize="words"
+                />
+              </View>
+            </View>
+
+            <View style={m.inputGroup}>
+              <Text style={m.label}>Phone <Text style={m.required}>*</Text></Text>
+              <TextInput
+                style={m.input}
+                placeholder="Phone number"
+                placeholderTextColor="#9CA3AF"
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+                maxLength={15}
+              />
+            </View>
+
+            <View style={m.inputGroup}>
+              <Text style={m.label}>Email</Text>
+              <TextInput
+                style={m.input}
+                placeholder="Email address"
+                placeholderTextColor="#9CA3AF"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
+
+            <View style={m.inputGroup}>
+              <Text style={m.label}>Message <Text style={m.required}>*</Text></Text>
+              <TextInput
+                style={[m.input, m.textArea]}
+                placeholder="Describe your issue or question..."
+                placeholderTextColor="#9CA3AF"
+                value={message}
+                onChangeText={setMessage}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+              />
+            </View>
+
+            <HapticTouchable
+              onPress={handleSubmit}
+              disabled={loading}
+              activeOpacity={0.85}
+              style={m.submitBtn}
+            >
+              <LinearGradient
+                colors={[G1, G2]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={m.submitGradient}
+              >
+                {loading ? (
+                  <ActivityIndicator size="small" color={WH} />
+                ) : (
+                  <>
+                    <Feather name="send" size={nz(16)} color={WH} style={{ marginRight: rs(8) }} />
+                    <Text style={m.submitText}>Send Message</Text>
+                  </>
+                )}
+              </LinearGradient>
+            </HapticTouchable>
+
+            <View style={{ height: rs(24) }} />
+          </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+};
+
+// ─── Logout Button ────────────────────────────────────────────────────────────
 const CustomLogoutButton = () => {
   const [isLoading, setIsLoading] = useState(false);
   const logout = useStore((s) => s.logout);
@@ -89,10 +292,7 @@ const CustomLogoutButton = () => {
       'Logout',
       'Are you sure you want to logout?',
       [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
+        { text: 'Cancel', style: 'cancel' },
         {
           text: 'Logout',
           style: 'destructive',
@@ -140,14 +340,18 @@ const CustomLogoutButton = () => {
   );
 };
 
+// ─── ProfileScreen ────────────────────────────────────────────────────────────
 export default function ProfileScreen() {
-  const insets        = useSafeAreaInsets();
-  const navigation    = useNavigation();
-  const user          = useStore((s) => s.user);
+  const insets         = useSafeAreaInsets();
+  const navigation     = useNavigation();
+  const user           = useStore((s) => s.user);
   const restaurantName = useStore((s) => s.restaurantName);
   const restaurantLogo = useStore((s) => s.restaurantLogo);
-  const {currentVersion} = useAppVersion();
-  const [logoError, setLogoError] = useState(false);
+  const { currentVersion } = useAppVersion();
+
+  const [logoError,      setLogoError]      = useState(false);
+  const [supportVisible, setSupportVisible] = useState(false);
+
   const pulse = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     Animated.loop(
@@ -158,9 +362,8 @@ export default function ProfileScreen() {
     ).start();
   }, []);
 
-  const openPrivacyPolicy  = () => Linking.openURL('https://www.alfennzo.com/privacy-policy');
-  const openTerms          = () => Linking.openURL('https://www.alfennzo.com/terms-and-conditions');
-  const openSupport        = () => Linking.openURL('tel:9653757666');
+  const openPrivacyPolicy = () => Linking.openURL('https://www.alfennzo.com/privacy-policy');
+  const openTerms         = () => Linking.openURL('https://www.alfennzo.com/terms-and-conditions');
 
   const initials = (name = '') =>
     name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase() || 'U';
@@ -171,6 +374,12 @@ export default function ProfileScreen() {
   return (
     <View style={st.screen}>
       <StatusBar barStyle="light-content" backgroundColor={G2} translucent={false} />
+
+      <HelpSupportModal
+        visible={supportVisible}
+        onClose={() => setSupportVisible(false)}
+        user={user}
+      />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -247,6 +456,7 @@ export default function ProfileScreen() {
               </Card>
             </FadeRow>
           ) : null}
+
           <FadeRow delay={180}>
             <Text style={st.sectionTitle}>Preferences</Text>
             <Card>
@@ -269,6 +479,7 @@ export default function ProfileScreen() {
               />
             </Card>
           </FadeRow>
+
           <FadeRow delay={240}>
             <Text style={st.sectionTitle}>Support & Legal</Text>
             <Card>
@@ -276,7 +487,7 @@ export default function ProfileScreen() {
                 icon={<Feather name="headphones" size={nz(16)} color="#8B5CF6" />}
                 iconBg="#F3EFFB"
                 label="Help & Support"
-                onPress={openSupport}
+                onPress={() => setSupportVisible(true)}
                 right={<Feather name="chevron-right" size={nz(16)} color={SB} />}
               />
               <RowItem
@@ -296,6 +507,7 @@ export default function ProfileScreen() {
               />
             </Card>
           </FadeRow>
+
           <FadeRow delay={300}>
             <View style={st.logoutSection}>
               <Text style={st.sectionTitle}>Account</Text>
@@ -316,6 +528,56 @@ export default function ProfileScreen() {
   );
 }
 
+// ─── Modal Styles ─────────────────────────────────────────────────────────────
+const m = StyleSheet.create({
+  overlay:  { flex: 1, justifyContent: 'flex-end' },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
+  sheet: {
+    backgroundColor: WH,
+    borderTopLeftRadius: rs(28),
+    borderTopRightRadius: rs(28),
+    maxHeight: SH * 0.88,
+  },
+  handle: {
+    width: rs(40), height: rs(4), backgroundColor: BD, borderRadius: rs(2),
+    alignSelf: 'center', marginTop: rs(12), marginBottom: rs(8),
+  },
+  header: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: rs(20), paddingVertical: rs(14),
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: BD,
+  },
+  headerIconWrap: {
+    width: rs(42), height: rs(42), borderRadius: rs(12),
+    backgroundColor: '#F3EFFB', alignItems: 'center', justifyContent: 'center',
+  },
+  headerTitle: { fontSize: nz(17), fontWeight: '700', color: TX },
+  headerSub:   { fontSize: nz(12), color: SB, marginTop: rs(2) },
+  closeBtn: {
+    width: rs(34), height: rs(34), borderRadius: rs(17),
+    backgroundColor: BG, alignItems: 'center', justifyContent: 'center',
+  },
+  formScroll:  { paddingHorizontal: rs(20), paddingTop: rs(16) },
+  nameRow:     { flexDirection: 'row' },
+  inputGroup:  { marginBottom: rs(14) },
+  label:       { fontSize: nz(12), fontWeight: '600', color: TX, marginBottom: rs(6), letterSpacing: 0.2 },
+  required:    { color: RD },
+  input: {
+    backgroundColor: BG, borderRadius: rs(12),
+    paddingHorizontal: rs(14), paddingVertical: rs(12),
+    fontSize: nz(14), color: TX,
+    borderWidth: 1, borderColor: BD,
+  },
+  textArea:    { minHeight: rs(100), paddingTop: rs(12) },
+  submitBtn:   { marginTop: rs(8), borderRadius: rs(14), overflow: 'hidden' },
+  submitGradient: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    paddingVertical: rs(15), paddingHorizontal: rs(24),
+  },
+  submitText: { fontSize: nz(16), fontWeight: '700', color: WH, letterSpacing: 0.3 },
+});
+
+// ─── Screen Styles ────────────────────────────────────────────────────────────
 const st = StyleSheet.create({
   screen:  { flex: 1, backgroundColor: BG },
   hero: {
@@ -340,12 +602,10 @@ const st = StyleSheet.create({
     position: 'absolute',
     width: rs(114), height: rs(114), borderRadius: rs(57),
     backgroundColor: 'rgba(255,255,255,0.15)',
-    top: rs(24),
-    shadowColor: 'transparent',
-    elevation: 0,
+    top: rs(24), shadowColor: 'transparent', elevation: 0,
   },
-  avatarWrap:   { position: 'relative', marginBottom: rs(14) },
-  avatar:       { width: rs(96), height: rs(96), borderRadius: rs(48), borderWidth: rs(3), borderColor: WH },
+  avatarWrap:        { position: 'relative', marginBottom: rs(14) },
+  avatar:            { width: rs(96), height: rs(96), borderRadius: rs(48), borderWidth: rs(3), borderColor: WH },
   avatarPlaceholder: {
     width: rs(96), height: rs(96), borderRadius: rs(48),
     alignItems: 'center', justifyContent: 'center',
@@ -357,41 +617,26 @@ const st = StyleSheet.create({
     width: rs(16), height: rs(16), borderRadius: rs(8),
     backgroundColor: '#4ADE80', borderWidth: rs(2), borderColor: WH,
   },
-  heroName:  { fontSize: nz(22), fontWeight: '800', color: WH, letterSpacing: -0.3, marginBottom: rs(6) },
-  heroBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: rs(20), paddingHorizontal: rs(12), paddingVertical: rs(4) },
+  heroName:      { fontSize: nz(22), fontWeight: '800', color: WH, letterSpacing: -0.3, marginBottom: rs(6) },
+  heroBadge:     { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: rs(20), paddingHorizontal: rs(12), paddingVertical: rs(4) },
   heroBadgeText: { fontSize: nz(12), color: WH, fontWeight: '500' },
   body:          { paddingHorizontal: rs(16), paddingTop: rs(22) },
   sectionTitle:  { fontSize: nz(12), fontWeight: '700', color: SB, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: rs(8), marginLeft: rs(4) },
   logoutSection: { marginTop: rs(8), marginBottom: rs(4) },
-  logoutButton: { width: '100%' },
+  logoutButton:  { width: '100%' },
   logoutGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: rs(14),
-    paddingHorizontal: rs(16),
+    flexDirection: 'row', alignItems: 'center',
+    paddingVertical: rs(14), paddingHorizontal: rs(16),
     borderRadius: rs(12),
   },
   logoutIconContainer: {
-    width: rs(36),
-    height: rs(36),
-    borderRadius: rs(10),
+    width: rs(36), height: rs(36), borderRadius: rs(10),
     backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center',
     marginRight: rs(12),
   },
-  logoutText: {
-    fontSize: nz(16),
-    fontWeight: '600',
-    color: RD,
-    marginRight: rs(8),
-  },
-  versionText: {
-    fontSize: nz(11),
-    color: '#9CA3AF',
-    textAlign: 'center',
-    marginTop: rs(16),
-  },
+  logoutText:  { fontSize: nz(16), fontWeight: '600', color: RD, marginRight: rs(8) },
+  versionText: { fontSize: nz(11), color: '#9CA3AF', textAlign: 'center', marginTop: rs(16) },
 });
 
 const c = StyleSheet.create({
@@ -415,8 +660,8 @@ const c = StyleSheet.create({
   restaurantRow: { flexDirection: 'row', alignItems: 'center', padding: rs(14) },
   restaurantLogo: { width: rs(52), height: rs(52), borderRadius: rs(12), backgroundColor: G3 },
   restaurantLogoPlaceholder: { width: rs(52), height: rs(52), borderRadius: rs(12), backgroundColor: G3, alignItems: 'center', justifyContent: 'center' },
-  restaurantName: { fontSize: nz(15), fontWeight: '700', color: TX, marginBottom: rs(4) },
-  restaurantBadge: { flexDirection: 'row', alignItems: 'center' },
-  activeDot:      { width: rs(7), height: rs(7), borderRadius: rs(4), backgroundColor: '#4ADE80', marginRight: rs(5) },
+  restaurantName:      { fontSize: nz(15), fontWeight: '700', color: TX, marginBottom: rs(4) },
+  restaurantBadge:     { flexDirection: 'row', alignItems: 'center' },
+  activeDot:           { width: rs(7), height: rs(7), borderRadius: rs(4), backgroundColor: '#4ADE80', marginRight: rs(5) },
   restaurantBadgeText: { fontSize: nz(12), color: G1, fontWeight: '600' },
 });

@@ -1,37 +1,46 @@
-import React, { useRef, useState, useCallback, useEffect } from 'react';
+/**
+ * YourListingScreen.jsx
+ *
+ * Responsive grid layout:
+ * - Mobile portrait: 2 columns
+ * - Mobile landscape: 3 columns
+ * - Tablet portrait: 3 columns
+ * - Tablet landscape: 4 columns
+ */
+
+import React, {
+  useRef, useState, useCallback, useEffect, useMemo,
+} from 'react';
 import {
   View, Text, StyleSheet, FlatList, ScrollView, Modal,
-  Animated, Dimensions, PixelRatio, StatusBar,
+  Animated, StatusBar,
   Image, ActivityIndicator, TextInput, Keyboard,
+  Dimensions,
 } from 'react-native';
-import { TabView } from 'react-native-tab-view';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
+import { TabView }            from 'react-native-tab-view';
+import { useSafeAreaInsets }  from 'react-native-safe-area-context';
+import { Feather }            from '@expo/vector-icons';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import LottieView from 'lottie-react-native';
-import HapticTouchable from '../components/GlobalHaptic';
-import useStore from '../store/useStore';
-import api from '../utils/api';
+import LottieView             from 'lottie-react-native';
+import HapticTouchable        from '../components/GlobalHaptic';
+import useStore               from '../store/useStore';
+import api                    from '../utils/api';
+import { useResponsive }      from '../utils/useResponsive';
 
-const { width: SW } = Dimensions.get('window');
-const scale = SW / 390;
-const nz = (s) => Math.round(PixelRatio.roundToNearestPixel(s * Math.min(scale, 1.35)));
-const rs = (s) => Math.round(s * Math.min(scale, 1.3));
 const GREEN = '#03954E';
 const CREAM = '#FAFAF5';
 
-// ─── Routes: 2 tabs (Active / Disabled) ──────────────────────────────────────
+// ─── Fixed pill bar height — never grows on tablets ───────────────────────────
+// Pill content is 36px emoji wrap + 8px vertical padding = 44px.
+// Container adds 8px top + 8px bottom = 60px total. We hard-cap at 64.
+const PILL_ROW_H   = 58;   // px — the ScrollView row exact height
+const EMOJI_SZ     = 34;   // dp — emoji circle diameter, uncapped by rs()
+const PILL_FONT    = 12.5; // dp — pill label font size, uncapped
+
 const ROUTES = [
   { key: 'active',   title: 'Active Listings'  },
   { key: 'disabled', title: 'Disable Listings' },
 ];
-
-const TAB_BAR_INNER_W = SW - rs(32) - rs(8);
-const PILL_W          = TAB_BAR_INNER_W / 2;
-const PILL_POSITIONS  = [0, PILL_W];
-const CARD_W          = (SW - rs(16) * 2 - rs(12)) / 2;
-const SEARCH_H        = rs(48);
-
 const COMBO_CAT_ID = '__combo__';
 
 const EMOJI_MAP = {
@@ -54,20 +63,16 @@ const menuAPI = {
   comboToggle: (data) => api.post('/menu/ComboOff', data),
 };
 
-// ─── Normalise menu ───────────────────────────────────────────────────────────
+// ─── Normalise ────────────────────────────────────────────────────────────────
 const normaliseMenu = (menuCategories = []) => {
   const categories = [
-    { id: '__all__',    label: 'All',   emoji: '🍽️', categoryId: null },
-    { id: COMBO_CAT_ID, label: 'Combo', emoji: '🍱', categoryId: null },
+    { id: '__all__',    label: 'All',   emoji: '🍽️' },
+    { id: COMBO_CAT_ID, label: 'Combo', emoji: '🍱' },
   ];
   const products = [];
   menuCategories.forEach((cat) => {
     if (!cat.foodItems?.length) return;
-    categories.push({
-      id: cat._id, label: cat.categoryName,
-      emoji: getEmoji(cat.categoryName),
-      categoryId: cat.categoryId, image: cat.categoryImage,
-    });
+    categories.push({ id: cat._id, label: cat.categoryName, emoji: getEmoji(cat.categoryName), categoryId: cat.categoryId, image: cat.categoryImage });
     cat.foodItems.forEach((item) => {
       const discountedPrice =
         item.isDiscountedByRestraurant && item.discountinPercentageByRestraurant > 0
@@ -89,7 +94,6 @@ const normaliseMenu = (menuCategories = []) => {
   return { categories, products };
 };
 
-// ─── Normalise combos → exact same shape as products ─────────────────────────
 const normaliseCombo = (raw = []) =>
   raw.map((c) => {
     const discountPct = c.discountinPercentageByRestraurant ?? 0;
@@ -98,25 +102,18 @@ const normaliseCombo = (raw = []) =>
         ? Math.round((c.comboprice ?? 0) * (1 - discountPct / 100))
         : null;
     return {
-      id:             c._id,
-      mongoId:        c._id,
-      restaurantId:   c.Id,
-      name:           (c.combofoodName ?? '').trim(),
-      price:          c.comboprice,
-      discountedPrice,
-      discountPct,
-      image:          c.image || null,
-      isVeg:          c.isVeg,
-      on:             c.isLive,
-      isLive:         c.isLive,
-      comboOnly:      false,
-      isCombo:        true,
-      comboItems:     c.ComboItems ?? [],
-      catRowId:       COMBO_CAT_ID,
+      id: c._id, mongoId: c._id, restaurantId: c.Id,
+      name: (c.combofoodName ?? '').trim(),
+      price: c.comboprice, discountedPrice, discountPct,
+      image: c.image || null, isVeg: c.isVeg,
+      on: c.isLive, isLive: c.isLive,
+      comboOnly: false, isCombo: true,
+      comboItems: c.ComboItems ?? [],
+      catRowId: COMBO_CAT_ID,
     };
   });
 
-// ─── Skeleton ─────────────────────────────────────────────────────────────────
+// ─── Skeleton pulse ───────────────────────────────────────────────────────────
 const SkeletonBox = ({ style }) => {
   const anim = useRef(new Animated.Value(0.4)).current;
   useEffect(() => {
@@ -127,119 +124,136 @@ const SkeletonBox = ({ style }) => {
     loop.start();
     return () => loop.stop();
   }, []);
-  return <Animated.View style={[skl.base, style, { opacity: anim }]} />;
+  return <Animated.View style={[{ backgroundColor: '#E8E8E8', borderRadius: 8 }, style, { opacity: anim }]} />;
 };
-const skl = StyleSheet.create({ base: { backgroundColor: '#E8E8E8', borderRadius: rs(8) } });
 
-const SkeletonCard = () => (
-  <View style={[{ width: CARD_W }, sk.card]}>
-    <SkeletonBox style={sk.image} />
-    <SkeletonBox style={sk.name} />
-    <SkeletonBox style={sk.price} />
-    <SkeletonBox style={sk.btn} />
+// 3:4 portrait aspect ratio for product images (width × 4/3).
+// Capped at 180 for landscape to keep cards compact
+const IMAGE_RATIO = 4 / 3;
+const IMAGE_MAX_H = {
+  portrait: 180,
+  landscape: 160,
+};
+
+const SkeletonCard = ({ cardW, rs, imageMaxH }) => (
+  <View style={{
+    width: cardW, backgroundColor: CREAM, borderRadius: rs(12),
+    padding: rs(10), marginBottom: rs(12), borderWidth: 1, borderColor: '#EBEBDF',
+  }}>
+    <SkeletonBox style={{ width: '100%', height: Math.min((cardW - rs(20)) * IMAGE_RATIO, imageMaxH), borderRadius: rs(8), marginBottom: rs(8) }} />
+    <SkeletonBox style={{ height: 13, width: '80%', marginBottom: rs(7), borderRadius: 4 }} />
+    <SkeletonBox style={{ height: 11, width: '50%', marginBottom: rs(10), borderRadius: 4 }} />
+    <SkeletonBox style={{ height: 34, borderRadius: 17 }} />
   </View>
 );
-const sk = StyleSheet.create({
-  card:  { backgroundColor: CREAM, borderRadius: rs(14), padding: rs(10), marginBottom: rs(14), borderWidth: rs(1), borderColor: '#EBEBDF' },
-  image: { width: '100%', aspectRatio: 1, borderRadius: rs(10), marginBottom: rs(8) },
-  name:  { height: rs(14), width: '80%', marginBottom: rs(8) },
-  price: { height: rs(12), width: '50%', marginBottom: rs(12) },
-  btn:   { height: rs(36), borderRadius: rs(18) },
-});
 
 // ─── Category Pill ────────────────────────────────────────────────────────────
 const CategoryPill = React.memo(({ item, isActive, onPress }) => (
-  <HapticTouchable onPress={onPress} activeOpacity={0.78} style={[cp.pill, isActive && cp.pillActive]}>
-    <View style={[cp.emojiWrap, isActive && cp.emojiWrapActive]}>
-      <Text style={cp.emoji}>{item.emoji}</Text>
+  <HapticTouchable
+    onPress={onPress}
+    activeOpacity={0.78}
+    style={[cpS.pill, isActive && cpS.pillActive]}
+  >
+    <View style={[cpS.emojiWrap, isActive && cpS.emojiWrapActive]}>
+      <Text style={cpS.emoji}>{item.emoji}</Text>
     </View>
-    <Text style={[cp.label, isActive && cp.labelActive]} numberOfLines={1}>{item.label}</Text>
+    <Text style={[cpS.label, isActive && cpS.labelActive]} numberOfLines={1}>
+      {item.label}
+    </Text>
   </HapticTouchable>
 ));
-const cp = StyleSheet.create({
-  pill:            { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F0F0F0', borderRadius: rs(30), paddingRight: rs(14), paddingLeft: rs(4), paddingVertical: rs(4), marginRight: rs(10) },
-  pillActive:      { backgroundColor: '#D6EDD6', borderWidth: rs(1.5), borderColor: GREEN },
-  emojiWrap:       { width: rs(36), height: rs(36), borderRadius: rs(18), backgroundColor: '#E4E4E4', alignItems: 'center', justifyContent: 'center', marginRight: rs(6) },
+
+const cpS = StyleSheet.create({
+  pill: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#F0F0F0', borderRadius: 30,
+    paddingLeft: 4, paddingRight: 14, paddingVertical: 4,
+    marginRight: 10,
+  },
+  pillActive: { backgroundColor: '#D6EDD6', borderWidth: 1.5, borderColor: GREEN },
+  emojiWrap: {
+    width: EMOJI_SZ, height: EMOJI_SZ, borderRadius: EMOJI_SZ / 2,
+    backgroundColor: '#E4E4E4',
+    alignItems: 'center', justifyContent: 'center',
+    marginRight: 6,
+  },
   emojiWrapActive: { backgroundColor: '#C5E0C5' },
-  emoji:           { fontSize: nz(18) },
-  label:           { fontSize: nz(13), fontWeight: '600', color: '#555555', maxWidth: rs(80) },
-  labelActive:     { color: GREEN, fontWeight: '700' },
+  emoji: { fontSize: 17 },
+  label: { fontSize: PILL_FONT, fontWeight: '600', color: '#555555', maxWidth: 80 },
+  labelActive: { color: GREEN, fontWeight: '700' },
 });
 
 // ─── Toggle Switch ────────────────────────────────────────────────────────────
-const T_TRACK_W   = rs(58);
-const T_TRACK_H   = rs(32);
-const T_THUMB_SZ  = rs(26);
-const T_THUMB_OFF = rs(3);
-const T_THUMB_ON  = T_TRACK_W - T_THUMB_SZ - rs(3);
+const TOGGLE_TRACK_W = 54;
+const TOGGLE_TRACK_H = 30;
+const TOGGLE_THUMB   = 24;
 
-const ToggleBtn = React.memo(({ isOn, loading, onToggle }) => {
+const ToggleBtn = React.memo(({ isOn, loading, onToggle, rs, nz }) => {
+  const THUMB_OFF = 3;
+  const THUMB_ON  = TOGGLE_TRACK_W - TOGGLE_THUMB - 3;
+
   const anim = useRef(new Animated.Value(isOn ? 1 : 0)).current;
-
   useEffect(() => {
-    Animated.spring(anim, {
-      toValue:         isOn ? 1 : 0,
-      useNativeDriver: false,
-      damping:         14,
-      stiffness:       280,
-      mass:            0.6,
-    }).start();
+    Animated.spring(anim, { toValue: isOn ? 1 : 0, useNativeDriver: false, damping: 14, stiffness: 280, mass: 0.6 }).start();
   }, [isOn]);
 
   const trackBg = anim.interpolate({ inputRange: [0, 1], outputRange: ['#C8C8CA', GREEN] });
-  const thumbX  = anim.interpolate({ inputRange: [0, 1], outputRange: [T_THUMB_OFF, T_THUMB_ON] });
-  const thumbScaleX = anim.interpolate({ inputRange: [0, 0.3, 0.7, 1], outputRange: [1, 1.15, 1.15, 1] });
-  const thumbScaleY = anim.interpolate({ inputRange: [0, 0.3, 0.7, 1], outputRange: [1, 0.85, 0.85, 1] });
+  const thumbX  = anim.interpolate({ inputRange: [0, 1], outputRange: [THUMB_OFF, THUMB_ON] });
+  const thumbSX = anim.interpolate({ inputRange: [0, 0.3, 0.7, 1], outputRange: [1, 1.15, 1.15, 1] });
+  const thumbSY = anim.interpolate({ inputRange: [0, 0.3, 0.7, 1], outputRange: [1, 0.85, 0.85, 1] });
 
   return (
-    <HapticTouchable onPress={onToggle} activeOpacity={0.9} disabled={loading} style={sw.row}>
-      <Text style={[sw.sideLabel, isOn && sw.sideLabelFade]}>Off</Text>
-      <Animated.View style={[sw.track, { backgroundColor: trackBg, opacity: loading ? 0.55 : 1 }]}>
-        {loading ? (
-          <ActivityIndicator size="small" color="#fff" style={sw.spinner} />
-        ) : (
-          <Animated.View style={[
-            sw.thumb,
-            { transform: [{ translateX: thumbX }, { scaleX: thumbScaleX }, { scaleY: thumbScaleY }] },
-          ]} />
-        )}
+    <HapticTouchable
+      onPress={onToggle} activeOpacity={0.9} disabled={loading}
+      style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: rs(8), gap: 8 }}
+    >
+      <Text style={{ fontSize: nz(11), fontWeight: '700', color: '#E53935', width: 26, textAlign: 'center', opacity: isOn ? 0.3 : 1 }}>Off</Text>
+      <Animated.View style={{
+        width: TOGGLE_TRACK_W, height: TOGGLE_TRACK_H,
+        borderRadius: TOGGLE_TRACK_H / 2,
+        backgroundColor: trackBg,
+        justifyContent: 'center', overflow: 'hidden',
+        opacity: loading ? 0.55 : 1,
+      }}>
+        {loading
+          ? <ActivityIndicator size="small" color="#fff" style={{ position: 'absolute', alignSelf: 'center' }} />
+          : <Animated.View style={{
+              position: 'absolute',
+              width: TOGGLE_THUMB, height: TOGGLE_THUMB,
+              borderRadius: TOGGLE_THUMB / 2,
+              backgroundColor: '#FFFFFF', left: 0,
+              elevation: 6,
+              shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.22, shadowRadius: 4,
+              transform: [{ translateX: thumbX }, { scaleX: thumbSX }, { scaleY: thumbSY }],
+            }}
+          />}
       </Animated.View>
-      <Text style={[sw.sideLabel, sw.sideLabelLive, !isOn && sw.sideLabelFade]}>Live</Text>
+      <Text style={{ fontSize: nz(11), fontWeight: '700', color: GREEN, width: 26, textAlign: 'center', opacity: !isOn ? 0.3 : 1 }}>Live</Text>
     </HapticTouchable>
   );
 });
 
-const sw = StyleSheet.create({
-  row:           { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: rs(10), gap: rs(8) },
-  track:         { width: T_TRACK_W, height: T_TRACK_H, borderRadius: T_TRACK_H / 2, justifyContent: 'center', overflow: 'hidden' },
-  thumb:         { position: 'absolute', width: T_THUMB_SZ, height: T_THUMB_SZ, borderRadius: T_THUMB_SZ / 2, backgroundColor: '#FFFFFF', left: 0, elevation: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.22, shadowRadius: 4 },
-  spinner:       { position: 'absolute', alignSelf: 'center' },
-  sideLabel:     { fontSize: nz(12), fontWeight: '700', color: '#E53935', letterSpacing: 0.2, width: rs(28), textAlign: 'center' },
-  sideLabelLive: { color: GREEN },
-  sideLabelFade: { opacity: 0.3 },
-});
-
 // ─── Veg Dot ──────────────────────────────────────────────────────────────────
 const VegDot = ({ isVeg }) => (
-  <View style={[pd.vegBox, { borderColor: isVeg ? GREEN : '#E53935' }]}>
-    <View style={[pd.vegDot, { backgroundColor: isVeg ? GREEN : '#E53935' }]} />
+  <View style={{
+    width: 13, height: 13, borderRadius: 2,
+    borderWidth: 1.5, borderColor: isVeg ? GREEN : '#E53935',
+    alignItems: 'center', justifyContent: 'center', marginRight: 4,
+  }}>
+    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: isVeg ? GREEN : '#E53935' }} />
   </View>
 );
-const pd = StyleSheet.create({
-  vegBox: { width: rs(14), height: rs(14), borderRadius: rs(2), borderWidth: rs(1.5), alignItems: 'center', justifyContent: 'center', marginRight: rs(4) },
-  vegDot: { width: rs(7), height: rs(7), borderRadius: rs(4) },
-});
 
-// ─── Combo Items Bottom-Sheet Modal ───────────────────────────────────────────
-const ComboItemsModal = React.memo(({ visible, combo, onClose, bottomInset }) => {
+// ─── Combo Bottom-Sheet ───────────────────────────────────────────────────────
+const ComboItemsModal = React.memo(({ visible, combo, onClose, bottomInset, SW, rs, nz }) => {
   const slideY    = useRef(new Animated.Value(400)).current;
   const bgOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (visible) {
       Animated.parallel([
-        Animated.spring(slideY,    { toValue: 0,   useNativeDriver: true, damping: 22, stiffness: 260, mass: 0.5 }),
-        Animated.timing(bgOpacity, { toValue: 1,   duration: 220, useNativeDriver: true }),
+        Animated.spring(slideY,    { toValue: 0, useNativeDriver: true, damping: 22, stiffness: 260, mass: 0.5 }),
+        Animated.timing(bgOpacity, { toValue: 1, duration: 220, useNativeDriver: true }),
       ]).start();
     } else {
       Animated.parallel([
@@ -253,58 +267,73 @@ const ComboItemsModal = React.memo(({ visible, combo, onClose, bottomInset }) =>
 
   return (
     <Modal transparent visible={visible} animationType="none" onRequestClose={onClose} statusBarTranslucent>
-      <Animated.View style={[mo.backdrop, { opacity: bgOpacity }]}>
+      <Animated.View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.45)', zIndex: 10, opacity: bgOpacity }]}>
         <HapticTouchable style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
       </Animated.View>
-      <Animated.View style={[mo.sheet, { transform: [{ translateY: slideY }] }]}>
-        <View style={mo.handle} />
-        <View style={mo.header}>
-          <View style={mo.headerLeft}>
-            <View style={mo.comboDot} />
+      <Animated.View style={{
+        position: 'absolute', bottom: 0, left: 0, right: 0,
+        backgroundColor: '#fff',
+        borderTopLeftRadius: rs(22), borderTopRightRadius: rs(22),
+        zIndex: 20, maxHeight: '78%',
+        transform: [{ translateY: slideY }],
+      }}>
+        <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: '#DDDDDD', alignSelf: 'center', marginTop: rs(12), marginBottom: rs(4) }} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: rs(20), paddingVertical: rs(12) }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: rs(10), flex: 1 }}>
+            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: GREEN }} />
             <View>
-              <Text style={mo.title} numberOfLines={1}>{combo.name}</Text>
-              <Text style={mo.subtitle}>{combo.comboItems?.length ?? 0} items · ₹{combo.price}</Text>
+              <Text style={{ fontSize: nz(15), fontWeight: '800', color: '#1A1A1A', maxWidth: SW * 0.55 }} numberOfLines={1}>{combo.name}</Text>
+              <Text style={{ fontSize: nz(11), color: '#888', marginTop: 2, fontWeight: '500' }}>{combo.comboItems?.length ?? 0} items · ₹{combo.price}</Text>
             </View>
           </View>
-          <HapticTouchable onPress={onClose} style={mo.closeBtn} activeOpacity={0.7}>
+          <HapticTouchable onPress={onClose} activeOpacity={0.7}
+            style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#F3F3F3', alignItems: 'center', justifyContent: 'center' }}>
             <Feather name="x" size={nz(18)} color="#666" />
           </HapticTouchable>
         </View>
-        <View style={mo.divider} />
-        <ScrollView style={mo.scroll} contentContainerStyle={mo.scrollContent} showsVerticalScrollIndicator={false} bounces={false}>
+        <View style={{ height: 1, backgroundColor: '#F0F0F0', marginHorizontal: rs(20) }} />
+        <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ paddingHorizontal: rs(20), paddingTop: rs(8), paddingBottom: rs(4) }} showsVerticalScrollIndicator={false} bounces={false}>
           {(combo.comboItems ?? []).map((ci, i) => (
-            <View key={i} style={[mo.itemRow, i < (combo.comboItems.length - 1) && mo.itemRowBorder]}>
-              <View style={mo.itemLeft}>
-                <View style={mo.qtyBadge}>
-                  <Text style={mo.qtyTxt}>{ci.quantity}×</Text>
+            <View key={i} style={[
+              { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: rs(12) },
+              i < (combo.comboItems.length - 1) && { borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
+            ]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: rs(10), flex: 1 }}>
+                <View style={{ width: 30, height: 30, borderRadius: 8, backgroundColor: '#EAF5EE', alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontSize: nz(11), fontWeight: '800', color: GREEN }}>{ci.quantity}×</Text>
                 </View>
                 <View>
-                  <Text style={mo.itemName}>{ci.foodName}</Text>
-                  <Text style={mo.itemCat}>{ci.categoryName}</Text>
+                  <Text style={{ fontSize: nz(13), fontWeight: '600', color: '#1A1A1A', maxWidth: SW * 0.5 }}>{ci.foodName}</Text>
+                  <Text style={{ fontSize: nz(11), color: '#AAAAAA', marginTop: 2 }}>{ci.categoryName}</Text>
                 </View>
               </View>
-              <Text style={mo.itemPrice}>₹{ci.price * ci.quantity}</Text>
+              <Text style={{ fontSize: nz(13), fontWeight: '700', color: '#333' }}>₹{ci.price * ci.quantity}</Text>
             </View>
           ))}
         </ScrollView>
-        <View style={[mo.footer, { marginBottom: rs(12) + (bottomInset ?? 0) }]}>
+        <View style={{
+          flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+          marginHorizontal: rs(20), marginTop: rs(12),
+          marginBottom: rs(12) + (bottomInset ?? 0),
+          backgroundColor: '#F5FAF5', borderRadius: rs(14),
+          paddingHorizontal: rs(16), paddingVertical: rs(14),
+          borderWidth: 1, borderColor: '#D4EBDA',
+        }}>
           <View>
-            <Text style={mo.footerLabel}>Combo Price</Text>
-            {combo.discountedPrice ? (
-              <View style={mo.footerDiscountBadge}>
-                <Text style={mo.footerDiscountTxt}>{combo.discountPct}% OFF</Text>
-              </View>
-            ) : null}
+            <Text style={{ fontSize: nz(13), fontWeight: '700', color: '#555' }}>Combo Price</Text>
+            {combo.discountedPrice
+              ? <View style={{ backgroundColor: '#E53935', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 2, alignSelf: 'flex-start', marginTop: 3 }}>
+                  <Text style={{ fontSize: nz(9), fontWeight: '800', color: '#fff', letterSpacing: 0.3 }}>{combo.discountPct}% OFF</Text>
+                </View>
+              : null}
           </View>
-          <View style={mo.footerPriceWrap}>
-            {combo.discountedPrice ? (
-              <>
-                <Text style={mo.footerOriginalPrice}>₹{combo.price}</Text>
-                <Text style={mo.footerPrice}>₹{combo.discountedPrice}</Text>
-              </>
-            ) : (
-              <Text style={mo.footerPrice}>₹{combo.price}</Text>
-            )}
+          <View style={{ alignItems: 'flex-end', gap: 2 }}>
+            {combo.discountedPrice
+              ? <>
+                  <Text style={{ fontSize: nz(12), color: '#BBBBBB', textDecorationLine: 'line-through' }}>₹{combo.price}</Text>
+                  <Text style={{ fontSize: nz(18), fontWeight: '900', color: GREEN }}>₹{combo.discountedPrice}</Text>
+                </>
+              : <Text style={{ fontSize: nz(18), fontWeight: '900', color: GREEN }}>₹{combo.price}</Text>}
           </View>
         </View>
       </Animated.View>
@@ -312,70 +341,31 @@ const ComboItemsModal = React.memo(({ visible, combo, onClose, bottomInset }) =>
   );
 });
 
-const mo = StyleSheet.create({
-  backdrop:           { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)', zIndex: 10 },
-  sheet:              { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', borderTopLeftRadius: rs(24), borderTopRightRadius: rs(24), zIndex: 20, maxHeight: '75%' },
-  handle:             { width: rs(40), height: rs(4), borderRadius: rs(2), backgroundColor: '#DDDDDD', alignSelf: 'center', marginTop: rs(12), marginBottom: rs(4) },
-  header:             { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: rs(20), paddingVertical: rs(14) },
-  headerLeft:         { flexDirection: 'row', alignItems: 'center', gap: rs(10), flex: 1 },
-  comboDot:           { width: rs(10), height: rs(10), borderRadius: rs(5), backgroundColor: GREEN },
-  title:              { fontSize: nz(15), fontWeight: '800', color: '#1A1A1A', maxWidth: SW * 0.55 },
-  subtitle:           { fontSize: nz(11), color: '#888', marginTop: rs(2), fontWeight: '500' },
-  closeBtn:           { width: rs(32), height: rs(32), borderRadius: rs(16), backgroundColor: '#F3F3F3', alignItems: 'center', justifyContent: 'center' },
-  divider:            { height: rs(1), backgroundColor: '#F0F0F0', marginHorizontal: rs(20) },
-  scroll:             { flexShrink: 1 },
-  scrollContent:      { paddingHorizontal: rs(20), paddingTop: rs(8), paddingBottom: rs(4) },
-  itemRow:            { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: rs(13) },
-  itemRowBorder:      { borderBottomWidth: rs(1), borderBottomColor: '#F5F5F5' },
-  itemLeft:           { flexDirection: 'row', alignItems: 'center', gap: rs(10), flex: 1 },
-  qtyBadge:           { width: rs(30), height: rs(30), borderRadius: rs(8), backgroundColor: '#EAF5EE', alignItems: 'center', justifyContent: 'center' },
-  qtyTxt:             { fontSize: nz(11), fontWeight: '800', color: GREEN },
-  itemName:           { fontSize: nz(13), fontWeight: '600', color: '#1A1A1A', maxWidth: SW * 0.5 },
-  itemCat:            { fontSize: nz(11), color: '#AAAAAA', marginTop: rs(2) },
-  itemPrice:          { fontSize: nz(13), fontWeight: '700', color: '#333' },
-  footer:             { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginHorizontal: rs(20), marginTop: rs(12), backgroundColor: '#F5FAF5', borderRadius: rs(14), paddingHorizontal: rs(16), paddingVertical: rs(14), borderWidth: rs(1), borderColor: '#D4EBDA' },
-  footerLabel:        { fontSize: nz(13), fontWeight: '700', color: '#555' },
-  footerPriceWrap:    { alignItems: 'flex-end', gap: rs(2) },
-  footerOriginalPrice:{ fontSize: nz(12), color: '#BBBBBB', textDecorationLine: 'line-through' },
-  footerPrice:        { fontSize: nz(18), fontWeight: '900', color: GREEN },
-  footerDiscountBadge:{ backgroundColor: '#E53935', borderRadius: rs(4), paddingHorizontal: rs(5), paddingVertical: rs(2), alignSelf: 'flex-start', marginTop: rs(3) },
-  footerDiscountTxt:  { fontSize: nz(9), fontWeight: '800', color: '#fff', letterSpacing: 0.3 },
-});
-
-// ─── Empty State — Lottie for disabled tab, default for active ────────────────
-const EmptyState = React.memo(({ tabKey }) => {
+// ─── Empty State ──────────────────────────────────────────────────────────────
+const EmptyState = React.memo(({ tabKey, rs, nz }) => {
   if (tabKey === 'disabled') {
     return (
-      <View style={es.wrap}>
-        <LottieView
-          source={require('../../assets/disabled.json')}
-          autoPlay
-          loop
-          style={es.lottie}
-        />
-        <Text style={es.title}>No disabled items</Text>
-        <Text style={es.sub}>All your items are currently live</Text>
+      <View style={{ alignItems: 'center', paddingTop: rs(40) }}>
+        <LottieView source={require('../../assets/disabled.json')} autoPlay loop style={{ width: rs(200), height: rs(200) }} />
+        <Text style={{ fontSize: nz(17), fontWeight: '700', color: '#1A1A1A', marginTop: rs(8) }}>No disabled items</Text>
+        <Text style={{ fontSize: nz(13), color: '#AAAAAA', marginTop: rs(4) }}>All your items are currently live</Text>
       </View>
     );
   }
   return (
-    <View style={s.empty}>
-      <Text style={s.emptyEmoji}>📭</Text>
-      <Text style={s.emptyTitle}>No items here</Text>
-      <Text style={s.emptySub}>Try a different category or search</Text>
+    <View style={{ alignItems: 'center', paddingTop: rs(60), gap: rs(8) }}>
+      <Text style={{ fontSize: 48 }}>📭</Text>
+      <Text style={{ fontSize: nz(17), fontWeight: '700', color: '#1A1A1A' }}>No items here</Text>
+      <Text style={{ fontSize: nz(13), color: '#AAAAAA' }}>Try a different category or search</Text>
     </View>
   );
 });
 
-const es = StyleSheet.create({
-  wrap:   { alignItems: 'center', paddingTop: rs(40) },
-  lottie: { width: rs(220), height: rs(220) },
-  title:  { fontSize: nz(17), fontWeight: '700', color: '#1A1A1A', marginTop: rs(8) },
-  sub:    { fontSize: nz(13), color: '#AAAAAA', marginTop: rs(4) },
-});
-
-// ─── Unified Card ─────────────────────────────────────────────────────────────
-const ProductCard = React.memo(({ item, restaurantId, onToggle, onToast, bottomInset, tabKey }) => {
+// ─── Product Card ─────────────────────────────────────────────────────────────
+const ProductCard = React.memo(({
+  item, restaurantId, onToggle, onToast,
+  bottomInset, tabKey, cardW, rs, nz, SW, isLandscape,
+}) => {
   const [toggling,  setToggling]  = useState(false);
   const [showModal, setShowModal] = useState(false);
 
@@ -397,47 +387,81 @@ const ProductCard = React.memo(({ item, restaurantId, onToggle, onToast, bottomI
   }, [item, restaurantId, onToggle, onToast]);
 
   const isDisabled = !item.on;
+  const imageMaxH = isLandscape ? IMAGE_MAX_H.landscape : IMAGE_MAX_H.portrait;
+  const imgH = Math.min((cardW - rs(20)) * IMAGE_RATIO, imageMaxH);
 
   return (
     <>
-      <View style={[pc.wrap, isDisabled && pc.wrapDisabled]}>
-        <View style={pc.imageWrap}>
+      <View style={[
+        pcS.wrap,
+        { width: cardW, borderRadius: rs(12), padding: rs(9), marginBottom: rs(12) },
+        isDisabled && pcS.wrapDisabled,
+      ]}>
+        <View style={[pcS.imageWrap, { height: imgH, borderRadius: rs(9), marginBottom: rs(8) }]}>
           {item.image
             ? <Image source={{ uri: item.image }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-            : <View style={pc.imageFallback}>
-                <Text style={pc.fallbackEmoji}>{item.isCombo ? '🍱' : '🍽️'}</Text>
+            : <View style={pcS.imageFallback}>
+                <Text style={{ fontSize: Math.min(nz(30), 36) }}>{item.isCombo ? '🍱' : '🍽️'}</Text>
               </View>}
-          {item.discountedPrice ? (
-            <View style={pc.discountBadge}><Text style={pc.discountTxt}>{item.discountPct}% OFF</Text></View>
-          ) : null}
-          {item.isCombo ? (
-            <View style={pc.comboBadge}><Text style={pc.comboTxt}>Combo</Text></View>
-          ) : null}
+
+          {item.discountedPrice
+            ? <View style={pcS.discountBadge}>
+                <Text style={{ fontSize: nz(8), fontWeight: '800', color: '#fff' }}>{item.discountPct}% OFF</Text>
+              </View>
+            : null}
+          {item.isCombo
+            ? <View style={pcS.comboBadge}>
+                <Text style={{ fontSize: nz(8), fontWeight: '700', color: '#fff' }}>Combo</Text>
+              </View>
+            : null}
         </View>
-        <View style={pc.nameRow}>
+
+        <View style={[pcS.nameRow, { marginBottom: 3 }]}>
           <VegDot isVeg={item.isVeg} />
-          <Text style={[pc.name, isDisabled && pc.nameDisabled]} numberOfLines={1}>{item.name}</Text>
+          <Text
+            style={[{ fontSize: nz(11.5), fontWeight: '700', color: '#1A1A1A', textAlign: 'center', flex: 1 }, isDisabled && pcS.nameDisabled]}
+            numberOfLines={1}
+          >
+            {item.name}
+          </Text>
         </View>
-        <View style={pc.priceRow}>
-          {item.discountedPrice ? (
-            <>
-              <Text style={pc.priceFull}>₹{item.price}</Text>
-              <Text style={pc.priceDiscounted}>₹{item.discountedPrice}</Text>
-            </>
-          ) : (
-            <Text style={[pc.price, isDisabled && pc.priceDisabled]}>₹{item.price}</Text>
-          )}
+
+        <View style={[pcS.priceRow, { gap: 4, marginBottom: rs(6) }]}>
+          {item.discountedPrice
+            ? <>
+                <Text style={{ fontSize: nz(10), color: '#AAAAAA', textDecorationLine: 'line-through' }}>₹{item.price}</Text>
+                <Text style={{ fontSize: nz(11.5), fontWeight: '700', color: GREEN }}>₹{item.discountedPrice}</Text>
+              </>
+            : <Text style={[{ fontSize: nz(11.5), fontWeight: '600', color: '#333' }, isDisabled && { color: '#BBBBBB' }]}>₹{item.price}</Text>}
         </View>
+
         {item.isCombo && item.comboItems?.length > 0 && (
-          <HapticTouchable onPress={() => setShowModal(true)} activeOpacity={0.75} style={pc.viewItemsBtn}>
-            <Feather name="list" size={nz(12)} color={GREEN} style={{ marginRight: rs(4) }} />
-            <Text style={pc.viewItemsTxt}>View Items ({item.comboItems.length})</Text>
+          <HapticTouchable
+            onPress={() => setShowModal(true)} activeOpacity={0.75}
+            style={{
+              flexDirection: 'row', alignItems: 'center',
+              backgroundColor: '#EAF5EE', borderRadius: rs(7),
+              paddingHorizontal: rs(7), paddingVertical: 4,
+              marginBottom: rs(6), alignSelf: 'center',
+              borderWidth: 1, borderColor: '#C5E0C5',
+            }}
+          >
+            <Feather name="list" size={nz(11)} color={GREEN} style={{ marginRight: 3 }} />
+            <Text style={{ fontSize: nz(10.5), fontWeight: '700', color: GREEN }}>Items ({item.comboItems.length})</Text>
           </HapticTouchable>
         )}
-        <ToggleBtn isOn={item.on} loading={toggling} onToggle={handleToggle} />
+
+        <ToggleBtn isOn={item.on} loading={toggling} onToggle={handleToggle} rs={rs} nz={nz} />
       </View>
+
       {item.isCombo && (
-        <ComboItemsModal visible={showModal} combo={item} onClose={() => setShowModal(false)} bottomInset={bottomInset} />
+        <ComboItemsModal
+          visible={showModal}
+          combo={item}
+          onClose={() => setShowModal(false)}
+          bottomInset={bottomInset}
+          SW={SW} rs={rs} nz={nz}
+        />
       )}
     </>
   );
@@ -445,50 +469,43 @@ const ProductCard = React.memo(({ item, restaurantId, onToggle, onToast, bottomI
   prev.item.id      === next.item.id      &&
   prev.item.on      === next.item.on      &&
   prev.onToast      === next.onToast      &&
+  prev.cardW        === next.cardW        &&
   prev.bottomInset  === next.bottomInset  &&
   prev.tabKey       === next.tabKey       &&
-  prev.restaurantId === next.restaurantId
+  prev.restaurantId === next.restaurantId &&
+  prev.isLandscape  === next.isLandscape
 );
 
-const pc = StyleSheet.create({
-  wrap:            { width: CARD_W, backgroundColor: CREAM, borderRadius: rs(14), padding: rs(10), marginBottom: rs(14), borderWidth: rs(1), borderColor: '#EBEBDF' },
-  wrapDisabled:    { opacity: 0.75 },
-  imageWrap:       { width: '100%', aspectRatio: 1, borderRadius: rs(10), backgroundColor: '#EEEEEE', marginBottom: rs(8), overflow: 'hidden' },
-  imageFallback:   { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  fallbackEmoji:   { fontSize: nz(34) },
-  discountBadge:   { position: 'absolute', top: rs(5), right: rs(5), backgroundColor: '#E53935', borderRadius: rs(6), paddingHorizontal: rs(5), paddingVertical: rs(2) },
-  discountTxt:     { fontSize: nz(9), fontWeight: '800', color: '#fff' },
-  comboBadge:      { position: 'absolute', bottom: rs(5), left: rs(5), backgroundColor: '#1A1A1A', borderRadius: rs(6), paddingHorizontal: rs(6), paddingVertical: rs(2) },
-  comboTxt:        { fontSize: nz(9), fontWeight: '700', color: '#fff' },
-  nameRow:         { flexDirection: 'row', alignItems: 'center', marginBottom: rs(3), justifyContent: 'center' },
-  name:            { flex: 1, fontSize: nz(12), fontWeight: '700', color: '#1A1A1A', textAlign: 'center' },
-  nameDisabled:    { color: '#AAAAAA' },
-  priceRow:        { flexDirection: 'row', alignItems: 'center', gap: rs(4), marginBottom: rs(6), justifyContent: 'center' },
-  price:           { fontSize: nz(12), fontWeight: '600', color: '#333' },
-  priceFull:       { fontSize: nz(11), color: '#AAAAAA', textDecorationLine: 'line-through' },
-  priceDiscounted: { fontSize: nz(12), fontWeight: '700', color: GREEN },
-  priceDisabled:   { color: '#BBBBBB' },
-  viewItemsBtn:    { flexDirection: 'row', alignItems: 'center', backgroundColor: '#EAF5EE', borderRadius: rs(8), paddingHorizontal: rs(8), paddingVertical: rs(5), marginBottom: rs(7), alignSelf: 'center', borderWidth: rs(1), borderColor: '#C5E0C5' },
-  viewItemsTxt:    { fontSize: nz(11), fontWeight: '700', color: GREEN },
+const pcS = StyleSheet.create({
+  wrap:         { backgroundColor: CREAM, borderWidth: 1, borderColor: '#EBEBDF' },
+  wrapDisabled: { opacity: 0.72 },
+  imageWrap:    { width: '100%', backgroundColor: '#EEEEEE', overflow: 'hidden' },
+  imageFallback:{ flex: 1, alignItems: 'center', justifyContent: 'center' },
+  discountBadge:{ position: 'absolute', top: 5, right: 5, backgroundColor: '#E53935', borderRadius: 5, paddingHorizontal: 5, paddingVertical: 2 },
+  comboBadge:   { position: 'absolute', bottom: 5, left: 5, backgroundColor: '#1A1A1A', borderRadius: 5, paddingHorizontal: 5, paddingVertical: 2 },
+  nameRow:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  nameDisabled: { color: '#AAAAAA' },
+  priceRow:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
 });
 
 // ─── Custom Tab Bar ───────────────────────────────────────────────────────────
-const CustomTabBar = React.memo(({ position, jumpTo }) => {
-  const pillX = position.interpolate({ inputRange: [0, 1], outputRange: PILL_POSITIONS, extrapolate: 'clamp' });
-  const opacities = ROUTES.map((_, i) =>
+const CustomTabBar = React.memo(({ position, jumpTo, tabBarW, rs, nz }) => {
+  const PILL_W = tabBarW / 2;
+  const pillX  = position.interpolate({ inputRange: [0, 1], outputRange: [0, PILL_W], extrapolate: 'clamp' });
+  const ops    = ROUTES.map((_, i) =>
     position.interpolate({ inputRange: [i - 1, i, i + 1], outputRange: [0, 1, 0], extrapolate: 'clamp' })
   );
   return (
-    <View style={tog.wrapper}>
-      <Animated.View pointerEvents="none" style={[tog.pill, { width: PILL_W, transform: [{ translateX: pillX }] }]} />
+    <View style={[tabS.wrapper, { borderRadius: rs(28), marginHorizontal: rs(16), padding: rs(4) }]}>
+      <Animated.View pointerEvents="none" style={[tabS.pill, { width: PILL_W, borderRadius: rs(24), transform: [{ translateX: pillX }] }]} />
       {ROUTES.map((route, i) => {
-        const activeOp   = opacities[i];
+        const activeOp   = ops[i];
         const inactiveOp = activeOp.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
         return (
-          <HapticTouchable key={route.key} onPress={() => jumpTo(route.key)} style={tog.tab} activeOpacity={1}>
-            <Animated.View style={tog.inner}>
-              <Animated.Text style={[tog.label, tog.labelInactive, { opacity: inactiveOp }]}>{route.title}</Animated.Text>
-              <Animated.Text style={[tog.label, tog.labelActive, tog.labelAbsolute, { opacity: activeOp }]}>{route.title}</Animated.Text>
+          <HapticTouchable key={route.key} onPress={() => jumpTo(route.key)} style={tabS.tab} activeOpacity={1}>
+            <Animated.View style={tabS.inner}>
+              <Animated.Text style={[tabS.label, tabS.labelInactive, { fontSize: nz(13), opacity: inactiveOp }]}>{route.title}</Animated.Text>
+              <Animated.Text style={[tabS.label, tabS.labelActive, tabS.labelAbsolute, { fontSize: nz(13), opacity: activeOp }]}>{route.title}</Animated.Text>
             </Animated.View>
           </HapticTouchable>
         );
@@ -496,57 +513,72 @@ const CustomTabBar = React.memo(({ position, jumpTo }) => {
     </View>
   );
 });
-const tog = StyleSheet.create({
-  wrapper:       { flexDirection: 'row', backgroundColor: '#EFEFEF', borderRadius: rs(30), marginHorizontal: rs(16), padding: rs(4), position: 'relative', alignItems: 'center' },
-  pill:          { position: 'absolute', top: rs(4), bottom: rs(4), left: rs(4), borderRadius: rs(26), backgroundColor: GREEN, elevation: 3, shadowColor: GREEN, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.35, shadowRadius: 6 },
-  tab:           { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: rs(10), zIndex: 1 },
+const tabS = StyleSheet.create({
+  wrapper:       { flexDirection: 'row', backgroundColor: '#EFEFEF', position: 'relative', alignItems: 'center' },
+  pill:          { position: 'absolute', top: 4, bottom: 4, left: 4, backgroundColor: GREEN, elevation: 3, shadowColor: GREEN, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.35, shadowRadius: 6 },
+  tab:           { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 10, zIndex: 1 },
   inner:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-  label:         { fontSize: nz(13), fontWeight: '700' },
+  label:         { fontWeight: '700' },
   labelInactive: { color: '#888888' },
   labelActive:   { color: '#FFFFFF' },
   labelAbsolute: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, textAlign: 'center' },
 });
 
 // ─── Tab Scene ────────────────────────────────────────────────────────────────
-const TabScene = React.memo(({ list, loading, restaurantId, onToggle, onToast, bottomInset, tabKey }) => {
+const TabScene = React.memo(({
+  list, loading, restaurantId, onToggle, onToast,
+  bottomInset, tabKey, cols, cardW, rs, nz, SW, isLandscape,
+}) => {
   const keyExtractor = useCallback((_, i) => String(i), []);
+  const imageMaxH = isLandscape ? IMAGE_MAX_H.landscape : IMAGE_MAX_H.portrait;
 
   if (loading) {
     return (
       <FlatList
-        data={[1, 2, 3]}
+        data={Array(cols * 2).fill(null)}
         keyExtractor={keyExtractor}
-        renderItem={() => <View style={s.row}><SkeletonCard /><SkeletonCard /></View>}
-        contentContainerStyle={s.listContent}
+        numColumns={cols}
+        key={`skel-${cols}`}
+        columnWrapperStyle={cols > 1 ? { gap: rs(10), paddingHorizontal: rs(14) } : undefined}
+        contentContainerStyle={{ paddingTop: rs(6), paddingBottom: rs(20), paddingHorizontal: cols === 1 ? rs(14) : 0 }}
+        renderItem={() => <SkeletonCard cardW={cardW} rs={rs} imageMaxH={imageMaxH} />}
         showsVerticalScrollIndicator={false}
         scrollEnabled={false}
       />
     );
   }
 
-  const rows = [];
-  for (let i = 0; i < list.length; i += 2) rows.push([list[i], list[i + 1] || null]);
-
   return (
     <FlatList
-      data={rows}
-      keyExtractor={keyExtractor}
-      renderItem={({ item: row }) => (
-        <View style={s.row}>
-          <ProductCard item={row[0]} restaurantId={restaurantId} onToggle={onToggle} onToast={onToast} bottomInset={bottomInset} tabKey={tabKey} />
-          {row[1]
-            ? <ProductCard item={row[1]} restaurantId={restaurantId} onToggle={onToggle} onToast={onToast} bottomInset={bottomInset} tabKey={tabKey} />
-            : <View style={{ width: CARD_W }} />}
-        </View>
+      data={list}
+      keyExtractor={(item) => item.id}
+      numColumns={cols}
+      key={`list-${cols}`}
+      columnWrapperStyle={cols > 1 ? { gap: rs(10), paddingHorizontal: rs(14) } : undefined}
+      contentContainerStyle={{
+        paddingTop: rs(6), paddingBottom: rs(24), backgroundColor: '#FFFFFF',
+        paddingHorizontal: cols === 1 ? rs(14) : 0,
+      }}
+      renderItem={({ item }) => (
+        <ProductCard
+          item={item}
+          restaurantId={restaurantId}
+          onToggle={onToggle}
+          onToast={onToast}
+          bottomInset={bottomInset}
+          tabKey={tabKey}
+          cardW={cardW}
+          rs={rs} nz={nz} SW={SW}
+          isLandscape={isLandscape}
+        />
       )}
-      contentContainerStyle={s.listContent}
       showsVerticalScrollIndicator={false}
       removeClippedSubviews
-      initialNumToRender={8}
-      maxToRenderPerBatch={6}
+      initialNumToRender={cols * 4}
+      maxToRenderPerBatch={cols * 3}
       windowSize={7}
       updateCellsBatchingPeriod={50}
-      ListEmptyComponent={<EmptyState tabKey={tabKey} />}
+      ListEmptyComponent={<EmptyState tabKey={tabKey} rs={rs} nz={nz} />}
     />
   );
 });
@@ -557,6 +589,40 @@ export default function YourListingScreen() {
   const { user }     = useStore();
   const restaurantId = user?.restaurantId ?? '';
   const searchRef    = useRef(null);
+
+  const { SW, nz, rs, isTablet } = useResponsive();
+  
+  // Get orientation
+  const [isLandscape, setIsLandscape] = useState(
+    Dimensions.get('window').width > Dimensions.get('window').height
+  );
+
+  useEffect(() => {
+    const subscription = Dimensions.addEventListener('change', ({ window }) => {
+      setIsLandscape(window.width > window.height);
+    });
+    return () => subscription?.remove();
+  }, []);
+
+  // Responsive column count based on device and orientation
+  const getColumns = useCallback(() => {
+    if (isTablet) {
+      // iPad / Tablet
+      return isLandscape ? 4 : 3;
+    } else {
+      // Mobile
+      return isLandscape ? 3 : 2;
+    }
+  }, [isTablet, isLandscape]);
+
+  const cols = getColumns();
+  
+  // Derived layout — reactive to rotation
+  const H_PAD     = rs(14);
+  const COL_GAP   = rs(10);
+  const CARD_W    = (SW - H_PAD * 2 - COL_GAP * (cols - 1)) / cols;
+  const TAB_BAR_W = SW - rs(32) - rs(8);
+  const SEARCH_H  = 46;
 
   const [tabIndex,     setTabIndex]     = useState(0);
   const [activeCatId,  setActiveCatId]  = useState('__all__');
@@ -569,12 +635,11 @@ export default function YourListingScreen() {
   const [loading,      setLoading]      = useState(true);
   const [comboLoading, setComboLoading] = useState(true);
   const [error,        setError]        = useState(null);
-
-  const [searchOpen,  setSearchOpen]  = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchOpen,   setSearchOpen]   = useState(false);
+  const [searchQuery,  setSearchQuery]  = useState('');
   const searchAnim = useRef(new Animated.Value(0)).current;
 
-  const [toastMsg,    setToastMsg]    = useState('');
+  const [toastMsg,   setToastMsg]   = useState('');
   const toastOpacity = useRef(new Animated.Value(0)).current;
   const toastScale   = useRef(new Animated.Value(0.88)).current;
   const toastTimer   = useRef(null);
@@ -608,7 +673,7 @@ export default function YourListingScreen() {
       .start(() => setSearchOpen(false));
   }, []);
 
-  const searchBarH    = searchAnim.interpolate({ inputRange: [0, 1], outputRange: [0, SEARCH_H + rs(10)] });
+  const searchBarH    = searchAnim.interpolate({ inputRange: [0, 1], outputRange: [0, SEARCH_H + rs(8)] });
   const searchOpacity = searchAnim;
 
   const fetchMenu = useCallback(async () => {
@@ -651,66 +716,69 @@ export default function YourListingScreen() {
 
   const q             = searchQuery.trim().toLowerCase();
   const isComboFilter = activeCatId === COMBO_CAT_ID;
-
-  const baseList = isComboFilter
+  const baseList      = isComboFilter
     ? combos
     : products.filter((p) => activeCatId === '__all__' || p.catRowId === activeCatId);
-
-  const filteredList = baseList.filter((p) =>
-    !p.comboOnly && (!q || p.name.toLowerCase().includes(q))
-  );
-  const isLoading = isComboFilter ? comboLoading : loading;
-
-  const activeLists = {
+  const filteredList  = baseList.filter((p) => !p.comboOnly && (!q || p.name.toLowerCase().includes(q)));
+  const isLoading     = isComboFilter ? comboLoading : loading;
+  const activeLists   = {
     active:   filteredList.filter((p) =>  p.on),
     disabled: filteredList.filter((p) => !p.on),
   };
 
+  const sceneProps = useMemo(() => ({
+    restaurantId, onToggle: handleToggle, onToast: showToast,
+    bottomInset: insets.bottom, cols, cardW: CARD_W,
+    rs, nz, SW, isLoading, isLandscape,
+  }), [restaurantId, handleToggle, showToast, insets.bottom, cols, CARD_W, rs, nz, SW, isLoading, isLandscape]);
+
   const renderScene = useCallback(({ route }) => (
     <TabScene
       list={activeLists[route.key]}
-      loading={isLoading}
-      restaurantId={restaurantId}
-      onToggle={handleToggle}
-      onToast={showToast}
-      bottomInset={insets.bottom}
+      loading={sceneProps.isLoading}
+      restaurantId={sceneProps.restaurantId}
+      onToggle={sceneProps.onToggle}
+      onToast={sceneProps.onToast}
+      bottomInset={sceneProps.bottomInset}
       tabKey={route.key}
+      cols={sceneProps.cols}
+      cardW={sceneProps.cardW}
+      rs={sceneProps.rs}
+      nz={sceneProps.nz}
+      SW={sceneProps.SW}
+      isLandscape={sceneProps.isLandscape}
     />
-  ), [products, combos, loading, comboLoading, activeCatId, searchQuery, restaurantId, handleToggle, showToast, insets.bottom]);
+  ), [activeLists, sceneProps]);
 
   const renderTabBar = useCallback((props) => (
-    <View style={s.tabSection}><CustomTabBar {...props} /></View>
-  ), []);
+    <View style={{ backgroundColor: '#FFFFFF', paddingBottom: rs(12), paddingTop: rs(4) }}>
+      <CustomTabBar {...props} tabBarW={TAB_BAR_W} rs={rs} nz={nz} />
+    </View>
+  ), [TAB_BAR_W, rs, nz]);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <StatusBar backgroundColor="#FFFFFF" barStyle="dark-content" translucent={false} />
       <View style={[s.root, { paddingTop: insets.top }]}>
 
-        {/* Header */}
-        <View style={s.header}>
-          <Animated.View style={[s.headerLeft, { flex: searchOpen ? 1 : 0 }]}>
-            {searchOpen ? null : <Text style={s.headerTitle}>Your Listing</Text>}
-          </Animated.View>
-          <View style={s.headerIcons}>
-            <HapticTouchable style={s.iconBtn} activeOpacity={0.7} onPress={searchOpen ? closeSearch : openSearch}>
-              <Feather name={searchOpen ? 'x' : 'search'} size={nz(22)} color="#1A1A1A" />
-            </HapticTouchable>
-            {!searchOpen && (
-              <HapticTouchable style={s.iconBtn} activeOpacity={0.7} onPress={() => { fetchMenu(); fetchCombos(); }}>
-                <Feather name="refresh-cw" size={nz(20)} color="#1A1A1A" />
-              </HapticTouchable>
-            )}
-          </View>
+        <View style={[s.headerRow, { paddingHorizontal: rs(18), paddingTop: rs(10), paddingBottom: rs(8) }]}>
+          {!searchOpen && (
+            <Text style={{ fontSize: nz(24), fontWeight: '800', color: '#1A1A1A', letterSpacing: -0.4 }}>
+              Your Listing
+            </Text>
+          )}
+          <View style={{ flex: 1 }} />
+          <HapticTouchable style={{ padding: rs(6) }} activeOpacity={0.7} onPress={searchOpen ? closeSearch : openSearch}>
+            <Feather name={searchOpen ? 'x' : 'search'} size={nz(21)} color="#1A1A1A" />
+          </HapticTouchable>
         </View>
 
-        {/* Search bar */}
-        <Animated.View style={[s.searchWrap, { height: searchBarH, opacity: searchOpacity }]}>
-          <View style={s.searchBox}>
-            <Feather name="search" size={nz(16)} color="#AAAAAA" style={s.searchIcon} />
+        <Animated.View style={{ overflow: 'hidden', paddingHorizontal: rs(14), height: searchBarH, opacity: searchOpacity }}>
+          <View style={[s.searchBox, { borderRadius: rs(12), paddingHorizontal: rs(12), height: SEARCH_H }]}>
+            <Feather name="search" size={nz(15)} color="#AAAAAA" style={{ marginRight: rs(8) }} />
             <TextInput
               ref={searchRef}
-              style={s.searchInput}
+              style={{ flex: 1, fontSize: nz(14), color: '#1A1A1A', paddingVertical: 0 }}
               placeholder="Search items..."
               placeholderTextColor="#BBBBBB"
               value={searchQuery}
@@ -721,27 +789,35 @@ export default function YourListingScreen() {
               autoCapitalize="none"
             />
             {searchQuery.length > 0 && (
-              <HapticTouchable onPress={() => setSearchQuery('')} style={s.searchClear}>
-                <Feather name="x-circle" size={nz(16)} color="#BBBBBB" />
+              <HapticTouchable onPress={() => setSearchQuery('')} style={{ paddingLeft: rs(8) }}>
+                <Feather name="x-circle" size={nz(15)} color="#BBBBBB" />
               </HapticTouchable>
             )}
           </View>
         </Animated.View>
 
-        {/* Error */}
         {error && (
-          <HapticTouchable onPress={fetchMenu} style={s.errorBanner} activeOpacity={0.8}>
-            <Feather name="alert-circle" size={nz(14)} color="#E53935" />
-            <Text style={s.errorText}>{error}</Text>
+          <HapticTouchable
+            onPress={fetchMenu}
+            style={[s.errorBanner, { marginHorizontal: rs(14), marginTop: rs(6), marginBottom: rs(4), borderRadius: rs(10), paddingHorizontal: rs(12), paddingVertical: rs(10) }]}
+            activeOpacity={0.8}
+          >
+            <Feather name="alert-circle" size={nz(13)} color="#E53935" />
+            <Text style={{ flex: 1, fontSize: nz(12), color: '#C62828', fontWeight: '500', marginLeft: 6 }}>{error}</Text>
           </HapticTouchable>
         )}
 
-        {/* Category pills */}
-        <View style={s.categorySection}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.categoryScroll}>
+        <View style={{ height: PILL_ROW_H, backgroundColor: '#FFFFFF' }}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: rs(14), alignItems: 'center', height: PILL_ROW_H }}
+            alwaysBounceHorizontal={false}
+          >
             {categories.map((cat) => (
               <CategoryPill
-                key={cat.id} item={cat}
+                key={cat.id}
+                item={cat}
                 isActive={activeCatId === cat.id}
                 onPress={() => setActiveCatId(cat.id)}
               />
@@ -749,7 +825,6 @@ export default function YourListingScreen() {
           </ScrollView>
         </View>
 
-        {/* Active / Disabled tabs */}
         <TabView
           navigationState={{ index: tabIndex, routes: ROUTES }}
           renderScene={renderScene}
@@ -761,44 +836,29 @@ export default function YourListingScreen() {
           style={{ flex: 1 }}
         />
 
-        {/* Toast */}
         {toastMsg !== '' && (
           <Animated.View
             pointerEvents="none"
-            style={[s.toast, { opacity: toastOpacity, transform: [{ scale: toastScale }] }]}
+            style={[s.toast, {
+              bottom: rs(32), left: rs(24), right: rs(24),
+              borderRadius: rs(14), paddingHorizontal: rs(18), paddingVertical: rs(12),
+              opacity: toastOpacity, transform: [{ scale: toastScale }],
+            }]}
           >
-            <Text style={s.toastText}>{toastMsg}</Text>
+            <Text style={{ fontSize: nz(13), fontWeight: '700', color: '#FFFFFF', textAlign: 'center', lineHeight: nz(19) }}>
+              {toastMsg}
+            </Text>
           </Animated.View>
         )}
-
       </View>
     </GestureHandlerRootView>
   );
 }
 
 const s = StyleSheet.create({
-  root:            { flex: 1, backgroundColor: '#FFFFFF' },
-  header:          { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: rs(18), paddingTop: rs(10), paddingBottom: rs(10), backgroundColor: '#FFFFFF' },
-  headerLeft:      { justifyContent: 'center' },
-  headerTitle:     { fontSize: nz(26), fontWeight: '800', color: '#1A1A1A', letterSpacing: -0.4 },
-  headerIcons:     { flexDirection: 'row', gap: rs(4), alignItems: 'center' },
-  iconBtn:         { padding: rs(6) },
-  searchWrap:      { overflow: 'hidden', paddingHorizontal: rs(16) },
-  searchBox:       { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F4F4F4', borderRadius: rs(14), paddingHorizontal: rs(12), height: SEARCH_H, borderWidth: rs(1), borderColor: '#EBEBEB' },
-  searchIcon:      { marginRight: rs(8) },
-  searchInput:     { flex: 1, fontSize: nz(14), color: '#1A1A1A', paddingVertical: 0 },
-  searchClear:     { paddingLeft: rs(8) },
-  errorBanner:     { flexDirection: 'row', alignItems: 'center', gap: rs(6), marginHorizontal: rs(16), marginTop: rs(6), marginBottom: rs(4), backgroundColor: '#FFF3F3', borderRadius: rs(10), paddingHorizontal: rs(12), paddingVertical: rs(10), borderWidth: 1, borderColor: '#FFCDD2' },
-  errorText:       { flex: 1, fontSize: nz(12), color: '#C62828', fontWeight: '500' },
-  tabSection:      { backgroundColor: '#FFFFFF', paddingBottom: rs(14), paddingTop: rs(4) },
-  categorySection: { backgroundColor: '#FFFFFF', paddingBottom: rs(12), paddingTop: rs(8) },
-  categoryScroll:  { paddingHorizontal: rs(16) },
-  row:             { flexDirection: 'row', justifyContent: 'space-between' },
-  listContent:     { paddingHorizontal: rs(16), paddingTop: rs(6), paddingBottom: rs(20), backgroundColor: '#FFFFFF' },
-  empty:           { alignItems: 'center', paddingTop: rs(80), gap: rs(8) },
-  emptyEmoji:      { fontSize: nz(52) },
-  emptyTitle:      { fontSize: nz(17), fontWeight: '700', color: '#1A1A1A' },
-  emptySub:        { fontSize: nz(13), color: '#AAAAAA' },
-  toast:           { position: 'absolute', bottom: rs(36), left: rs(28), right: rs(28), backgroundColor: 'rgba(15,15,15,0.92)', borderRadius: rs(16), paddingHorizontal: rs(20), paddingVertical: rs(14), alignItems: 'center', zIndex: 9999, elevation: 25, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.32, shadowRadius: 12 },
-  toastText:       { fontSize: nz(14), fontWeight: '700', color: '#FFFFFF', textAlign: 'center', lineHeight: nz(20) },
+  root:       { flex: 1, backgroundColor: '#FFFFFF' },
+  headerRow:  { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF' },
+  searchBox:  { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F4F4F4', borderWidth: 1, borderColor: '#EBEBEB' },
+  errorBanner:{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF3F3', borderWidth: 1, borderColor: '#FFCDD2' },
+  toast:      { position: 'absolute', backgroundColor: 'rgba(15,15,15,0.92)', alignItems: 'center', zIndex: 9999, elevation: 25, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.32, shadowRadius: 12 },
 });

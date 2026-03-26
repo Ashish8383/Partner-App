@@ -1,9 +1,18 @@
+/**
+ * LoginScreen.jsx — Responsive for phones, iPad portrait & landscape.
+ *
+ * Key changes:
+ *  • useResponsive() replaces static Dimensions.get().
+ *  • On tablets, form is centred with a max width of 520 dp.
+ *  • Hero image height is derived from live SW so it never overflows in landscape.
+ *  • KeyboardAvoidingView offset aware of orientation.
+ */
+
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, Image, TextInput, StyleSheet,
   KeyboardAvoidingView, Platform, ScrollView,
-  ActivityIndicator, Dimensions, StatusBar, PixelRatio,
-  Linking
+  ActivityIndicator, StatusBar, Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import useStore from '../store/useStore';
@@ -15,41 +24,34 @@ import { decryptData } from '../utils/decrypt';
 import SpringButton from '../components/SpringButton';
 import ToastMessage from '../components/ToastMessage';
 import DeviceSessionsModal from '../components/DeviceSessionsModal ';
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const IS_TABLET = SCREEN_WIDTH >= 768;
-const BASE_WIDTH = 375;
-const scale = SCREEN_WIDTH / BASE_WIDTH;
-
-const normalize = (size) => {
-  if (IS_TABLET) return Math.round(PixelRatio.roundToNearestPixel(size * 1.22));
-  return Math.round(PixelRatio.roundToNearestPixel(size * Math.min(scale, 1.4)));
-};
-const rs = (size) => {
-  if (IS_TABLET) return Math.round(size * 1.28);
-  return Math.round(size * Math.min(scale, 1.3));
-};
-
-const CONTENT_MAX_WIDTH = IS_TABLET ? 500 : SCREEN_WIDTH;
-const HERO_WIDTH = SCREEN_WIDTH;
-const HERO_HEIGHT = Math.round(HERO_WIDTH / (370 / 380));
+import { useResponsive } from '../utils/useResponsive';
 
 const LoginScreen = () => {
-  const [identifier, setIdentifier] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [secureTextEntry, setSecureTextEntry] = useState(true);
-  const [deviceInfo, setDeviceInfo] = useState(null);
-  const [showDevicesModal, setShowDevicesModal] = useState(false);
-  const [devicesData, setDevicesData] = useState([]);
-  const [pendingCredentials, setPendingCredentials] = useState(null);
+  const { SW, SH, nz, rs, isTablet, isLandscape } = useResponsive();
+
+  // Hero image: full width but capped in landscape so the form stays visible
+  const HERO_W  = SW;
+  const HERO_H  = isLandscape
+    ? Math.round(SH * 0.38)                     // landscape: only 38% of height
+    : Math.round(SW / (370 / 380));              // portrait: original aspect ratio
+  const FORM_MAX_W = isTablet ? 520 : SW;
+
+  const [identifier,        setIdentifier]        = useState('');
+  const [password,          setPassword]          = useState('');
+  const [loading,           setLoading]           = useState(false);
+  const [secureTextEntry,   setSecureTextEntry]   = useState(true);
+  const [deviceInfo,        setDeviceInfo]        = useState(null);
+  const [showDevicesModal,  setShowDevicesModal]  = useState(false);
+  const [devicesData,       setDevicesData]       = useState([]);
+  const [pendingCredentials,setPendingCredentials]= useState(null);
   const toastRef = useRef(null);
-  const insets = useSafeAreaInsets();
-  const login = useStore((s) => s.login);
-  const setProfile = useStore((s) => s.setProfile);
-  const setFcmToken = useStore((s) => s.setFcmToken);
+  const insets   = useSafeAreaInsets();
+  const login                = useStore((s) => s.login);
+  const setProfile           = useStore((s) => s.setProfile);
+  const setFcmToken          = useStore((s) => s.setFcmToken);
   const setDeviceFingerprint = useStore((s) => s.setDeviceFingerprint);
-  const pendingToast = useStore((s) => s.pendingToast);
-  const clearPendingToast = useStore((s) => s.clearPendingToast);
+  const pendingToast         = useStore((s) => s.pendingToast);
+  const clearPendingToast    = useStore((s) => s.clearPendingToast);
 
   const showToast = (message, type = 'info', duration = 3500) => {
     toastRef.current?.show({ message, type, duration });
@@ -65,77 +67,59 @@ const LoginScreen = () => {
   }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      const init = async () => {
-        const info = await getDeviceInfo();
-        setDeviceInfo(info);
-        const token = await getFCMToken();
-        if (token) await setFcmToken(token);
-        if (info?.deviceFingerprint) await setDeviceFingerprint(info.deviceFingerprint);
-      };
-      init();
+    const timer = setTimeout(async () => {
+      const info  = await getDeviceInfo();
+      setDeviceInfo(info);
+      const token = await getFCMToken();
+      if (token) await setFcmToken(token);
+      if (info?.deviceFingerprint) await setDeviceFingerprint(info.deviceFingerprint);
     }, 2000);
-
     return () => clearTimeout(timer);
   }, []);
 
   const handleDeviceLogoutSuccess = async () => {
     if (pendingCredentials) {
       setShowDevicesModal(false);
-      setTimeout(() => {
-        performLogin(pendingCredentials);
-      }, 500);
+      setTimeout(() => performLogin(pendingCredentials), 500);
     }
   };
 
   const performLogin = async (credentials) => {
-    const { identifier: credIdentifier, password: credPassword } = credentials;
+    const { identifier: credId, password: credPw } = credentials;
     setLoading(true);
     try {
       const storedToken = useStore.getState().fcmToken;
-      const fcmToken = storedToken ?? (await getFCMToken());
-      console.log('FCM Token for Login:', fcmToken); // Debug log for FCM token --- IGNORE ---
+      const fcmToken    = storedToken ?? (await getFCMToken());
       if (fcmToken && !storedToken) await setFcmToken(fcmToken);
-      const loginType = determineLoginType(credIdentifier);
+
+      const loginType    = determineLoginType(credId);
       const loginPayload = {
-        [loginType]: credIdentifier,
-        password: credPassword,
+        [loginType]: credId,
+        password: credPw,
         type: 'App',
         fcmToken: fcmToken ?? '',
         deviceFingerprint: deviceInfo?.deviceFingerprint || 'unknown-' + Date.now(),
         deviceInfo: {
-          platform: deviceInfo?.deviceInfo?.platform || Platform.OS,
-          deviceName: deviceInfo?.deviceInfo?.deviceName || 'Unknown Device',
+          platform:    deviceInfo?.deviceInfo?.platform    || Platform.OS,
+          deviceName:  deviceInfo?.deviceInfo?.deviceName  || 'Unknown Device',
           deviceModel: deviceInfo?.deviceInfo?.deviceModel || 'Unknown Model',
-          osVersion: deviceInfo?.deviceInfo?.osVersion || Platform.Version,
-          appVersion: deviceInfo?.deviceInfo?.appVersion || '1.0.0',
-          userAgent: deviceInfo?.deviceInfo?.userAgent || 'Alfennzo Partner App',
+          osVersion:   deviceInfo?.deviceInfo?.osVersion   || Platform.Version,
+          appVersion:  deviceInfo?.deviceInfo?.appVersion  || '1.0.0',
+          userAgent:   deviceInfo?.deviceInfo?.userAgent   || 'Alfennzo Partner App',
         },
       };
 
       const response = await authAPI.login(loginPayload);
-
       if (response.status === 200) {
         const { data } = response.data;
         if (data) {
-          const userData = {
-            id: data.Id,
-            restaurantId: data.decryptedId,
-            encryptedId: data.Id,
-            phone: credIdentifier,
-          };
-
+          const userData = { id: data.Id, restaurantId: data.decryptedId, encryptedId: data.Id, phone: credId };
           await login(userData, data.accessToken, data.refreshToken);
-
           try {
             const profileRes = await authAPI.getProfile(userData.id);
-            const encryptedPayload = profileRes?.data?.data;
-            if (encryptedPayload) {
-              const profileData = decryptData(encryptedPayload);
-              await setProfile(profileData);
-            }
-          } catch (profileErr) {}
-
+            const enc = profileRes?.data?.data;
+            if (enc) await setProfile(decryptData(enc));
+          } catch {}
           showToast(response.message || 'Login successful!', 'success');
           setPendingCredentials(null);
         } else {
@@ -145,89 +129,77 @@ const LoginScreen = () => {
         showToast(response.message || 'Invalid credentials', 'error');
       }
     } catch (error) {
-      let errorMessage = 'Login failed. Please try again.';
-
+      let msg = 'Login failed. Please try again.';
       if (error.response?.data?.message === 'Maximum device login limit reached') {
         try {
-          const identifier = credentials.phone || credentials.username || credIdentifier;
-          const response = await getLogedinDevices({
-            identifier,
-            password: credPassword
-          });
-
-          if (response?.data?.sessions) {
-            setDevicesData(response.data.sessions); 
+          const res = await getLogedinDevices({ identifier: credentials.phone || credentials.username || credId, password: credPw });
+          if (res?.data?.sessions) {
+            setDevicesData(res.data.sessions);
             setPendingCredentials(credentials);
             setShowDevicesModal(true);
             return;
           }
-        } catch (deviceError) {
-          errorMessage = 'Failed to fetch device sessions';
-        }
+        } catch { msg = 'Failed to fetch device sessions'; }
       } else if (error.response) {
-        errorMessage = error.response.data?.message || error.response.data?.error || `Server error: ${error.response.status}`;
+        msg = error.response.data?.message || error.response.data?.error || `Server error: ${error.response.status}`;
       } else if (error.request) {
-        errorMessage = 'No response from server. Check your internet connection.';
+        msg = 'No response from server. Check your internet connection.';
       } else {
-        errorMessage = error.message || 'An unexpected error occurred';
+        msg = error.message || 'An unexpected error occurred';
       }
-
-      showToast(errorMessage, 'error');
+      showToast(msg, 'error');
     } finally {
       setLoading(false);
     }
   };
 
   const handleLogin = async () => {
-    if (!identifier || !password) {
-      showToast('Please fill in all fields', 'warning');
-      return;
-    }
-    const credentials = { identifier, password };
-    await performLogin(credentials);
+    if (!identifier || !password) { showToast('Please fill in all fields', 'warning'); return; }
+    await performLogin({ identifier, password });
   };
 
-  const openTerms = () => {
-    Linking.openURL('https://www.alfennzo.com/terms-and-conditions');
-  };
-
-  const openPrivacyPolicy = () => {
-    Linking.openURL('https://www.alfennzo.com/privacy-policy');
-  };
+  const openTerms   = () => Linking.openURL('https://www.alfennzo.com/terms-and-conditions');
+  const openPrivacy = () => Linking.openURL('https://www.alfennzo.com/privacy-policy');
 
   return (
-    <View style={styles.root}>
+    <View style={s.root}>
       <StatusBar barStyle="light-content" backgroundColor="#03954E" translucent={false} />
 
       {Platform.OS === 'ios' && (
-        <View style={[styles.iosStatusBar, { height: insets.top }]} />
+        <View style={[s.iosBar, { height: insets.top, backgroundColor: '#03954E' }]} />
       )}
 
       <KeyboardAvoidingView
-        style={styles.flex}
+        style={s.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={0}
       >
         <ScrollView
-          style={styles.flex}
-          contentContainerStyle={styles.scrollContent}
+          style={s.flex}
+          contentContainerStyle={s.scroll}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           bounces={false}
         >
-          <View style={styles.heroContainer}>
-            <Image
-              source={require('../../assets/login.webp')}
-              style={styles.heroImage}
-              resizeMode="contain"
-            />
-          </View>
+          {/* Hero */}
+          {!isLandscape&&<Image
+            source={require('../../assets/login.webp')}
+            style={{ width: HERO_W, height: HERO_H, alignSelf: 'stretch' }}
+            resizeMode="contain"
+          />}
+          {isLandscape&&<View style={{ height: rs(150) }} />}
 
-          <View style={styles.formCard}>
-            <View style={styles.inputWrapper}>
-              <MaterialIcons name="person-outline" size={normalize(22)} color="#4a4848" style={styles.inputIcon} />
+          {/* Form — centred & width-capped on tablet */}
+          <View style={[s.formCard, {
+            paddingHorizontal: rs(24), paddingTop: rs(28),
+            alignSelf: isTablet ? 'center' : 'stretch',
+            width: isTablet ? Math.min(SW, FORM_MAX_W) : undefined,
+          }]}>
+            {/* Username field */}
+            <View style={[s.inputWrap, { borderRadius: rs(14), height: rs(54), marginBottom: rs(14), paddingHorizontal: rs(4) }]}>
+              <MaterialIcons name="person-outline" size={nz(22)} color="#4a4848" style={{ paddingHorizontal: rs(12) }} />
               <TextInput
-                style={styles.input}
+                style={[s.input, { fontSize: nz(15) }]}
                 placeholder="Username or Phone number"
                 placeholderTextColor="#7c7c7cbf"
                 value={identifier}
@@ -242,10 +214,11 @@ const LoginScreen = () => {
               />
             </View>
 
-            <View style={styles.inputWrapper}>
-              <Feather name="lock" size={normalize(20)} color="#4a4848" style={styles.inputIcon} />
+            {/* Password field */}
+            <View style={[s.inputWrap, { borderRadius: rs(14), height: rs(54), marginBottom: rs(14), paddingHorizontal: rs(4) }]}>
+              <Feather name="lock" size={nz(20)} color="#4a4848" style={{ paddingHorizontal: rs(12) }} />
               <TextInput
-                style={styles.input}
+                style={[s.input, { fontSize: nz(15) }]}
                 placeholder="Password"
                 placeholderTextColor="#7c7c7cbf"
                 value={password}
@@ -257,22 +230,23 @@ const LoginScreen = () => {
                 allowFontScaling={false}
                 textContentType="password"
               />
-              <SpringButton onPress={() => setSecureTextEntry(!secureTextEntry)} style={styles.eyeButton} disabled={loading}>
-                <Feather name={secureTextEntry ? 'eye-off' : 'eye'} size={normalize(20)} color="#7c7c7c" />
+              <SpringButton onPress={() => setSecureTextEntry(!secureTextEntry)} style={{ paddingHorizontal: rs(14), justifyContent: 'center', alignItems: 'center', height: rs(44) }} disabled={loading}>
+                <Feather name={secureTextEntry ? 'eye-off' : 'eye'} size={nz(20)} color="#7c7c7c" />
               </SpringButton>
             </View>
 
-            <SpringButton onPress={handleLogin} disabled={loading} style={styles.loginButton}>
+            {/* CTA */}
+            <SpringButton onPress={handleLogin} disabled={loading} style={[s.loginBtn, { height: rs(54), borderRadius: rs(13), marginBottom: rs(20) }]}>
               {loading
                 ? <ActivityIndicator color="#FFFFFF" size="small" />
-                : <Text style={styles.loginButtonText} allowFontScaling={false}>Continue</Text>}
+                : <Text style={{ color: '#FFFFFF', fontSize: nz(17), fontWeight: '700', letterSpacing: 0.3 }} allowFontScaling={false}>Continue</Text>}
             </SpringButton>
 
-            <Text style={[styles.termsText, { paddingBottom: insets.bottom + rs(16) }]} allowFontScaling={false}>
+            <Text style={[s.terms, { fontSize: nz(13), paddingBottom: insets.bottom + rs(16) }]} allowFontScaling={false}>
               By clicking on continue, I accept the{' '}
-              <Text style={styles.termsLink} onPress={openTerms}>Terms &amp; Conditions</Text>
+              <Text style={s.termsLink} onPress={openTerms}>Terms &amp; Conditions</Text>
               {' '}&amp;{'\n'}
-              <Text style={styles.termsLink} onPress={openPrivacyPolicy}>Privacy Policy</Text>
+              <Text style={s.termsLink} onPress={openPrivacy}>Privacy Policy</Text>
             </Text>
           </View>
         </ScrollView>
@@ -280,10 +254,7 @@ const LoginScreen = () => {
 
       <DeviceSessionsModal
         visible={showDevicesModal}
-        onClose={() => {
-          setShowDevicesModal(false);
-          setPendingCredentials(null);
-        }}
+        onClose={() => { setShowDevicesModal(false); setPendingCredentials(null); }}
         devices={devicesData}
         identifier={pendingCredentials?.identifier}
         password={pendingCredentials?.password}
@@ -296,35 +267,16 @@ const LoginScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#FFFFFF' },
-  flex: { flex: 1 },
-  scrollContent: { flexGrow: 1, paddingHorizontal: 0 },
-  iosStatusBar: { backgroundColor: '#03954E', width: '100%' },
-  heroContainer: { width: HERO_WIDTH, height: HERO_HEIGHT, alignSelf: 'stretch', marginHorizontal: 0 },
-  heroImage: { width: SCREEN_WIDTH, height: '100%', marginLeft: 0, marginRight: 0 },
-  formCard: {
-    flex: 1, backgroundColor: '#FFFFFF',
-    paddingHorizontal: rs(24), paddingTop: rs(28),
-    ...(IS_TABLET && {
-      alignSelf: 'center', width: CONTENT_MAX_WIDTH, borderRadius: rs(24),
-      shadowColor: '#000', shadowOffset: { width: 0, height: -4 },
-      shadowOpacity: 0.06, shadowRadius: 12, elevation: 6,
-    }),
-  },
-  inputWrapper: { flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderColor: '#7c7c7c', borderRadius: rs(14), height: rs(54), backgroundColor: '#FFFFFF', marginBottom: rs(14), paddingHorizontal: rs(4) },
-  inputIcon: { paddingHorizontal: rs(12) },
-  input: { flex: 1, fontSize: normalize(15), color: '#151313', height: '100%', paddingVertical: 0, includeFontPadding: false },
-  eyeButton: { paddingHorizontal: rs(14), justifyContent: 'center', alignItems: 'center', height: rs(44) },
-  rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: rs(28), marginTop: rs(2) },
-  rememberRow: { flexDirection: 'row', alignItems: 'center' },
-  checkbox: { width: rs(18), height: rs(18), borderWidth: 1.5, borderColor: '#AAAAAA', borderRadius: rs(4), marginRight: rs(8), justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFFFFF' },
-  checkboxChecked: { backgroundColor: '#03954E', borderColor: '#03954E' },
-  rememberText: { fontSize: normalize(14), color: '#555555' },
-  forgotText: { fontSize: normalize(14), color: '#03954E', fontWeight: '500' },
-  loginButton: { backgroundColor: '#03954E', height: rs(54), borderRadius: rs(13), justifyContent: 'center', alignItems: 'center', marginBottom: rs(20), shadowColor: '#03954E', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 10, elevation: 6 },
-  loginButtonText: { color: '#FFFFFF', fontSize: normalize(17), fontWeight: '700', letterSpacing: 0.3 },
-  termsText: { fontSize: normalize(13), color: '#555555', textAlign: 'left', lineHeight: normalize(22) },
+const s = StyleSheet.create({
+  root:      { flex: 1, backgroundColor: '#FFFFFF' },
+  flex:      { flex: 1 },
+  scroll:    { flexGrow: 1 },
+  iosBar:    { width: '100%' },
+  formCard:  { flex: 1, backgroundColor: '#FFFFFF' },
+  inputWrap: { flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderColor: '#7c7c7c', backgroundColor: '#FFFFFF' },
+  input:     { flex: 1, color: '#151313', height: '100%', paddingVertical: 0, includeFontPadding: false },
+  loginBtn:  { backgroundColor: '#03954E', justifyContent: 'center', alignItems: 'center', shadowColor: '#03954E', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 10, elevation: 6 },
+  terms:     { color: '#555555', textAlign: 'left', lineHeight: 22 },
   termsLink: { color: '#1A9EDE', fontWeight: '500' },
 });
 

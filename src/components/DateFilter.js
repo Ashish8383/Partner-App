@@ -219,7 +219,7 @@ const cal = StyleSheet.create({
   },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   cell: {
-    width: `${100 / 7}%`,
+    width: `${100 / 13}%`,
     aspectRatio: 1,
     alignItems: 'center',
     justifyContent: 'center',
