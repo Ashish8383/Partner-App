@@ -515,7 +515,7 @@ const CustomTabBar = React.memo(({ position, jumpTo, tabBarW, rs, nz }) => {
 });
 const tabS = StyleSheet.create({
   wrapper:       { flexDirection: 'row', backgroundColor: '#EFEFEF', position: 'relative', alignItems: 'center' },
-  pill:          { position: 'absolute', top: 4, bottom: 4, left: 4, backgroundColor: GREEN, elevation: 3, shadowColor: GREEN, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.35, shadowRadius: 6 },
+  pill:          { position: 'absolute', top: 4, bottom: 4, left: 4, backgroundColor: GREEN, elevation: 0, shadowColor: GREEN, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.35, shadowRadius: 6 },
   tab:           { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 10, zIndex: 1 },
   inner:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
   label:         { fontWeight: '700' },

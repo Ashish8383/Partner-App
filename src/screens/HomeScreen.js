@@ -159,7 +159,7 @@ const CustomTabBar = React.memo(({ position, jumpTo, counts, SW, rs, nz }) => {
 
 const tbS = StyleSheet.create({
   wrapper: { flexDirection: 'row', backgroundColor: '#EBEBEB', position: 'relative', alignItems: 'center' },
-  pill:    { position: 'absolute', top: 4, bottom: 4, left: 4, backgroundColor: GREEN, elevation: 6, shadowColor: GREEN, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 8 },
+  pill:    { position: 'absolute', top: 4, bottom: 4, left: 4, backgroundColor: GREEN, elevation: 0, shadowColor: GREEN, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 8 },
 });
 
 // ─── Slide To Accept ──────────────────────────────────────────────────────────
