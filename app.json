@@ -2,7 +2,7 @@
   "expo": {
     "name": "Alfennzo Partner",
     "slug": "alfennzo-partner",
-    "version": "2.0.2",
+    "version": "2.0.3",
     "orientation": "portrait",
     "scheme": "alfennzo",
     "icon": "./assets/icon.png",
@@ -40,7 +40,7 @@
     },
     "android": {
       "package": "com.alfennzo.alfennzo_partner",
-      "versionCode": 37,
+      "versionCode": 38,
       "jsEngine": "hermes",
       "edgeToEdgeEnabled": true,
       "minSdkVersion": 21,
