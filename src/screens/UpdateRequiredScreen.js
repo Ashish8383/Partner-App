@@ -9,7 +9,7 @@ const PLAY_STORE  = 'https://play.google.com/store/apps/details?id=com.alfennzo.
 const APP_STORE   = 'https://apps.apple.com/app/YOUR_APP_ID';
 const STORE_URL   = Platform.OS === 'ios' ? APP_STORE : PLAY_STORE;
  
-export function UpdateRequiredScreen({ currentVersion, onRetry }) {
+export default function UpdateRequiredScreen({ currentVersion, onRetry }) {
   const insets = useSafeAreaInsets();
   const { nz, rs, isTablet, SW } = useResponsive();
  

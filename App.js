@@ -30,6 +30,13 @@ export default function App() {
   const liveOrderCount = useStore((s) => s.liveOrderCount);
   const { updateRequired, checking: checkingVersion, currentVersion, checkVersion } = useAppVersion();
 
+  console.log({
+  AppNavigator,
+  InAppNotification,
+  OfflineScreen,
+  UpdateRequiredScreen,
+  ThemeProvider
+});
 // ── Load sounds once — remove loadPersistedState from here ─────────────
 useEffect(() => {
   // ✅ REMOVED loadPersistedState() — AppNavigator already handles it

@@ -7,7 +7,7 @@ import { useResponsive } from '../utils/useResponsive';
  
 const BG2 = '#F6F7F9', TX2 = '#111827', SB2 = '#6B7280', CARD2 = '#FFFFFF', RED = '#EF4444', RED2 = '#FEF2F2';
  
-export function OfflineScreen({ onRetry }) {
+export default function OfflineScreen({ onRetry }) {
   const insets  = useSafeAreaInsets();
   const { nz, rs } = useResponsive();
   const [retrying, setRetrying] = useState(false);
