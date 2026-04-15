@@ -9,7 +9,7 @@ const SpringButton = ({ onPress, style, disabled = false, children }) => {
     triggerHaptic();
     Animated.spring(scale, {
       toValue:         0.9,
-      useNativeDriver: true,
+      useNativeDriver: false, // changed from true — avoids driver mixing with any screen using useNativeDriver:false
       speed:           60,
       bounciness:      25,
     }).start();
@@ -18,7 +18,7 @@ const SpringButton = ({ onPress, style, disabled = false, children }) => {
   const handlePressOut = useCallback(() => {
     Animated.spring(scale, {
       toValue:         1,
-      useNativeDriver: true,
+      useNativeDriver: false,
       speed:           22,
       bounciness:      25,
     }).start();

@@ -25,21 +25,11 @@ export default function App() {
   const [inAppNotif, setInAppNotif] = useState(null);
   const [isOnline, setIsOnline] = useState(null);
   const navigationRef = useRef(null);
-  const loadPersistedState = useStore((s) => s.loadPersistedState);
   const setNotificationsEnabled = useStore((s) => s.setNotificationsEnabled);
   const liveOrderCount = useStore((s) => s.liveOrderCount);
   const { updateRequired, checking: checkingVersion, currentVersion, checkVersion } = useAppVersion();
 
-  console.log({
-  AppNavigator,
-  InAppNotification,
-  OfflineScreen,
-  UpdateRequiredScreen,
-  ThemeProvider
-});
-// ── Load sounds once — remove loadPersistedState from here ─────────────
 useEffect(() => {
-  // ✅ REMOVED loadPersistedState() — AppNavigator already handles it
   loadSound('accept', require('./assets/slide.mp3'));
   loadSound('deliver', require('./assets/deliver.mp3'));
   loadSound('order_auto_sound', require('./assets/notification.mp3'));
@@ -52,7 +42,7 @@ const goToHomeLiveTab = useCallback(() => {
 
   const state = nav.getState();
   const isAuthenticated = useStore.getState().isAuthenticated;
-  if (!isAuthenticated) return; // ✅ don't navigate if not logged in
+  if (!isAuthenticated) return; 
 
   try {
     nav.navigate('Auth', {

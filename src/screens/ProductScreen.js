@@ -15,7 +15,7 @@ import {
   View, Text, StyleSheet, FlatList, ScrollView, Modal,
   Animated, StatusBar,
   Image, ActivityIndicator, TextInput, Keyboard,
-  Dimensions,
+  Dimensions, RefreshControl,
 } from 'react-native';
 import { TabView }            from 'react-native-tab-view';
 import { useSafeAreaInsets }  from 'react-native-safe-area-context';
@@ -528,6 +528,7 @@ const tabS = StyleSheet.create({
 const TabScene = React.memo(({
   list, loading, restaurantId, onToggle, onToast,
   bottomInset, tabKey, cols, cardW, rs, nz, SW, isLandscape,
+  onRefresh, refreshing,
 }) => {
   const keyExtractor = useCallback((_, i) => String(i), []);
   const imageMaxH = isLandscape ? IMAGE_MAX_H.landscape : IMAGE_MAX_H.portrait;
@@ -579,6 +580,15 @@ const TabScene = React.memo(({
       windowSize={7}
       updateCellsBatchingPeriod={50}
       ListEmptyComponent={<EmptyState tabKey={tabKey} rs={rs} nz={nz} />}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor={GREEN}
+          colors={[GREEN]}
+          progressBackgroundColor="#FFFFFF"
+        />
+      }
     />
   );
 });
@@ -634,6 +644,7 @@ export default function YourListingScreen() {
   const [combos,       setCombos]       = useState([]);
   const [loading,      setLoading]      = useState(true);
   const [comboLoading, setComboLoading] = useState(true);
+  const [refreshing,   setRefreshing]   = useState(false);
   const [error,        setError]        = useState(null);
   const [searchOpen,   setSearchOpen]   = useState(false);
   const [searchQuery,  setSearchQuery]  = useState('');
@@ -678,7 +689,7 @@ export default function YourListingScreen() {
 
   const fetchMenu = useCallback(async () => {
     if (!restaurantId) return;
-    setLoading(true); setError(null);
+    setError(null);
     try {
       const res  = await menuAPI.getAllMenu(restaurantId);
       const menu = res?.data?.data?.menu ?? [];
@@ -687,24 +698,40 @@ export default function YourListingScreen() {
       setProducts(prods);
     } catch {
       setError('Failed to load menu. Tap to retry.');
-    } finally {
-      setLoading(false);
     }
   }, [restaurantId]);
 
   const fetchCombos = useCallback(async () => {
     if (!restaurantId) return;
-    setComboLoading(true);
     try {
       const res = await menuAPI.getAllCombo(restaurantId);
       const raw = res?.data?.data?.data ?? [];
       setCombos(normaliseCombo(raw));
-    } catch { /* silent */ } finally {
-      setComboLoading(false);
-    }
+    } catch { /* silent */ }
   }, [restaurantId]);
 
-  useEffect(() => { fetchMenu(); fetchCombos(); }, [fetchMenu, fetchCombos]);
+  const loadAllData = useCallback(async (showLoading = true) => {
+    if (showLoading) {
+      setLoading(true);
+      setComboLoading(true);
+    }
+    await Promise.all([fetchMenu(), fetchCombos()]);
+    if (showLoading) {
+      setLoading(false);
+      setComboLoading(false);
+    }
+  }, [fetchMenu, fetchCombos]);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadAllData(false);
+    setRefreshing(false);
+    showToast('🔄 Listings refreshed');
+  }, [loadAllData, showToast]);
+
+  useEffect(() => { 
+    loadAllData(true); 
+  }, [loadAllData]);
 
   const handleToggle = useCallback((id, isCombo) => {
     if (isCombo) {
@@ -729,8 +756,8 @@ export default function YourListingScreen() {
   const sceneProps = useMemo(() => ({
     restaurantId, onToggle: handleToggle, onToast: showToast,
     bottomInset: insets.bottom, cols, cardW: CARD_W,
-    rs, nz, SW, isLoading, isLandscape,
-  }), [restaurantId, handleToggle, showToast, insets.bottom, cols, CARD_W, rs, nz, SW, isLoading, isLandscape]);
+    rs, nz, SW, isLoading, isLandscape, onRefresh: handleRefresh, refreshing,
+  }), [restaurantId, handleToggle, showToast, insets.bottom, cols, CARD_W, rs, nz, SW, isLoading, isLandscape, handleRefresh, refreshing]);
 
   const renderScene = useCallback(({ route }) => (
     <TabScene
@@ -747,6 +774,8 @@ export default function YourListingScreen() {
       nz={sceneProps.nz}
       SW={sceneProps.SW}
       isLandscape={sceneProps.isLandscape}
+      onRefresh={sceneProps.onRefresh}
+      refreshing={sceneProps.refreshing}
     />
   ), [activeLists, sceneProps]);
 
@@ -798,12 +827,13 @@ export default function YourListingScreen() {
 
         {error && (
           <HapticTouchable
-            onPress={fetchMenu}
+            onPress={() => loadAllData(true)}
             style={[s.errorBanner, { marginHorizontal: rs(14), marginTop: rs(6), marginBottom: rs(4), borderRadius: rs(10), paddingHorizontal: rs(12), paddingVertical: rs(10) }]}
             activeOpacity={0.8}
           >
             <Feather name="alert-circle" size={nz(13)} color="#E53935" />
             <Text style={{ flex: 1, fontSize: nz(12), color: '#C62828', fontWeight: '500', marginLeft: 6 }}>{error}</Text>
+            <Feather name="refresh-cw" size={nz(13)} color="#E53935" />
           </HapticTouchable>
         )}
 

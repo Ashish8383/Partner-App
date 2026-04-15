@@ -23,8 +23,8 @@ const LIMIT = 30;
 
 const TAB_ORDER = ['live', 'pending'];
 const TAB_CONFIG = {
-  live:    { fetcher: (p, id, extra) => ordersAPI.getLiveOrders(p, id, extra) },
-  pending: { fetcher: (p, id, extra) => ordersAPI.getPendingOrders(p, id, extra) },
+  live:    { fetcher: (p, id) => ordersAPI.getLiveOrders(p, id) },
+  pending: { fetcher: (p, id) => ordersAPI.getPendingOrders(p, id) },
 };
 const ROUTES = [
   { key: 'live',    title: 'Live',    icon: 'circle' },
@@ -163,10 +163,9 @@ const tbS = StyleSheet.create({
 });
 
 // ─── Slide To Accept ──────────────────────────────────────────────────────────
-// cardW is the width of the card this slider lives inside — slider fills it edge to edge.
 const SlideToAccept = React.memo(({ onAccepted, onSlideActiveChange, cardW, rs, nz }) => {
   const THUMB_W   = rs(52);
-  const TRACK_W   = cardW - rs(32);   // 16px card padding × 2
+  const TRACK_W   = cardW - rs(32);
   const MAX_SLIDE = TRACK_W - THUMB_W - rs(6);
 
   const slideX    = useRef(new Animated.Value(0)).current;
@@ -292,7 +291,6 @@ const OrderCard = React.memo(({
   const handleAccept  = useCallback(() => animateOut(() => onAccepted(item.id)),  [animateOut, onAccepted, item.id]);
   const handleDeliver = useCallback(() => animateOut(() => onDelivered(item.id)), [animateOut, onDelivered, item.id]);
 
-  // Seat badge width: 22% of cardW, min 70, max 100
   const SEAT_W = Math.min(100, Math.max(70, cardW * 0.22));
 
   return (
@@ -310,12 +308,9 @@ const OrderCard = React.memo(({
 
           {/* ── Top row ─────────────────────────────────────────────────── */}
           <View style={ocS.topRow}>
-            {/* Avatar */}
             <View style={[ocS.avatar, { width: rs(40), height: rs(40), borderRadius: rs(20), marginRight: rs(8) }]}>
               <Text style={{ fontSize: nz(13), fontWeight: '700', color: '#555' }}>{item.initials}</Text>
             </View>
-
-            {/* Name + meta */}
             <View style={ocS.nameBlock}>
               <Text style={{ fontSize: nz(13), fontWeight: '700', color: '#1A1A1A', marginBottom: rs(3) }} numberOfLines={2}>
                 {item.customerName}
@@ -329,8 +324,6 @@ const OrderCard = React.memo(({
                 <Text style={{ fontSize: nz(10), color: '#666', flexShrink: 1 }} numberOfLines={1}> {item.date}</Text>
               </View>
             </View>
-
-            {/* Seat badge — proportional to card width */}
             <View style={[ocS.seatBadge, {
               width: SEAT_W, borderRadius: rs(10),
               paddingHorizontal: rs(6), paddingVertical: rs(6),
@@ -451,16 +444,6 @@ const normaliseOrder = (o) => {
 };
 
 // ─── Tab Scene ────────────────────────────────────────────────────────────────
-/**
- * Renders orders in a responsive grid:
- *   Phone  (any orientation) → 1 column, full-width cards
- *   Tablet (portrait)        → 2 columns
- *   Tablet (landscape)       → 2 columns (cards are already wider)
- *
- * The FlatList itself is always a single-column list of *row* objects.
- * Each row is a View containing `cols` OrderCards side-by-side.
- * This keeps FlatList's recycling and windowing working correctly.
- */
 const TabScene = React.memo(({
   tabKey, loading, list, refreshing, onRefresh,
   isLoadingMore, isExhausted, onEndReached,
@@ -469,12 +452,10 @@ const TabScene = React.memo(({
 }) => {
   const rowKeyExtractor = useCallback((_, i) => String(i), []);
 
-  // ── Loading skeletons ────────────────────────────────────────────────────
   if (loading) {
-    const skelRows = Array(3).fill(null);
     return (
       <FlatList
-        data={skelRows}
+        data={Array(3).fill(null)}
         keyExtractor={rowKeyExtractor}
         renderItem={() => (
           <View style={{ flexDirection: 'row', gap, paddingHorizontal: rs(14) }}>
@@ -490,11 +471,8 @@ const TabScene = React.memo(({
     );
   }
 
-  // ── Group flat list into rows of `cols` ──────────────────────────────────
   const rows = [];
-  for (let i = 0; i < list.length; i += cols) {
-    rows.push(list.slice(i, i + cols));
-  }
+  for (let i = 0; i < list.length; i += cols) rows.push(list.slice(i, i + cols));
 
   return (
     <FlatList
@@ -516,7 +494,6 @@ const TabScene = React.memo(({
               nz={nz}
             />
           ))}
-          {/* Ghost spacer keeps last row aligned when count is odd */}
           {row.length < cols && <View style={{ width: cardW }} />}
         </View>
       )}
@@ -572,14 +549,8 @@ export default function HomeScreen() {
   const navigation = useNavigation();
   const route      = useRoute();
 
-  // ── Reactive sizing — re-runs on every orientation change ────────────────
   const { SW, nz, rs, isTablet } = useResponsive();
 
-  /**
-   * Layout strategy:
-   *   Phone  → 1 col, full-width
-   *   Tablet → 2 cols with a gap
-   */
   const COLS    = isTablet ? 2 : 1;
   const H_PAD   = rs(14);
   const COL_GAP = isTablet ? rs(12) : 0;
@@ -641,17 +612,11 @@ export default function HomeScreen() {
     setExhaustedMap((p) => ({ ...p, [tab]: true }));
   }, []);
 
-  const getTodayParams = useCallback(() => {
-    const s = new Date(); s.setHours(0, 0, 0, 0);
-    const e = new Date(); e.setHours(23, 59, 59, 999);
-    return { startDate: s.toISOString(), endDate: e.toISOString() };
-  }, []);
-
+  // ── loadTab — no date filter ───────────────────────────────────────────────
   const loadTab = useCallback(async (tab) => {
-    const id    = user?.restaurantId ?? '';
-    const extra = getTodayParams();
+    const id = user?.restaurantId ?? '';
     try {
-      const res        = await TAB_CONFIG[tab].fetcher({ page: 1, limit: LIMIT }, id, extra);
+      const res        = await TAB_CONFIG[tab].fetcher({ page: 1, limit: LIMIT }, id);
       const meta       = res?.data?.data?.orderData;
       const raw        = Array.isArray(meta?.data) ? meta.data : [];
       const totalDocs  = meta?.totalDocuments ?? 0;
@@ -663,18 +628,18 @@ export default function HomeScreen() {
       flushTab(tab);
       setExhaustedMap((p) => ({ ...p, [tab]: tabs.current[tab].exhausted }));
     } catch { exhaustTab(tab); }
-  }, [user?.restaurantId, flushTab, exhaustTab, getTodayParams]);
+  }, [user?.restaurantId, flushTab, exhaustTab]);
 
+  // ── loadMoreTab — no date filter ───────────────────────────────────────────
   const loadMoreTab = useCallback(async (tab) => {
     const t = tabs.current[tab];
     if (t.exhausted || t.fetching) return;
     t.fetching = true;
     setLoadingMoreMap((p) => ({ ...p, [tab]: true }));
     const nextPage = t.page + 1;
-    const id    = user?.restaurantId ?? '';
-    const extra = getTodayParams();
+    const id = user?.restaurantId ?? '';
     try {
-      const res       = await TAB_CONFIG[tab].fetcher({ page: nextPage, limit: LIMIT }, id, extra);
+      const res       = await TAB_CONFIG[tab].fetcher({ page: nextPage, limit: LIMIT }, id);
       const meta      = res?.data?.data?.orderData;
       const raw       = Array.isArray(meta?.data) ? meta.data : [];
       const totalDocs = meta?.totalDocuments ?? t.totalDocs;
@@ -695,7 +660,7 @@ export default function HomeScreen() {
       t.fetching = false;
       setLoadingMoreMap((p) => ({ ...p, live: false, pending: false }));
     }
-  }, [user?.restaurantId, flushTab, exhaustTab, getTodayParams]);
+  }, [user?.restaurantId, flushTab, exhaustTab]);
 
   const initialLoad = useCallback(async () => {
     setLoading(true);
