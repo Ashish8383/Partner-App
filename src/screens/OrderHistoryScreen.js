@@ -368,7 +368,7 @@ const HistoryOrderCard = React.memo(({ item, rs, nz, cardW }) => {
           </View>
 
           {/* First item */}
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: rs(6) }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingBottom: rs(12) }}>
             <Text style={{ fontSize: nz(13), color: '#444', flex: 1, paddingRight: rs(4) }} numberOfLines={2}>
               {firstItem?.name}
             </Text>
@@ -384,8 +384,6 @@ const HistoryOrderCard = React.memo(({ item, rs, nz, cardW }) => {
                 justifyContent: 'center',
                 backgroundColor: `${GREEN}10`,
                 borderRadius: rs(20),
-                paddingVertical: rs(8),
-                marginTop: rs(6),
                 marginBottom: rs(10),
                 borderWidth: 1,
                 borderColor: `${GREEN}30`,
@@ -399,23 +397,7 @@ const HistoryOrderCard = React.memo(({ item, rs, nz, cardW }) => {
               </Text>
             </TouchableOpacity>
           ) : (
-            <TouchableOpacity
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: rs(20),
-                paddingVertical: rs(8),
-                marginTop: rs(6),
-                marginBottom: rs(10),
-              }}
-              onPress={() => setModalVisible(true)}
-              activeOpacity={0.8}
-            >
-              <Text style={{ fontSize: nz(12), fontWeight: '600', color: GREEN }}>
-
-              </Text>
-            </TouchableOpacity>
+            ''
           )}
 
           <View style={{ borderBottomWidth: 1, borderStyle: 'dashed', borderColor: '#CCCCCC', marginBottom: rs(10) }} />
@@ -672,7 +654,6 @@ export default function OrderHistoryScreen() {
     try {
       const res = await ordersAPI.getHistoryOrders({ page, limit: LIMIT }, id, dateParams);
       const meta = res?.data?.data?.orderData;
-      console.log(meta, "order history data is here")
       const raw = Array.isArray(meta?.data) ? meta.data : [];
       const totalDocs = meta?.totalDocuments ?? 0;
       const normalised = raw.map(normaliseOrder);

@@ -12,6 +12,7 @@ import { loadSound, playLoopSound, stopSound } from './src/utils/sound';
 import OfflineScreen from './src/screens/NoInternetScreen';
 import useAppVersion from './src/utils/useAppVersion';
 import UpdateRequiredScreen from './src/screens/UpdateRequiredScreen';
+import * as Updates from 'expo-updates';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -29,33 +30,49 @@ export default function App() {
   const liveOrderCount = useStore((s) => s.liveOrderCount);
   const { updateRequired, checking: checkingVersion, currentVersion, checkVersion } = useAppVersion();
 
-useEffect(() => {
-  loadSound('accept', require('./assets/slide.mp3'));
-  loadSound('deliver', require('./assets/deliver.mp3'));
-  loadSound('order_auto_sound', require('./assets/notification.mp3'));
-}, []);
+  useEffect(() => {
+    loadSound('accept', require('./assets/slide.mp3'));
+    loadSound('deliver', require('./assets/deliver.mp3'));
+    loadSound('order_auto_sound', require('./assets/notification.mp3'));
+  }, []);
 
-// ── Fix goToHomeLiveTab — safe navigation ───────────────────────────────
-const goToHomeLiveTab = useCallback(() => {
-  const nav = navigationRef.current;
-  if (!nav || !nav.isReady()) return;
 
-  const state = nav.getState();
-  const isAuthenticated = useStore.getState().isAuthenticated;
-  if (!isAuthenticated) return; 
+  useEffect(() => {
+    async function checkOTA() {
+      try {
+        const update = await Updates.checkForUpdateAsync();
+        if (update.isAvailable) {
+          console.log('Fetching update...');
+          await Updates.fetchUpdateAsync();
+          await Updates.reloadAsync();
+        }
+      } catch (e) {
+      }
+    }
+    checkOTA();
+  }, []);
 
-  try {
-    nav.navigate('Auth', {
-      screen: 'Main',
-      params: {
-        screen: 'Home',
-        params: { initialTab: 0 },
-      },
-    });
-  } catch (e) {
-    // ✅ silently ignore navigation errors
-  }
-}, []);
+  // ── Fix goToHomeLiveTab — safe navigation ───────────────────────────────
+  const goToHomeLiveTab = useCallback(() => {
+    const nav = navigationRef.current;
+    if (!nav || !nav.isReady()) return;
+
+    const state = nav.getState();
+    const isAuthenticated = useStore.getState().isAuthenticated;
+    if (!isAuthenticated) return;
+
+    try {
+      nav.navigate('Auth', {
+        screen: 'Main',
+        params: {
+          screen: 'Home',
+          params: { initialTab: 0 },
+        },
+      });
+    } catch (e) {
+      // ✅ silently ignore navigation errors
+    }
+  }, []);
   // ── Sound: strictly tied to liveOrderCount ──────────────────────────────
   useEffect(() => {
     if (liveOrderCount > 0) {
@@ -132,10 +149,10 @@ const goToHomeLiveTab = useCallback(() => {
     return () => sub.remove();
   }, []);
 
-   useEffect(() => {
+  useEffect(() => {
     // Initialize badge management
     const cleanup = initBadgeManagement();
-    
+
     return () => {
       // Cleanup on app unmount
       if (cleanup) cleanup();
