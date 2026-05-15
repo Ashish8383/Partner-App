@@ -297,7 +297,7 @@ const HistoryOrderCard = React.memo(({ item, rs, nz, cardW }) => {
         {/* ── SEAT NUMBER - Full Width Banner at Top ── */}
         {item.seat ? (
           <View style={{
-            backgroundColor: GREEN,
+            backgroundColor: '#000',
             paddingHorizontal: rs(14),
             paddingVertical: rs(12),
             flexDirection: 'row',
