@@ -5,24 +5,24 @@ import {
   StatusBar, Animated, TouchableOpacity, ActivityIndicator, Platform,
   Modal, ScrollView, Dimensions,
 } from 'react-native';
-import { TabView }           from 'react-native-tab-view';
+import { TabView } from 'react-native-tab-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Feather }           from '@expo/vector-icons';
-import { useNavigation }     from '@react-navigation/native';
-import LottieView            from 'lottie-react-native';
-import { HapticTouchable }   from '../components/GlobalHaptic';
-import { useResponsive }     from '../utils/useResponsive';
-import useStore              from '../store/useStore';
-import { ordersAPI }         from '../utils/api';
-import { DateFilterBar }     from '../components/DateFilter';
+import { Feather } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import LottieView from 'lottie-react-native';
+import { HapticTouchable } from '../components/GlobalHaptic';
+import { useResponsive } from '../utils/useResponsive';
+import useStore from '../store/useStore';
+import { ordersAPI } from '../utils/api';
+import { DateFilterBar } from '../components/DateFilter';
 
 const GREEN = '#03954E';
-const LIMIT  = 30;
+const LIMIT = 30;
 
 const ROUTES = [
-  { key: 'today',     title: 'Today',     icon: 'sun'      },
-  { key: 'yesterday', title: 'Yesterday', icon: 'clock'    },
-  { key: 'custom',    title: 'Custom',    icon: 'calendar' },
+  { key: 'today', title: 'Today', icon: 'sun' },
+  { key: 'yesterday', title: 'Yesterday', icon: 'clock' },
+  { key: 'custom', title: 'Custom', icon: 'calendar' },
 ];
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
@@ -42,26 +42,26 @@ const fmtShort = (d) => d?.toLocaleDateString('en-GB', { day: '2-digit', month: 
 // ─── Normalise order ──────────────────────────────────────────────────────────
 const normaliseOrder = (o) => {
   const seatParts = (o.seatNo ?? '').split('/');
-  const parts     = (o.fullname ?? '').trim().split(' ').filter(Boolean);
-  const initials  = (parts.length >= 2 ? parts[0][0] + parts[1][0] : (parts[0]?.[0] ?? '?')).toUpperCase();
-  const d         = o.OrderPlacedAt ? new Date(o.OrderPlacedAt) : null;
+  const parts = (o.fullname ?? '').trim().split(' ').filter(Boolean);
+  const initials = (parts.length >= 2 ? parts[0][0] + parts[1][0] : (parts[0]?.[0] ?? '?')).toUpperCase();
+  const d = o.OrderPlacedAt ? new Date(o.OrderPlacedAt) : null;
   return {
-    id:           o._id,
-    orderRef:     o.Id,
-    orderId:      o.OrderId,
+    id: o._id,
+    orderRef: o.Id,
+    orderId: o.OrderId,
     initials,
     customerName: (o.fullname ?? '').trim() || 'Customer',
-    phone:        o.phone,
-    receivedAt:   d ? d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '—',
-    date:         d ? d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : '—',
-    seat:         seatParts[0]?.trim() ?? '',
-    seatCode:     seatParts[1]?.trim() ?? '',
-    items:        (o.order ?? []).map((it) => ({
-      name:  `${it.quantity}x ${it.foodName}`,
+    phone: o.phone,
+    receivedAt: d ? d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '—',
+    date: d ? d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : '—',
+    seat: seatParts[0]?.trim() ?? '',
+    seatCode: seatParts[1]?.trim() ?? '',
+    items: (o.order ?? []).map((it) => ({
+      name: `${it.quantity}x ${it.foodName}`,
       price: (() => { const n = Number(it.amount * it.quantity); return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, ''); })(),
     })),
-    total:       (() => { const n = Number(o.TotalAmount); return n == null ? '0' : Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, ''); })(),
-    note:        'Please ensure the invoice is provided to the customer at the time of food delivery, as the order is already entered in POS.',
+    total: (() => { const n = Number(o.TotalAmount); return n == null ? '0' : Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, ''); })(),
+    note: 'Please ensure the invoice is provided to the customer at the time of food delivery, as the order is already entered in POS.',
     AcceptOrder: o.AcceptOrder,
     isDelivered: o.isDelivered,
     isCancelled: o.isCancelled,
@@ -73,7 +73,7 @@ const SkeletonPulse = ({ style }) => {
   const anim = useRef(new Animated.Value(0.4)).current;
   useEffect(() => {
     const loop = Animated.loop(Animated.sequence([
-      Animated.timing(anim, { toValue: 1,   duration: 750, useNativeDriver: true }),
+      Animated.timing(anim, { toValue: 1, duration: 750, useNativeDriver: true }),
       Animated.timing(anim, { toValue: 0.4, duration: 750, useNativeDriver: true }),
     ]));
     loop.start();
@@ -109,9 +109,9 @@ const SkeletonCard = ({ rs, nz, cardW }) => (
 // ─── Custom Tab Bar ───────────────────────────────────────────────────────────
 const CustomTabBar = React.memo(({ position, jumpTo, customLabel, SW, rs, nz }) => {
   const TAB_BAR_W = SW - rs(40) - rs(8);
-  const TAB_W     = TAB_BAR_W / 3;
-  const PILL_POS  = [0, TAB_W, TAB_W * 2];
-  const pillX     = position.interpolate({ inputRange: [0, 1, 2], outputRange: PILL_POS, extrapolate: 'clamp' });
+  const TAB_W = TAB_BAR_W / 3;
+  const PILL_POS = [0, TAB_W, TAB_W * 2];
+  const pillX = position.interpolate({ inputRange: [0, 1, 2], outputRange: PILL_POS, extrapolate: 'clamp' });
   const activeOps = ROUTES.map((_, i) =>
     position.interpolate({ inputRange: [i - 1, i, i + 1], outputRange: [0, 1, 0], extrapolate: 'clamp' })
   );
@@ -121,9 +121,9 @@ const CustomTabBar = React.memo(({ position, jumpTo, customLabel, SW, rs, nz }) 
       <Animated.View pointerEvents="none"
         style={[tbS.pill, { width: TAB_W, borderRadius: rs(50), transform: [{ translateX: pillX }] }]} />
       {ROUTES.map((route, i) => {
-        const activeOp   = activeOps[i];
+        const activeOp = activeOps[i];
         const inactiveOp = activeOp.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
-        const label      = route.key === 'custom' && customLabel ? customLabel : route.title;
+        const label = route.key === 'custom' && customLabel ? customLabel : route.title;
         return (
           <HapticTouchable
             key={route.key}
@@ -155,7 +155,7 @@ const CustomTabBar = React.memo(({ position, jumpTo, customLabel, SW, rs, nz }) 
 
 const tbS = StyleSheet.create({
   wrapper: { flexDirection: 'row', backgroundColor: '#EBEBEB', position: 'relative', alignItems: 'center' },
-  pill:    { position: 'absolute', top: 4, bottom: 4, left: 4, backgroundColor: GREEN, elevation: 0, shadowColor: GREEN, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 8 },
+  pill: { position: 'absolute', top: 4, bottom: 4, left: 4, backgroundColor: GREEN, elevation: 0, shadowColor: GREEN, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 8 },
 });
 
 // ─── Empty state ──────────────────────────────────────────────────────────────
@@ -183,7 +183,7 @@ const ItemsModal = ({ visible, items, total, onClose, rs, nz }) => (
             <Feather name="x" size={nz(20)} color="#666" />
           </TouchableOpacity>
         </View>
-        
+
         <ScrollView showsVerticalScrollIndicator={false}>
           {items.map((item, idx) => (
             <View key={idx} style={[modalS.itemRow, { paddingVertical: rs(12) }]}>
@@ -191,15 +191,15 @@ const ItemsModal = ({ visible, items, total, onClose, rs, nz }) => (
               <Text style={[modalS.itemPrice, { fontSize: nz(14), fontWeight: '600' }]}>₹{item.price}</Text>
             </View>
           ))}
-          
+
           <View style={[modalS.divider, { marginVertical: rs(12) }]} />
-          
+
           <View style={modalS.totalRow}>
             <Text style={[modalS.totalLabel, { fontSize: nz(16), fontWeight: '700' }]}>Total Amount</Text>
             <Text style={[modalS.totalAmount, { fontSize: nz(18), fontWeight: '800', color: GREEN }]}>₹{total}</Text>
           </View>
         </ScrollView>
-        
+
         <TouchableOpacity
           style={[modalS.closeButton, { backgroundColor: GREEN, borderRadius: rs(25), paddingVertical: rs(12), marginTop: rs(16) }]}
           onPress={onClose}
@@ -277,141 +277,168 @@ const modalS = StyleSheet.create({
 const HistoryOrderCard = React.memo(({ item, rs, nz, cardW }) => {
   const [modalVisible, setModalVisible] = useState(false);
   const statusColor = item.isDelivered ? '#4CAF50' : item.isCancelled ? '#F44336' : '#FF9800';
-  const statusText  = item.isDelivered ? 'Delivered' : item.isCancelled ? 'Cancelled' : 'Completed';
-  
+  const statusText = item.isDelivered ? 'Delivered' : item.isCancelled ? 'Cancelled' : 'Completed';
+
   // Show only first item, plus count of remaining items
   const firstItem = item.items[0];
   const remainingCount = item.items.length - 1;
   const hasMultipleItems = item.items.length > 1;
-
-  // Seat badge width proportional to card — keeps layout from overflowing on narrow tablet columns
-  const SEAT_W = Math.min(90, Math.max(64, cardW * 0.22));
 
   return (
     <>
       <View style={{
         width: cardW,
         backgroundColor: '#01690509', borderRadius: rs(16),
-        marginBottom: rs(14), padding: rs(14),
+        marginBottom: rs(14),
         borderWidth: 1, borderColor: '#14131336',
+        overflow: 'hidden', // Ensures the seat banner corners match card
       }}>
-        {/* ── Top row ── */}
-        <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-          {/* Avatar */}
-          <View style={{
-            width: rs(40), height: rs(40), borderRadius: rs(20),
-            backgroundColor: '#F0F0F0', justifyContent: 'center',
-            alignItems: 'center', marginRight: rs(8), flexShrink: 0,
-          }}>
-            <Text style={{ fontSize: nz(13), fontWeight: '700', color: '#555' }}>{item.initials}</Text>
-          </View>
 
-          {/* Name + date + time */}
-          <View style={{ flex: 1, flexShrink: 1, marginRight: rs(6) }}>
-            <Text style={{ fontSize: nz(13), fontWeight: '700', color: '#1A1A1A', marginBottom: rs(3) }} numberOfLines={2}>
-              {item.customerName}
+        {/* ── SEAT NUMBER - Full Width Banner at Top ── */}
+        {item.seat ? (
+          <View style={{
+            backgroundColor: GREEN,
+            paddingHorizontal: rs(14),
+            paddingVertical: rs(12),
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            <Feather name="map-pin" size={nz(16)} color="#FFFFFF" style={{ marginRight: rs(8) }} />
+            <Text style={{
+              fontSize: nz(14),
+              fontWeight: '800',
+              color: '#FFFFFF',
+              letterSpacing: 0.5,
+            }} numberOfLines={1}>
+              {item.seat}
+              {item.seatCode ? ` / ${item.seatCode}` : ''}
             </Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: rs(2) }}>
-              <Feather name="calendar" size={nz(10)} color="#999" />
-              <Text style={{ fontSize: nz(11), color: '#666', flexShrink: 1 }} numberOfLines={1}> {item.date}</Text>
+          </View>
+        ) : null}
+
+        {/* ── Card Content ── */}
+        <View style={{ padding: rs(14) }}>
+          {/* ── Top row ── */}
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+            {/* Avatar */}
+            <View style={{
+              width: rs(46), height: rs(46), borderRadius: rs(23),
+              backgroundColor: '#F0F0F0', justifyContent: 'center',
+              alignItems: 'center', marginRight: rs(10), flexShrink: 0,
+            }}>
+              <Text style={{ fontSize: nz(15), fontWeight: '700', color: '#555' }}>{item.initials}</Text>
             </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Feather name="clock" size={nz(10)} color="#999" />
-              <Text style={{ fontSize: nz(11), color: '#666', flexShrink: 1 }} numberOfLines={1}> {item.receivedAt}</Text>
+
+            {/* Name + date + time */}
+            <View style={{ flex: 1, flexShrink: 1, marginRight: rs(6) }}>
+              {/* Customer Name - full width, larger */}
+              <Text style={{ fontSize: nz(16), fontWeight: '700', color: '#1A1A1A', marginBottom: rs(4) }} numberOfLines={2}>
+                {item.customerName}
+              </Text>
+
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: rs(2) }}>
+                <Feather name="calendar" size={nz(12)} color="#999" />
+                <Text style={{ fontSize: nz(13), color: '#666', flexShrink: 1, marginLeft: rs(4) }} numberOfLines={1}> {item.date}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Feather name="clock" size={nz(12)} color="#999" />
+                <Text style={{ fontSize: nz(13), color: '#666', flexShrink: 1, marginLeft: rs(4) }} numberOfLines={1}> {item.receivedAt}</Text>
+              </View>
+            </View>
+
+            {/* Status badge */}
+            <View style={{
+              flexDirection: 'row', alignItems: 'center',
+              paddingHorizontal: rs(8), paddingVertical: rs(4),
+              borderRadius: rs(12), flexShrink: 0,
+              backgroundColor: `${statusColor}15`,
+            }}>
+              <View style={{ width: rs(6), height: rs(6), borderRadius: rs(3), marginRight: rs(3), backgroundColor: statusColor }} />
+              <Text style={{ fontSize: nz(12), fontWeight: '600', color: statusColor }}>{statusText}</Text>
             </View>
           </View>
 
-          {/* Status badge */}
-          <View style={{
-            flexDirection: 'row', alignItems: 'center',
-            paddingHorizontal: rs(8), paddingVertical: rs(4),
-            borderRadius: rs(12), flexShrink: 0,
-            backgroundColor: `${statusColor}15`,
-          }}>
-            <View style={{ width: rs(6), height: rs(6), borderRadius: rs(3), marginRight: rs(3), backgroundColor: statusColor }} />
-            <Text style={{ fontSize: nz(10), fontWeight: '600', color: statusColor }}>{statusText}</Text>
+          <View style={{ height: 1, backgroundColor: '#F2F2F2', marginVertical: rs(12) }} />
+
+          {/* ── Items - Show only first item with "Show All" button if multiple ── */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: rs(8) }}>
+            <View style={{ width: rs(14), height: rs(14), borderRadius: rs(3), backgroundColor: GREEN, marginRight: rs(6) }} />
+            <Text style={{ fontSize: nz(14), fontWeight: '700', color: '#1A1A1A' }}>Ordered Items :</Text>
           </View>
-        </View>
 
-        <View style={{ height: 1, backgroundColor: '#F2F2F2', marginVertical: rs(10) }} />
-
-        {/* ── Items - Show only first item with "Show All" button if multiple ── */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: rs(8) }}>
-          <View style={{ width: rs(12), height: rs(12), borderRadius: rs(3), backgroundColor: GREEN, marginRight: rs(6) }} />
-          <Text style={{ fontSize: nz(12), fontWeight: '700', color: '#1A1A1A' }}>Ordered Items :</Text>
-        </View>
-        
-        {/* First item */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: rs(6) }}>
-          <Text style={{ fontSize: nz(11), color: '#444', flex: 1, paddingRight: rs(4) }} numberOfLines={2}>
-            {firstItem?.name}
-          </Text>
-          <Text style={{ fontSize: nz(11), color: '#1A1A1A', fontWeight: '600' }}>{firstItem?.price}/-</Text>
-        </View>
-        
-        {/* Show All button if multiple items */}
-        {hasMultipleItems?(
-          <TouchableOpacity
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: `${GREEN}10`,
-              borderRadius: rs(20),
-              paddingVertical: rs(6),
-              marginTop: rs(4),
-              marginBottom: rs(8),
-              borderWidth: 1,
-              borderColor: `${GREEN}30`,
-            }}
-            onPress={() => setModalVisible(true)}
-            activeOpacity={0.8}
-          >
-            <Feather name="list" size={nz(10)} color={GREEN} style={{ marginRight: rs(4) }} />
-            <Text style={{ fontSize: nz(10), fontWeight: '600', color: GREEN }}>
-              Show All ({remainingCount} more item{remainingCount > 1 ? 's' : ''})
+          {/* First item */}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: rs(6) }}>
+            <Text style={{ fontSize: nz(13), color: '#444', flex: 1, paddingRight: rs(4) }} numberOfLines={2}>
+              {firstItem?.name}
             </Text>
-          </TouchableOpacity>
-        ):(
-          <TouchableOpacity
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: rs(20),
-              paddingVertical: rs(6),
-              marginTop: rs(4),
-              marginBottom: rs(8),
-            }}
-            onPress={() => setModalVisible(true)}
-            activeOpacity={0.8}
-          >
-            <Text style={{ fontSize: nz(10), fontWeight: '600', color: GREEN }}>
-             
-            </Text>
-          </TouchableOpacity>
-        )}
-
-        <View style={{ borderBottomWidth: 1, borderStyle: 'dashed', borderColor: '#CCCCCC', marginBottom: rs(8) }} />
-
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: rs(6) }}>
-          <Text style={{ fontSize: nz(12), fontWeight: '700', color: '#1A1A1A' }}>Total Bill</Text>
-          <Text style={{ fontSize: nz(12), fontWeight: '800', color: '#1A1A1A' }}>{item.total}/-</Text>
-        </View>
-
-        <View style={{ height: 1, backgroundColor: '#F2F2F2', marginVertical: rs(10) }} />
-        <Text style={{ fontSize: nz(10.5), color: '#AAAAAA', marginBottom: rs(8) }}>Order ID: {item.orderId}</Text>
-
-        {item.note && (
-          <View style={{
-            flexDirection: 'row', backgroundColor: '#fff5e6a9',
-            borderRadius: rs(10), padding: rs(10), gap: rs(6),
-            alignItems: 'flex-start', borderWidth: 1, borderColor: '#ffdd0343',
-          }}>
-            <Feather name="info" size={nz(13)} color="#666" />
-            <Text style={{ flex: 1, fontSize: nz(11), color: '#885500', lineHeight: nz(17) }}>{item.note}</Text>
+            <Text style={{ fontSize: nz(13), color: '#1A1A1A', fontWeight: '600' }}>{firstItem?.price}/-</Text>
           </View>
-        )}
+
+          {/* Show All button if multiple items */}
+          {hasMultipleItems ? (
+            <TouchableOpacity
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: `${GREEN}10`,
+                borderRadius: rs(20),
+                paddingVertical: rs(8),
+                marginTop: rs(6),
+                marginBottom: rs(10),
+                borderWidth: 1,
+                borderColor: `${GREEN}30`,
+              }}
+              onPress={() => setModalVisible(true)}
+              activeOpacity={0.8}
+            >
+              <Feather name="list" size={nz(12)} color={GREEN} style={{ marginRight: rs(4) }} />
+              <Text style={{ fontSize: nz(12), fontWeight: '600', color: GREEN }}>
+                Show All ({remainingCount} more item{remainingCount > 1 ? 's' : ''})
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: rs(20),
+                paddingVertical: rs(8),
+                marginTop: rs(6),
+                marginBottom: rs(10),
+              }}
+              onPress={() => setModalVisible(true)}
+              activeOpacity={0.8}
+            >
+              <Text style={{ fontSize: nz(12), fontWeight: '600', color: GREEN }}>
+
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          <View style={{ borderBottomWidth: 1, borderStyle: 'dashed', borderColor: '#CCCCCC', marginBottom: rs(10) }} />
+
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: rs(8) }}>
+            <Text style={{ fontSize: nz(14), fontWeight: '700', color: '#1A1A1A' }}>Total Bill</Text>
+            <Text style={{ fontSize: nz(14), fontWeight: '800', color: '#1A1A1A' }}>{item.total}/-</Text>
+          </View>
+
+          <View style={{ height: 1, backgroundColor: '#F2F2F2', marginVertical: rs(12) }} />
+          <Text style={{ fontSize: nz(13), color: '#AAAAAA', marginBottom: rs(8) }}>Order ID: {item.orderId}</Text>
+
+          {item.note && (
+            <View style={{
+              flexDirection: 'row', backgroundColor: '#fff5e6a9',
+              borderRadius: rs(10), padding: rs(10), gap: rs(6),
+              alignItems: 'flex-start', borderWidth: 1, borderColor: '#ffdd0343',
+            }}>
+              <Feather name="info" size={nz(15)} color="#666" />
+              <Text style={{ flex: 1, fontSize: nz(13), color: '#885500', lineHeight: nz(19) }}>{item.note}</Text>
+            </View>
+          )}
+        </View>
       </View>
 
       {/* Items Modal */}
@@ -426,7 +453,6 @@ const HistoryOrderCard = React.memo(({ item, rs, nz, cardW }) => {
     </>
   );
 }, (prev, next) => prev.item.id === next.item.id && prev.cardW === next.cardW);
-
 // ─── Tab Scene ────────────────────────────────────────────────────────────────
 const makeTabState = () => ({ data: [], page: 1, totalDocs: 0, exhausted: false, fetching: false });
 
@@ -437,7 +463,7 @@ const TabScene = React.memo(({
   onOpenDatePicker, cols, cardW, gap, rs, nz,
 }) => {
   const rowKeyExtractor = useCallback((_, i) => String(i), []);
-  const renderCard      = useCallback(({ item }) => (
+  const renderCard = useCallback(({ item }) => (
     <HistoryOrderCard item={item} rs={rs} nz={nz} cardW={cardW} />
   ), [rs, nz, cardW]);
 
@@ -581,8 +607,8 @@ const TabScene = React.memo(({
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[GREEN]} tintColor={GREEN} />}
             ListEmptyComponent={!loading && (
               tabKey === 'today'
-                ? <EmptyLottie source={require('../../assets/empty.json')}     title="No Orders Today"     sub="No orders have been received today yet." rs={rs} nz={nz} />
-                : <EmptyLottie source={require('../../assets/yesterday.json')} title="No Orders Yesterday" sub="No orders were received yesterday."      rs={rs} nz={nz} />
+                ? <EmptyLottie source={require('../../assets/empty.json')} title="No Orders Today" sub="No orders have been received today yet." rs={rs} nz={nz} />
+                : <EmptyLottie source={require('../../assets/yesterday.json')} title="No Orders Yesterday" sub="No orders were received yesterday." rs={rs} nz={nz} />
             )}
           />
         )}
@@ -592,36 +618,36 @@ const TabScene = React.memo(({
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function OrderHistoryScreen() {
-  const insets     = useSafeAreaInsets();
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation();
-  const { user }   = useStore();
+  const { user } = useStore();
 
   const { SW, nz, rs, isTablet } = useResponsive();
 
   // ── Responsive grid ────────────────────────────────────────────────────────
-  const COLS   = isTablet ? 2 : 1;
-  const H_PAD  = rs(14);
-  const GAP    = isTablet ? rs(12) : 0;
+  const COLS = isTablet ? 2 : 1;
+  const H_PAD = rs(14);
+  const GAP = isTablet ? rs(12) : 0;
   const CARD_W = (SW - H_PAD * 2 - GAP * (COLS - 1)) / COLS;
 
-  const [tabIndex,          setTabIndex]          = useState(0);
+  const [tabIndex, setTabIndex] = useState(0);
   const [triggerDatePicker, setTriggerDatePicker] = useState(false);
-  const [customStart,       setCustomStart]       = useState(null);
-  const [customEnd,         setCustomEnd]         = useState(null);
+  const [customStart, setCustomStart] = useState(null);
+  const [customEnd, setCustomEnd] = useState(null);
 
   const tabsRef = useRef({ today: makeTabState(), yesterday: makeTabState(), custom: makeTabState() });
-  const [todayList,     setTodayList]     = useState([]);
+  const [todayList, setTodayList] = useState([]);
   const [yesterdayList, setYesterdayList] = useState([]);
-  const [customList,    setCustomList]    = useState([]);
+  const [customList, setCustomList] = useState([]);
 
   const setListMap = useRef({ today: setTodayList, yesterday: setYesterdayList, custom: setCustomList }).current;
 
-  const [loadingMap,     setLoadingMap]     = useState({ today: true,  yesterday: false, custom: false });
+  const [loadingMap, setLoadingMap] = useState({ today: true, yesterday: false, custom: false });
   const [loadingMoreMap, setLoadingMoreMap] = useState({ today: false, yesterday: false, custom: false });
-  const [exhaustedMap,   setExhaustedMap]   = useState({ today: false, yesterday: false, custom: false });
-  const [refreshing,     setRefreshing]     = useState(false);
+  const [exhaustedMap, setExhaustedMap] = useState({ today: false, yesterday: false, custom: false });
+  const [refreshing, setRefreshing] = useState(false);
 
-  const flushTab   = useCallback((tab) => { setListMap[tab]([...tabsRef.current[tab].data]); }, [setListMap]);
+  const flushTab = useCallback((tab) => { setListMap[tab]([...tabsRef.current[tab].data]); }, [setListMap]);
   const exhaustTab = useCallback((tab) => {
     tabsRef.current[tab].exhausted = true;
     setExhaustedMap((p) => ({ ...p, [tab]: true }));
@@ -633,33 +659,34 @@ export default function OrderHistoryScreen() {
     t.fetching = true;
 
     let start, end;
-    if (tab === 'today')          { ({ start, end } = makeToday()); }
+    if (tab === 'today') { ({ start, end } = makeToday()); }
     else if (tab === 'yesterday') { ({ start, end } = makeYesterday()); }
-    else                          { start = overrideStart ?? customStart; end = overrideEnd ?? customEnd; }
+    else { start = overrideStart ?? customStart; end = overrideEnd ?? customEnd; }
     if (!start || !end) { t.fetching = false; return; }
 
     const s = new Date(start); s.setHours(0, 0, 0, 0);
-    const e = new Date(end);   e.setHours(23, 59, 59, 999);
+    const e = new Date(end); e.setHours(23, 59, 59, 999);
     const dateParams = { startDate: s.toISOString(), endDate: e.toISOString() };
     const id = user?.restaurantId ?? '';
 
     try {
-      const res        = await ordersAPI.getHistoryOrders({ page, limit: LIMIT }, id, dateParams);
-      const meta       = res?.data?.data?.orderData;
-      const raw        = Array.isArray(meta?.data) ? meta.data : [];
-      const totalDocs  = meta?.totalDocuments ?? 0;
+      const res = await ordersAPI.getHistoryOrders({ page, limit: LIMIT }, id, dateParams);
+      const meta = res?.data?.data?.orderData;
+      console.log(meta, "order history data is here")
+      const raw = Array.isArray(meta?.data) ? meta.data : [];
+      const totalDocs = meta?.totalDocuments ?? 0;
       const normalised = raw.map(normaliseOrder);
 
       if (isRefresh || page === 1) {
-        t.data      = normalised;
-        t.page      = 1;
+        t.data = normalised;
+        t.page = 1;
         t.totalDocs = totalDocs;
         t.exhausted = normalised.length === 0 || normalised.length >= totalDocs;
       } else {
-        const ids   = new Set(t.data.map((o) => o.id));
+        const ids = new Set(t.data.map((o) => o.id));
         const fresh = normalised.filter((o) => !ids.has(o.id));
-        t.data      = [...t.data, ...fresh];
-        t.page      = page;
+        t.data = [...t.data, ...fresh];
+        t.page = page;
         t.totalDocs = totalDocs;
         t.exhausted = fresh.length === 0 || page * LIMIT >= totalDocs;
       }
@@ -715,7 +742,7 @@ export default function OrderHistoryScreen() {
     : 'Custom';
 
   const renderScene = useCallback(({ route }) => {
-    const key  = route.key;
+    const key = route.key;
     const list = key === 'today' ? todayList : key === 'yesterday' ? yesterdayList : customList;
     return (
       <TabScene
@@ -783,7 +810,7 @@ export default function OrderHistoryScreen() {
         activeChip="custom"
         startDate={customStart ?? undefined}
         endDate={customEnd ?? undefined}
-        onChipSelect={() => {}}
+        onChipSelect={() => { }}
         onCustomApply={handleCustomApply}
         hideChips
         triggerOpen={triggerDatePicker}
@@ -791,7 +818,7 @@ export default function OrderHistoryScreen() {
         style={{
           position: 'absolute',
           top: 0,
-          left: 0,          right: 0,
+          left: 0, right: 0,
           zIndex: 1000,
         }}
       />
@@ -800,7 +827,7 @@ export default function OrderHistoryScreen() {
 }
 
 const s = StyleSheet.create({
-  root:   { flex: 1, backgroundColor: '#fff' },
+  root: { flex: 1, backgroundColor: '#fff' },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#F0F0F0',
