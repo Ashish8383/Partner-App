@@ -12,7 +12,6 @@ import { loadSound, playLoopSound, stopSound } from './src/utils/sound';
 import OfflineScreen from './src/screens/NoInternetScreen';
 import useAppVersion from './src/utils/useAppVersion';
 import UpdateRequiredScreen from './src/screens/UpdateRequiredScreen';
-import * as Updates from 'expo-updates';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -34,22 +33,6 @@ export default function App() {
     loadSound('accept', require('./assets/slide.mp3'));
     loadSound('deliver', require('./assets/deliver.mp3'));
     loadSound('order_auto_sound', require('./assets/notification.mp3'));
-  }, []);
-
-
-  useEffect(() => {
-    async function checkOTA() {
-      try {
-        const update = await Updates.checkForUpdateAsync();
-        if (update.isAvailable) {
-          console.log('Fetching update...');
-          await Updates.fetchUpdateAsync();
-          await Updates.reloadAsync();
-        }
-      } catch (e) {
-      }
-    }
-    checkOTA();
   }, []);
 
   // ── Fix goToHomeLiveTab — safe navigation ───────────────────────────────
