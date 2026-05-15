@@ -294,6 +294,25 @@ const HistoryOrderCard = React.memo(({ item, rs, nz, cardW }) => {
         overflow: 'hidden', // Ensures the seat banner corners match card
       }}>
 
+        // Add this right after the main View/ScrollView opens
+        <View style={{
+          backgroundColor: '#FF0000',
+          padding: 20,
+          margin: 10,
+          borderRadius: 10,
+          borderWidth: 3,
+          borderColor: '#990000'
+        }}>
+          <Text style={{
+            color: 'white',
+            fontSize: 18,
+            fontWeight: 'bold',
+            textAlign: 'center'
+          }}>
+            🚨 OTA RED BANNER TEST - VERSION 1.0 🚨
+          </Text>
+        </View>
+
         {/* ── SEAT NUMBER - Full Width Banner at Top ── */}
         {item.seat ? (
           <View style={{
