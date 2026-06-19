@@ -4,34 +4,40 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import * as SplashScreen from 'expo-splash-screen';
-import LoginScreen         from '../screens/LoginScreen';
-import HomeScreen          from '../screens/HomeScreen';
-import ProductScreen       from '../screens/ProductScreen';
-import ProfileScreen       from '../screens/ProfileScreen';
-import BottomTabs          from '../components/BottomTabs';
-import useStore            from '../store/useStore';
-import NotificationScreen  from '../screens/Notification';
-import OrderHistoryScreen  from '../screens/OrderHistoryScreen';
+import LoginScreen from '../screens/LoginScreen';
+import HomeScreen from '../screens/HomeScreen';
+import ProductScreen from '../screens/ProductScreen';
+import ProfileScreen from '../screens/ProfileScreen';
+import BottomTabs from '../components/BottomTabs';
+import useStore from '../store/useStore';
+import NotificationScreen from '../screens/Notification';
+import OrderHistoryScreen from '../screens/OrderHistoryScreen';
 
-const Tab   = createBottomTabNavigator();
+const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
 SplashScreen.preventAutoHideAsync();
 
-const MainTabs = () => (
-  <Tab.Navigator
-    tabBar={(props) => <BottomTabs {...props} />}
-    screenOptions={{ headerShown: false }}
-  >
-    <Tab.Screen name="Home"     component={HomeScreen}    />
-    <Tab.Screen name="List"     component={ProductScreen} />
-    <Tab.Screen name="Settings" component={ProfileScreen} />
-  </Tab.Navigator>
-);
+const MainTabs = () => {
+  const staffName = useStore((state) => state.staffName);
+  const isStaff = !!staffName;
+
+  return (
+    <Tab.Navigator
+      tabBar={(props) => <BottomTabs {...props} />}
+      screenOptions={{ headerShown: false }}
+    >
+      <Tab.Screen name="Home" component={HomeScreen} />
+      {/* Only show Product/List screen if NOT staff */}
+      {!isStaff && <Tab.Screen name="List" component={ProductScreen} />}
+      <Tab.Screen name="Settings" component={ProfileScreen} />
+    </Tab.Navigator>
+  );
+};
 
 const AuthStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
-    <Stack.Screen name="Main"                 component={MainTabs}          />
+    <Stack.Screen name="Main" component={MainTabs} />
     <Stack.Screen
       name="NotificationSettings"
       component={NotificationScreen}
@@ -42,9 +48,10 @@ const AuthStack = () => (
 );
 
 const AppNavigator = ({ onStateChange, navigationRef }) => {
-  const isAuthenticated    = useStore((state) => state.isAuthenticated);
-  const isHydrated         = useStore((state) => state.isHydrated); 
+  const isAuthenticated = useStore((state) => state.isAuthenticated);
+  const isHydrated = useStore((state) => state.isHydrated);
   const loadPersistedState = useStore((state) => state.loadPersistedState);
+  const user = useStore((state) => state.user);
 
   useEffect(() => {
     loadPersistedState();
@@ -54,7 +61,6 @@ const AppNavigator = ({ onStateChange, navigationRef }) => {
     if (isHydrated) await SplashScreen.hideAsync();
   }, [isHydrated]);
 
-  // ✅ Wait for hydration before rendering anything
   if (!isHydrated) return null;
 
   return (
@@ -63,13 +69,14 @@ const AppNavigator = ({ onStateChange, navigationRef }) => {
         <Stack.Navigator screenOptions={{ headerShown: false, animationEnabled: false }}>
           {!isAuthenticated
             ? <Stack.Screen name="Login" component={LoginScreen} />
-            : <Stack.Screen name="Auth"  component={AuthStack}   />
+            : <Stack.Screen name="Auth" component={AuthStack} />
           }
         </Stack.Navigator>
       </NavigationContainer>
     </View>
   );
 };
+
 const styles = StyleSheet.create({ root: { flex: 1 } });
 
 export default AppNavigator;

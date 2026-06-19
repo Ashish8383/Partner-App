@@ -29,9 +29,9 @@ import { supportAPI } from '../utils/api';
 
 const { width: SW, height: SH } = Dimensions.get('window');
 const BASE = 390;
-const sc   = SW / BASE;
-const rs   = (n) => Math.round(n * Math.min(sc, 1.35));
-const nz   = (n) => Math.round(PixelRatio.roundToNearestPixel(n * Math.min(sc, 1.35)));
+const sc = SW / BASE;
+const rs = (n) => Math.round(n * Math.min(sc, 1.35));
+const nz = (n) => Math.round(PixelRatio.roundToNearestPixel(n * Math.min(sc, 1.35)));
 
 const G1 = '#03954E';
 const G2 = '#027A40';
@@ -91,20 +91,19 @@ const RowItem = ({
 
 // ─── Help & Support Modal ─────────────────────────────────────────────────────
 const HelpSupportModal = ({ visible, onClose, user }) => {
-  const [fname,   setFname]   = useState('');
-  const [lname,   setLname]   = useState('');
-  const [phone,   setPhone]   = useState('');
-  const [email,   setEmail]   = useState('');
+  const [fname, setFname] = useState('');
+  const [lname, setLname] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Auto-fill from user on open
   useEffect(() => {
     if (visible) {
       const nameParts = (user?.name || '').trim().split(' ');
       setFname(nameParts[0] || '');
       setLname(nameParts.slice(1).join(' ') || '');
-      setPhone(user?.phone || '');   // ← auto-fill phone from user.phone
+      setPhone(user?.phone || '');
       setEmail(user?.email || '');
       setMessage('');
     }
@@ -127,10 +126,10 @@ const HelpSupportModal = ({ visible, onClose, user }) => {
     setLoading(true);
     try {
       const response = await supportAPI.addContact({
-        Fname:   fname.trim(),
-        Lname:   lname.trim(),
-        phone:   phone.trim(),
-        email:   email.trim(),
+        Fname: fname.trim(),
+        Lname: lname.trim(),
+        phone: phone.trim(),
+        email: email.trim(),
         message: message.trim(),
       });
 
@@ -145,7 +144,7 @@ const HelpSupportModal = ({ visible, onClose, user }) => {
         Alert.alert('Error', data?.message || 'Something went wrong. Please try again.');
       }
     } catch (error) {
-        Alert.alert('Error', 'Network error. Please check your connection and try again.');
+      Alert.alert('Error', 'Network error. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -167,7 +166,6 @@ const HelpSupportModal = ({ visible, onClose, user }) => {
         <View style={m.sheet}>
           <View style={m.handle} />
 
-          {/* Header */}
           <View style={m.header}>
             <View style={m.headerIconWrap}>
               <Feather name="headphones" size={nz(20)} color="#8B5CF6" />
@@ -185,7 +183,6 @@ const HelpSupportModal = ({ visible, onClose, user }) => {
             contentContainerStyle={m.formScroll}
             keyboardShouldPersistTaps="handled"
           >
-            {/* Name Row */}
             <View style={m.nameRow}>
               <View style={[m.inputGroup, { flex: 1, marginRight: rs(8) }]}>
                 <Text style={m.label}>First Name <Text style={m.required}>*</Text></Text>
@@ -342,15 +339,19 @@ const CustomLogoutButton = () => {
 
 // ─── ProfileScreen ────────────────────────────────────────────────────────────
 export default function ProfileScreen() {
-  const insets         = useSafeAreaInsets();
-  const navigation     = useNavigation();
-  const user           = useStore((s) => s.user);
+  const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
+  const user = useStore((s) => s.user);
   const restaurantName = useStore((s) => s.restaurantName);
   const restaurantLogo = useStore((s) => s.restaurantLogo);
+  const staffName = useStore((s) => s.staffName);
+  const restaurant = useStore((s) => s.restaurant);
   const { currentVersion } = useAppVersion();
 
-  const [logoError,      setLogoError]      = useState(false);
+  const [logoError, setLogoError] = useState(false);
   const [supportVisible, setSupportVisible] = useState(false);
+
+  const isStaff = !!staffName;
 
   const pulse = useRef(new Animated.Value(1)).current;
   useEffect(() => {
@@ -363,13 +364,13 @@ export default function ProfileScreen() {
   }, []);
 
   const openPrivacyPolicy = () => Linking.openURL('https://www.alfennzo.com/privacy-policy');
-  const openTerms         = () => Linking.openURL('https://www.alfennzo.com/terms-and-conditions');
+  const openTerms = () => Linking.openURL('https://www.alfennzo.com/terms-and-conditions');
 
   const initials = (name = '') =>
     name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase() || 'U';
 
-  const displayName = restaurantName || user?.name || 'Partner';
-  const logoUri     = restaurantLogo  || user?.avatar || null;
+  const displayName = user?.name || restaurantName || 'Partner';
+  const logoUri = restaurantLogo || user?.avatar || null;
 
   return (
     <View style={st.screen}>
@@ -413,6 +414,15 @@ export default function ProfileScreen() {
           </View>
 
           <Text style={st.heroName}>{displayName}</Text>
+
+          {/* Show Management badge when staff */}
+          {isStaff && (
+            <View style={st.staffBadge}>
+              <Feather name="briefcase" size={nz(12)} color={WH} style={{ marginRight: rs(4) }} />
+              <Text style={st.staffBadgeText}>Management</Text>
+            </View>
+          )}
+
           {user?.phone ? (
             <View style={st.heroBadge}>
               <Feather name="phone" size={nz(11)} color={WH} style={{ marginRight: rs(4) }} />
@@ -428,7 +438,8 @@ export default function ProfileScreen() {
         </LinearGradient>
 
         <View style={st.body}>
-          {(restaurantName || restaurantLogo) ? (
+          {/* Only show restaurant info, no staff details section */}
+          {(restaurantName || restaurantLogo || restaurant) ? (
             <FadeRow delay={120}>
               <Text style={st.sectionTitle}>Restaurant</Text>
               <Card>
@@ -446,7 +457,9 @@ export default function ProfileScreen() {
                     </View>
                   )}
                   <View style={{ flex: 1, marginLeft: rs(12) }}>
-                    <Text style={c.restaurantName}>{restaurantName || 'Your Restaurant'}</Text>
+                    <Text style={c.restaurantName}>
+                      {restaurant?.name || restaurantName || 'Your Restaurant'}
+                    </Text>
                     <View style={c.restaurantBadge}>
                       <View style={c.activeDot} />
                       <Text style={c.restaurantBadgeText}>Active Partner</Text>
@@ -530,7 +543,7 @@ export default function ProfileScreen() {
 
 // ─── Modal Styles ─────────────────────────────────────────────────────────────
 const m = StyleSheet.create({
-  overlay:  { flex: 1, justifyContent: 'flex-end' },
+  overlay: { flex: 1, justifyContent: 'flex-end' },
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
   sheet: {
     backgroundColor: WH,
@@ -552,24 +565,24 @@ const m = StyleSheet.create({
     backgroundColor: '#F3EFFB', alignItems: 'center', justifyContent: 'center',
   },
   headerTitle: { fontSize: nz(17), fontWeight: '700', color: TX },
-  headerSub:   { fontSize: nz(12), color: SB, marginTop: rs(2) },
+  headerSub: { fontSize: nz(12), color: SB, marginTop: rs(2) },
   closeBtn: {
     width: rs(34), height: rs(34), borderRadius: rs(17),
     backgroundColor: BG, alignItems: 'center', justifyContent: 'center',
   },
-  formScroll:  { paddingHorizontal: rs(20), paddingTop: rs(16) },
-  nameRow:     { flexDirection: 'row' },
-  inputGroup:  { marginBottom: rs(14) },
-  label:       { fontSize: nz(12), fontWeight: '600', color: TX, marginBottom: rs(6), letterSpacing: 0.2 },
-  required:    { color: RD },
+  formScroll: { paddingHorizontal: rs(20), paddingTop: rs(16) },
+  nameRow: { flexDirection: 'row' },
+  inputGroup: { marginBottom: rs(14) },
+  label: { fontSize: nz(12), fontWeight: '600', color: TX, marginBottom: rs(6), letterSpacing: 0.2 },
+  required: { color: RD },
   input: {
     backgroundColor: BG, borderRadius: rs(12),
     paddingHorizontal: rs(14), paddingVertical: rs(12),
     fontSize: nz(14), color: TX,
     borderWidth: 1, borderColor: BD,
   },
-  textArea:    { minHeight: rs(100), paddingTop: rs(12) },
-  submitBtn:   { marginTop: rs(8), borderRadius: rs(14), overflow: 'hidden' },
+  textArea: { minHeight: rs(100), paddingTop: rs(12) },
+  submitBtn: { marginTop: rs(8), borderRadius: rs(14), overflow: 'hidden' },
   submitGradient: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     paddingVertical: rs(15), paddingHorizontal: rs(24),
@@ -579,7 +592,7 @@ const m = StyleSheet.create({
 
 // ─── Screen Styles ────────────────────────────────────────────────────────────
 const st = StyleSheet.create({
-  screen:  { flex: 1, backgroundColor: BG },
+  screen: { flex: 1, backgroundColor: BG },
   hero: {
     alignItems: 'center',
     paddingBottom: rs(28),
@@ -604,8 +617,8 @@ const st = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.15)',
     top: rs(24), shadowColor: 'transparent', elevation: 0,
   },
-  avatarWrap:        { position: 'relative', marginBottom: rs(14) },
-  avatar:            { width: rs(96), height: rs(96), borderRadius: rs(48), borderWidth: rs(3), borderColor: WH },
+  avatarWrap: { position: 'relative', marginBottom: rs(14) },
+  avatar: { width: rs(96), height: rs(96), borderRadius: rs(48), borderWidth: rs(3), borderColor: WH },
   avatarPlaceholder: {
     width: rs(96), height: rs(96), borderRadius: rs(48),
     alignItems: 'center', justifyContent: 'center',
@@ -617,13 +630,15 @@ const st = StyleSheet.create({
     width: rs(16), height: rs(16), borderRadius: rs(8),
     backgroundColor: '#4ADE80', borderWidth: rs(2), borderColor: WH,
   },
-  heroName:      { fontSize: nz(22), fontWeight: '800', color: WH, letterSpacing: -0.3, marginBottom: rs(6) },
-  heroBadge:     { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: rs(20), paddingHorizontal: rs(12), paddingVertical: rs(4) },
+  heroName: { fontSize: nz(22), fontWeight: '800', color: WH, letterSpacing: -0.3, marginBottom: rs(6) },
+  staffBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: rs(20), paddingHorizontal: rs(12), paddingVertical: rs(4), marginBottom: rs(6) },
+  staffBadgeText: { fontSize: nz(12), color: WH, fontWeight: '600' },
+  heroBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: rs(20), paddingHorizontal: rs(12), paddingVertical: rs(4) },
   heroBadgeText: { fontSize: nz(12), color: WH, fontWeight: '500' },
-  body:          { paddingHorizontal: rs(16), paddingTop: rs(22) },
-  sectionTitle:  { fontSize: nz(12), fontWeight: '700', color: SB, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: rs(8), marginLeft: rs(4) },
+  body: { paddingHorizontal: rs(16), paddingTop: rs(22) },
+  sectionTitle: { fontSize: nz(12), fontWeight: '700', color: SB, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: rs(8), marginLeft: rs(4) },
   logoutSection: { marginTop: rs(8), marginBottom: rs(4) },
-  logoutButton:  { width: '100%' },
+  logoutButton: { width: '100%' },
   logoutGradient: {
     flexDirection: 'row', alignItems: 'center',
     paddingVertical: rs(14), paddingHorizontal: rs(16),
@@ -635,7 +650,7 @@ const st = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     marginRight: rs(12),
   },
-  logoutText:  { fontSize: nz(16), fontWeight: '600', color: RD, marginRight: rs(8) },
+  logoutText: { fontSize: nz(16), fontWeight: '600', color: RD, marginRight: rs(8) },
   versionText: { fontSize: nz(11), color: '#9CA3AF', textAlign: 'center', marginTop: rs(16) },
 });
 
@@ -651,17 +666,17 @@ const c = StyleSheet.create({
     paddingVertical: rs(13), paddingHorizontal: rs(14),
     borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: BD,
   },
-  rowNoBorder:   { borderBottomWidth: 0 },
-  rowIconWrap:   { width: rs(36), height: rs(36), borderRadius: rs(10), alignItems: 'center', justifyContent: 'center', marginRight: rs(12) },
-  rowMid:        { flex: 1 },
-  rowLabel:      { fontSize: nz(14), fontWeight: '600', color: TX },
-  rowSub:        { fontSize: nz(11), color: SB, marginTop: rs(2), fontWeight: '400' },
-  rowRight:      { marginLeft: rs(8), alignItems: 'center', justifyContent: 'center' },
+  rowNoBorder: { borderBottomWidth: 0 },
+  rowIconWrap: { width: rs(36), height: rs(36), borderRadius: rs(10), alignItems: 'center', justifyContent: 'center', marginRight: rs(12) },
+  rowMid: { flex: 1 },
+  rowLabel: { fontSize: nz(14), fontWeight: '600', color: TX },
+  rowSub: { fontSize: nz(11), color: SB, marginTop: rs(2), fontWeight: '400' },
+  rowRight: { marginLeft: rs(8), alignItems: 'center', justifyContent: 'center' },
   restaurantRow: { flexDirection: 'row', alignItems: 'center', padding: rs(14) },
   restaurantLogo: { width: rs(52), height: rs(52), borderRadius: rs(12), backgroundColor: G3 },
   restaurantLogoPlaceholder: { width: rs(52), height: rs(52), borderRadius: rs(12), backgroundColor: G3, alignItems: 'center', justifyContent: 'center' },
-  restaurantName:      { fontSize: nz(15), fontWeight: '700', color: TX, marginBottom: rs(4) },
-  restaurantBadge:     { flexDirection: 'row', alignItems: 'center' },
-  activeDot:           { width: rs(7), height: rs(7), borderRadius: rs(4), backgroundColor: '#4ADE80', marginRight: rs(5) },
+  restaurantName: { fontSize: nz(15), fontWeight: '700', color: TX, marginBottom: rs(4) },
+  restaurantBadge: { flexDirection: 'row', alignItems: 'center' },
+  activeDot: { width: rs(7), height: rs(7), borderRadius: rs(4), backgroundColor: '#4ADE80', marginRight: rs(5) },
   restaurantBadgeText: { fontSize: nz(12), color: G1, fontWeight: '600' },
 });

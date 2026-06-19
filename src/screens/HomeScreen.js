@@ -3,32 +3,32 @@ import {
   View, Text, StyleSheet, FlatList, RefreshControl,
   StatusBar, Animated, ActivityIndicator, Platform, AppState,
 } from 'react-native';
-import { TabView }           from 'react-native-tab-view';
+import { TabView } from 'react-native-tab-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons, Feather } from '@expo/vector-icons';
 import { GestureHandlerRootView, GestureDetector, Gesture } from 'react-native-gesture-handler';
-import * as Notifications    from 'expo-notifications';
-import { HapticTouchable }   from '../components/GlobalHaptic';
-import { playSound }         from '../utils/sound';
-import { useResponsive }     from '../utils/useResponsive';
+import * as Notifications from 'expo-notifications';
+import { HapticTouchable } from '../components/GlobalHaptic';
+import { playSound } from '../utils/sound';
+import { useResponsive } from '../utils/useResponsive';
 import { ref, onChildAdded } from 'firebase/database';
-import useStore              from '../store/useStore';
-import { ordersAPI }         from '../utils/api';
-import { db }                from '../utils/firebaseConfig';
+import useStore from '../store/useStore';
+import { ordersAPI } from '../utils/api';
+import { db } from '../utils/firebaseConfig';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import LottieView            from 'lottie-react-native';
+import LottieView from 'lottie-react-native';
 
 const GREEN = '#03954E';
 const LIMIT = 30;
 
 const TAB_ORDER = ['live', 'pending'];
 const TAB_CONFIG = {
-  live:    { fetcher: (p, id) => ordersAPI.getLiveOrders(p, id) },
+  live: { fetcher: (p, id) => ordersAPI.getLiveOrders(p, id) },
   pending: { fetcher: (p, id) => ordersAPI.getPendingOrders(p, id) },
 };
 const ROUTES = [
-  { key: 'live',    title: 'Live',    icon: 'circle' },
-  { key: 'pending', title: 'Pending', icon: 'clock'  },
+  { key: 'live', title: 'Live', icon: 'circle' },
+  { key: 'pending', title: 'Pending', icon: 'clock' },
 ];
 
 const isNotificationGranted = async () => {
@@ -41,7 +41,7 @@ const SkeletonPulse = ({ style }) => {
   const anim = useRef(new Animated.Value(0.4)).current;
   useEffect(() => {
     const loop = Animated.loop(Animated.sequence([
-      Animated.timing(anim, { toValue: 1,   duration: 750, useNativeDriver: true }),
+      Animated.timing(anim, { toValue: 1, duration: 750, useNativeDriver: true }),
       Animated.timing(anim, { toValue: 0.4, duration: 750, useNativeDriver: true }),
     ]));
     loop.start();
@@ -75,20 +75,20 @@ const SkeletonCard = ({ rs, nz, cardW }) => (
 const RippleDot = React.memo(({ color, rs }) => {
   const ring1 = useRef(new Animated.Value(0)).current;
   const ring2 = useRef(new Animated.Value(0)).current;
-  const DOT   = rs(9);
-  const RING  = rs(22);
+  const DOT = rs(9);
+  const RING = rs(22);
 
   useEffect(() => {
     const anim = Animated.loop(
       Animated.parallel([
         Animated.sequence([
           Animated.timing(ring1, { toValue: 1, duration: 1200, useNativeDriver: true }),
-          Animated.timing(ring1, { toValue: 0, duration: 0,    useNativeDriver: true }),
+          Animated.timing(ring1, { toValue: 0, duration: 0, useNativeDriver: true }),
         ]),
         Animated.sequence([
           Animated.delay(400),
           Animated.timing(ring2, { toValue: 1, duration: 1200, useNativeDriver: true }),
-          Animated.timing(ring2, { toValue: 0, duration: 0,    useNativeDriver: true }),
+          Animated.timing(ring2, { toValue: 0, duration: 0, useNativeDriver: true }),
         ]),
       ])
     );
@@ -99,7 +99,7 @@ const RippleDot = React.memo(({ color, rs }) => {
   const makeRing = (a) => ({
     position: 'absolute', width: DOT, height: DOT, borderRadius: DOT / 2,
     borderWidth: 1.5, borderColor: color,
-    opacity:   a.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, 0.6, 0] }),
+    opacity: a.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, 0.6, 0] }),
     transform: [{ scale: a.interpolate({ inputRange: [0, 1], outputRange: [1, RING / DOT] }) }],
   });
 
@@ -115,8 +115,8 @@ const RippleDot = React.memo(({ color, rs }) => {
 // ─── Custom Tab Bar ───────────────────────────────────────────────────────────
 const CustomTabBar = React.memo(({ position, jumpTo, counts, SW, rs, nz }) => {
   const TAB_BAR_W = SW - rs(40) - rs(8);
-  const TAB_W     = TAB_BAR_W / 2;
-  const pillX     = position.interpolate({ inputRange: [0, 1], outputRange: [0, TAB_W], extrapolate: 'clamp' });
+  const TAB_W = TAB_BAR_W / 2;
+  const pillX = position.interpolate({ inputRange: [0, 1], outputRange: [0, TAB_W], extrapolate: 'clamp' });
   const activeOps = ROUTES.map((_, i) =>
     position.interpolate({ inputRange: [i - 1, i, i + 1], outputRange: [0, 1, 0], extrapolate: 'clamp' })
   );
@@ -126,11 +126,11 @@ const CustomTabBar = React.memo(({ position, jumpTo, counts, SW, rs, nz }) => {
       <Animated.View pointerEvents="none"
         style={[tbS.pill, { width: TAB_W, borderRadius: rs(50), transform: [{ translateX: pillX }] }]} />
       {ROUTES.map((route, i) => {
-        const count    = counts[route.key] ?? 0;
-        const label    = `${route.title}${count > 0 ? ` (${count})` : ''}`;
+        const count = counts[route.key] ?? 0;
+        const label = `${route.title}${count > 0 ? ` (${count})` : ''}`;
         const activeOp = activeOps[i];
-        const inactOp  = activeOp.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
-        const isLive   = route.key === 'live';
+        const inactOp = activeOp.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
+        const isLive = route.key === 'live';
         const hasAlert = isLive && count > 0;
 
         return (
@@ -159,23 +159,23 @@ const CustomTabBar = React.memo(({ position, jumpTo, counts, SW, rs, nz }) => {
 
 const tbS = StyleSheet.create({
   wrapper: { flexDirection: 'row', backgroundColor: '#EBEBEB', position: 'relative', alignItems: 'center' },
-  pill:    { position: 'absolute', top: 4, bottom: 4, left: 4, backgroundColor: GREEN, elevation: 0, shadowColor: GREEN, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 8 },
+  pill: { position: 'absolute', top: 4, bottom: 4, left: 4, backgroundColor: GREEN, elevation: 0, shadowColor: GREEN, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 8 },
 });
 
 // ─── Slide To Accept ──────────────────────────────────────────────────────────
 const SlideToAccept = React.memo(({ onAccepted, onSlideActiveChange, cardW, rs, nz }) => {
-  const THUMB_W   = rs(52);
-  const TRACK_W   = cardW - rs(32);
+  const THUMB_W = rs(52);
+  const TRACK_W = cardW - rs(32);
   const MAX_SLIDE = TRACK_W - THUMB_W - rs(6);
 
-  const slideX    = useRef(new Animated.Value(0)).current;
+  const slideX = useRef(new Animated.Value(0)).current;
   const completed = useRef(false);
 
-  const fillTX     = slideX.interpolate({ inputRange: [0, MAX_SLIDE], outputRange: [-TRACK_W, -THUMB_W * 0.4], extrapolate: 'clamp' });
+  const fillTX = slideX.interpolate({ inputRange: [0, MAX_SLIDE], outputRange: [-TRACK_W, -THUMB_W * 0.4], extrapolate: 'clamp' });
   const thumbScale = slideX.interpolate({ inputRange: [0, MAX_SLIDE * 0.5, MAX_SLIDE], outputRange: [1, 1.05, 1.1], extrapolate: 'clamp' });
-  const arrowOp    = slideX.interpolate({ inputRange: [MAX_SLIDE * 0.5, MAX_SLIDE * 0.8], outputRange: [1, 0], extrapolate: 'clamp' });
-  const checkOp    = slideX.interpolate({ inputRange: [MAX_SLIDE * 0.65, MAX_SLIDE], outputRange: [0, 1], extrapolate: 'clamp' });
-  const labelOp    = slideX.interpolate({ inputRange: [0, MAX_SLIDE * 0.2], outputRange: [1, 0], extrapolate: 'clamp' });
+  const arrowOp = slideX.interpolate({ inputRange: [MAX_SLIDE * 0.5, MAX_SLIDE * 0.8], outputRange: [1, 0], extrapolate: 'clamp' });
+  const checkOp = slideX.interpolate({ inputRange: [MAX_SLIDE * 0.65, MAX_SLIDE], outputRange: [0, 1], extrapolate: 'clamp' });
+  const labelOp = slideX.interpolate({ inputRange: [0, MAX_SLIDE * 0.2], outputRange: [1, 0], extrapolate: 'clamp' });
 
   const snapToEnd = useCallback((cb) => {
     Animated.spring(slideX, { toValue: MAX_SLIDE, useNativeDriver: true, damping: 22, stiffness: 450, mass: 0.22 }).start(cb);
@@ -253,9 +253,9 @@ const SlideToAccept = React.memo(({ onAccepted, onSlideActiveChange, cardW, rs, 
     </View>
   );
 }, (prev, next) =>
-  prev.onAccepted          === next.onAccepted &&
+  prev.onAccepted === next.onAccepted &&
   prev.onSlideActiveChange === next.onSlideActiveChange &&
-  prev.cardW               === next.cardW
+  prev.cardW === next.cardW
 );
 
 // ─── Order Card ───────────────────────────────────────────────────────────────
@@ -263,11 +263,11 @@ const OrderCard = React.memo(({
   item, tab, onAccepted, onDelivered, onSlideActiveChange,
   cardW, SW, rs, nz,
 }) => {
-  const opacity       = useRef(new Animated.Value(1)).current;
-  const translateX    = useRef(new Animated.Value(0)).current;
-  const flashOpacity  = useRef(new Animated.Value(0)).current;
-  const maxHeight     = useRef(new Animated.Value(1200)).current;
-  const marginBottom  = useRef(new Animated.Value(rs(14))).current;
+  const opacity = useRef(new Animated.Value(1)).current;
+  const translateX = useRef(new Animated.Value(0)).current;
+  const flashOpacity = useRef(new Animated.Value(0)).current;
+  const maxHeight = useRef(new Animated.Value(1200)).current;
+  const marginBottom = useRef(new Animated.Value(rs(14))).current;
   const entranceScale = useRef(new Animated.Value(0.95)).current;
 
   useEffect(() => {
@@ -277,18 +277,18 @@ const OrderCard = React.memo(({
   const animateOut = useCallback((callback) => {
     Animated.timing(flashOpacity, { toValue: 0.88, duration: 80, useNativeDriver: true }).start();
     Animated.parallel([
-      Animated.timing(flashOpacity, { toValue: 0,        duration: 160, delay: 80, useNativeDriver: true }),
-      Animated.timing(opacity,      { toValue: 0,        duration: 180, useNativeDriver: true }),
-      Animated.timing(translateX,   { toValue: SW * 0.5, duration: 200, useNativeDriver: true }),
+      Animated.timing(flashOpacity, { toValue: 0, duration: 160, delay: 80, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 0, duration: 180, useNativeDriver: true }),
+      Animated.timing(translateX, { toValue: SW * 0.5, duration: 200, useNativeDriver: true }),
     ]).start(() => {
       Animated.parallel([
-        Animated.timing(maxHeight,    { toValue: 0, duration: 160, useNativeDriver: false }),
+        Animated.timing(maxHeight, { toValue: 0, duration: 160, useNativeDriver: false }),
         Animated.timing(marginBottom, { toValue: 0, duration: 160, useNativeDriver: false }),
       ]).start(() => callback());
     });
   }, [flashOpacity, opacity, translateX, maxHeight, marginBottom, SW]);
 
-  const handleAccept  = useCallback(() => animateOut(() => onAccepted(item.id)),  [animateOut, onAccepted, item.id]);
+  const handleAccept = useCallback(() => animateOut(() => onAccepted(item.id)), [animateOut, onAccepted, item.id]);
   const handleDeliver = useCallback(() => animateOut(() => onDelivered(item.id)), [animateOut, onDelivered, item.id]);
 
   const SEAT_W = Math.min(100, Math.max(70, cardW * 0.22));
@@ -396,20 +396,20 @@ const OrderCard = React.memo(({
   );
 }, (prev, next) =>
   prev.item.id === next.item.id &&
-  prev.tab     === next.tab     &&
-  prev.cardW   === next.cardW
+  prev.tab === next.tab &&
+  prev.cardW === next.cardW
 );
 
 const ocS = StyleSheet.create({
-  wrap:      { backgroundColor: '#01690509', borderWidth: 1, borderColor: '#14131336' },
-  topRow:    { flexDirection: 'row', alignItems: 'flex-start' },
-  avatar:    { backgroundColor: '#F0F0F0', justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
+  wrap: { backgroundColor: '#01690509', borderWidth: 1, borderColor: '#14131336' },
+  topRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  avatar: { backgroundColor: '#F0F0F0', justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
   nameBlock: { flex: 1, flexShrink: 1, marginRight: 4 },
-  metaRow:   { flexDirection: 'row', alignItems: 'center', marginBottom: 2, flexShrink: 1 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 2, flexShrink: 1 },
   seatBadge: { borderWidth: 1, borderColor: GREEN, backgroundColor: 'rgba(245,197,24,0.2)', alignItems: 'center', flexShrink: 0, alignSelf: 'flex-start' },
-  divider:   { height: 1, backgroundColor: '#F2F2F2', marginVertical: 10 },
-  noteBox:   { flexDirection: 'row', backgroundColor: '#fff5e6a9', alignItems: 'flex-start', borderWidth: 1, borderColor: '#ffdd0343' },
-  deliverBtn:{ flexDirection: 'row', backgroundColor: GREEN, alignItems: 'center', justifyContent: 'center' },
+  divider: { height: 1, backgroundColor: '#F2F2F2', marginVertical: 10 },
+  noteBox: { flexDirection: 'row', backgroundColor: '#fff5e6a9', alignItems: 'flex-start', borderWidth: 1, borderColor: '#ffdd0343' },
+  deliverBtn: { flexDirection: 'row', backgroundColor: GREEN, alignItems: 'center', justifyContent: 'center' },
 });
 
 // ─── Data helpers ─────────────────────────────────────────────────────────────
@@ -417,26 +417,26 @@ const makeTabState = () => ({ data: [], page: 1, totalDocs: 0, exhausted: false,
 
 const normaliseOrder = (o) => {
   const seatParts = (o.seatNo ?? '').split('/');
-  const parts     = (o.fullname ?? '').trim().split(' ').filter(Boolean);
-  const initials  = (parts.length >= 2 ? parts[0][0] + parts[1][0] : (parts[0]?.[0] ?? '?')).toUpperCase();
-  const d         = o.OrderPlacedAt ? new Date(o.OrderPlacedAt) : null;
+  const parts = (o.fullname ?? '').trim().split(' ').filter(Boolean);
+  const initials = (parts.length >= 2 ? parts[0][0] + parts[1][0] : (parts[0]?.[0] ?? '?')).toUpperCase();
+  const d = o.OrderPlacedAt ? new Date(o.OrderPlacedAt) : null;
   return {
-    id:           o._id,
-    orderRef:     o.Id,
-    orderId:      o.OrderId,
+    id: o._id,
+    orderRef: o.Id,
+    orderId: o.OrderId,
     initials,
     customerName: (o.fullname ?? '').trim() || 'Customer',
-    phone:        o.phone,
-    receivedAt:   d ? d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '—',
-    date:         d ? d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : '—',
-    seat:         seatParts[0]?.trim() ?? '',
-    seatCode:     seatParts[1]?.trim() ?? '',
-    items:        (o.order ?? []).map((it) => ({
-      name:  `${it.quantity}x ${it.foodName}`,
+    phone: o.phone,
+    receivedAt: d ? d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '—',
+    date: d ? d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : '—',
+    seat: seatParts[0]?.trim() ?? '',
+    seatCode: seatParts[1]?.trim() ?? '',
+    items: (o.order ?? []).map((it) => ({
+      name: `${it.quantity}x ${it.foodName}`,
       price: (() => { const n = Number(it.amount * it.quantity); return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, ''); })(),
     })),
-    total:       (() => { const n = Number(o.TotalAmount); return n == null ? '0' : Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, ''); })(),
-    note:        'Please ensure the invoice is provided to the customer at the time of food delivery, as the order is already entered in POS.',
+    total: (() => { const n = Number(o.TotalAmount); return n == null ? '0' : Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, ''); })(),
+    note: 'Please ensure the invoice is provided to the customer at the time of food delivery, as the order is already entered in POS.',
     AcceptOrder: o.AcceptOrder,
     isDelivered: o.isDelivered,
     isCancelled: o.isCancelled,
@@ -547,16 +547,16 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { user, restaurantName } = useStore();
   const navigation = useNavigation();
-  const route      = useRoute();
+  const route = useRoute();
 
   const { SW, nz, rs, isTablet } = useResponsive();
 
-  const COLS    = isTablet ? 2 : 1;
-  const H_PAD   = rs(14);
+  const COLS = isTablet ? 2 : 1;
+  const H_PAD = rs(14);
   const COL_GAP = isTablet ? rs(12) : 0;
-  const CARD_W  = (SW - H_PAD * 2 - COL_GAP * (COLS - 1)) / COLS;
+  const CARD_W = (SW - H_PAD * 2 - COL_GAP * (COLS - 1)) / COLS;
 
-  const [tabIndex,     setTabIndex]     = useState(route.params?.initialTab ?? 0);
+  const [tabIndex, setTabIndex] = useState(route.params?.initialTab ?? 0);
   const [swipeEnabled, setSwipeEnabled] = useState(true);
 
   useEffect(() => {
@@ -568,24 +568,24 @@ export default function HomeScreen() {
   }, [navigation, route.params?.initialTab]);
 
   const tabs = useRef({ live: makeTabState(), pending: makeTabState() });
-  const [liveList,       setLiveList]       = useState([]);
-  const [pendingList,    setPendingList]    = useState([]);
+  const [liveList, setLiveList] = useState([]);
+  const [pendingList, setPendingList] = useState([]);
   const [loadingMoreMap, setLoadingMoreMap] = useState({ live: false, pending: false });
-  const [exhaustedMap,   setExhaustedMap]   = useState({ live: false, pending: false });
-  const [loading,        setLoading]        = useState(true);
-  const [refreshing,     setRefreshing]     = useState(false);
+  const [exhaustedMap, setExhaustedMap] = useState({ live: false, pending: false });
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const setLiveOrderCount = useStore((s) => s.setLiveOrderCount);
-  const blinkAnim    = useRef(new Animated.Value(1)).current;
+  const blinkAnim = useRef(new Animated.Value(1)).current;
   const blinkLoopRef = useRef(null);
-  const alertActive  = useRef(false);
+  const alertActive = useRef(false);
 
   const startBlink = useCallback(() => {
     if (alertActive.current) return;
     alertActive.current = true;
     blinkLoopRef.current = Animated.loop(Animated.sequence([
       Animated.timing(blinkAnim, { toValue: 0.15, duration: 500, useNativeDriver: true }),
-      Animated.timing(blinkAnim, { toValue: 1,    duration: 500, useNativeDriver: true }),
+      Animated.timing(blinkAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
     ]));
     blinkLoopRef.current.start();
   }, [blinkAnim]);
@@ -606,7 +606,7 @@ export default function HomeScreen() {
   useEffect(() => () => { blinkLoopRef.current?.stop(); setLiveOrderCount(0); }, []);
 
   const setListMap = useRef({ live: setLiveList, pending: setPendingList }).current;
-  const flushTab   = useCallback((tab) => { setListMap[tab]([...tabs.current[tab].data]); }, [setListMap]);
+  const flushTab = useCallback((tab) => { setListMap[tab]([...tabs.current[tab].data]); }, [setListMap]);
   const exhaustTab = useCallback((tab) => {
     tabs.current[tab].exhausted = true;
     setExhaustedMap((p) => ({ ...p, [tab]: true }));
@@ -616,13 +616,13 @@ export default function HomeScreen() {
   const loadTab = useCallback(async (tab) => {
     const id = user?.restaurantId ?? '';
     try {
-      const res        = await TAB_CONFIG[tab].fetcher({ page: 1, limit: LIMIT }, id);
-      const meta       = res?.data?.data?.orderData;
-      const raw        = Array.isArray(meta?.data) ? meta.data : [];
-      const totalDocs  = meta?.totalDocuments ?? 0;
+      const res = await TAB_CONFIG[tab].fetcher({ page: 1, limit: LIMIT }, id);
+      const meta = res?.data?.data?.orderData;
+      const raw = Array.isArray(meta?.data) ? meta.data : [];
+      const totalDocs = meta?.totalDocuments ?? 0;
       const normalised = raw.map(normaliseOrder);
-      tabs.current[tab].data      = normalised;
-      tabs.current[tab].page      = 1;
+      tabs.current[tab].data = normalised;
+      tabs.current[tab].page = 1;
       tabs.current[tab].totalDocs = totalDocs;
       tabs.current[tab].exhausted = normalised.length === 0 || normalised.length >= totalDocs;
       flushTab(tab);
@@ -639,17 +639,17 @@ export default function HomeScreen() {
     const nextPage = t.page + 1;
     const id = user?.restaurantId ?? '';
     try {
-      const res       = await TAB_CONFIG[tab].fetcher({ page: nextPage, limit: LIMIT }, id);
-      const meta      = res?.data?.data?.orderData;
-      const raw       = Array.isArray(meta?.data) ? meta.data : [];
+      const res = await TAB_CONFIG[tab].fetcher({ page: nextPage, limit: LIMIT }, id);
+      const meta = res?.data?.data?.orderData;
+      const raw = Array.isArray(meta?.data) ? meta.data : [];
       const totalDocs = meta?.totalDocuments ?? t.totalDocs;
       if (raw.length === 0) {
         exhaustTab(tab);
       } else {
-        const ids   = new Set(t.data.map((o) => o.id));
+        const ids = new Set(t.data.map((o) => o.id));
         const fresh = raw.map(normaliseOrder).filter((o) => !ids.has(o.id));
-        t.data      = [...t.data, ...fresh];
-        t.page      = nextPage;
+        t.data = [...t.data, ...fresh];
+        t.page = nextPage;
         t.totalDocs = totalDocs;
         t.exhausted = fresh.length === 0 || nextPage * LIMIT >= totalDocs;
         flushTab(tab);
@@ -682,7 +682,7 @@ export default function HomeScreen() {
     const restaurantId = user?.restaurantId;
     if (!restaurantId) return;
     const eventsRef = ref(db, `${restaurantId}/events`);
-    const skip  = { current: true };
+    const skip = { current: true };
     const timer = setTimeout(() => { skip.current = false; }, 1500);
     const unsub = onChildAdded(eventsRef, async (snapshot) => {
       if (skip.current) return;
@@ -719,7 +719,7 @@ export default function HomeScreen() {
   const handleSlideActiveChange = useCallback((active) => { setSwipeEnabled(!active); }, []);
 
   const endReachedHandlers = useRef({
-    live:    () => { if (!tabs.current.live.exhausted    && !tabs.current.live.fetching)    loadMoreTab('live');    },
+    live: () => { if (!tabs.current.live.exhausted && !tabs.current.live.fetching) loadMoreTab('live'); },
     pending: () => { if (!tabs.current.pending.exhausted && !tabs.current.pending.fetching) loadMoreTab('pending'); },
   }).current;
 
@@ -750,7 +750,7 @@ export default function HomeScreen() {
     catch { tabs.current.pending.data.splice(idx, 0, order); flushTab('pending'); }
   }, [flushTab, user?.restaurantId]);
 
-  const counts  = { live: liveList.length, pending: pendingList.length };
+  const counts = { live: liveList.length, pending: pendingList.length };
   const dateStr = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
   const renderScene = useCallback(({ route: r }) => (
@@ -792,7 +792,7 @@ export default function HomeScreen() {
         <View style={[s.header, { paddingHorizontal: rs(20), paddingTop: rs(14), paddingBottom: rs(12) }]}>
           <View>
             <Text style={{ fontSize: nz(18), fontWeight: '800', color: '#0D0D0D', letterSpacing: -0.5 }}>
-              Hello, {restaurantName ?? 'Restaurant'} 👋
+              Hello, {user?.name || restaurantName || 'Restaurant'} 👋
             </Text>
             <Text style={{ fontSize: nz(12), color: '#363535', marginTop: rs(2) }}>{dateStr}</Text>
           </View>
@@ -814,6 +814,6 @@ export default function HomeScreen() {
 }
 
 const s = StyleSheet.create({
-  root:   { flex: 1, backgroundColor: '#fff' },
+  root: { flex: 1, backgroundColor: '#fff' },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', backgroundColor: '#fff' },
 });

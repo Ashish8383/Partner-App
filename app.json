@@ -40,7 +40,7 @@
     },
     "android": {
       "package": "com.alfennzo.alfennzo_partner",
-      "versionCode": 39,
+      "versionCode": 40,
       "jsEngine": "hermes",
       "edgeToEdgeEnabled": true,
       "minSdkVersion": 21,

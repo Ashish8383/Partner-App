@@ -6,7 +6,7 @@ const api = axios.create({
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
-    'Accept':       'application/json',
+    'Accept': 'application/json',
   },
 });
 
@@ -39,7 +39,9 @@ api.interceptors.response.use(
 );
 
 export const authAPI = {
-  login: (loginData) => api.post('/restaurant/login', loginData),
+  login: (loginData) => {
+    return api.post('/restaurant/login', loginData);
+  },
   logout: () => {
     const deviceFingerprint = useStore.getState().deviceFingerprint ?? '';
     return api.post('/restaurant/logout', { deviceFingerprint });
@@ -69,7 +71,7 @@ const fetchOrders = (Id, params, filter) =>
     params: {
       ...params,
       filter: JSON.stringify(filter),
-      Id:     Id ? encodeURIComponent(Id) : '',
+      Id: Id ? encodeURIComponent(Id) : '',
     },
     paramsSerializer: (p) => new URLSearchParams(p).toString(),
   });
@@ -100,7 +102,7 @@ export const ordersAPI = {
       ...extra,
     }),
 
-  acceptOrder:  (data) => api.post('/restaurant/AcceptOrder', data),
+  acceptOrder: (data) => api.post('/restaurant/AcceptOrder', data),
   deliverOrder: (data) => api.post('/restaurant/updateDeliverStatus', data),
 };
 

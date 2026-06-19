@@ -29,9 +29,9 @@ const LoginScreen = () => {
   const insets = useSafeAreaInsets();
 
   // usableH: screen height minus system bars
-  const usableH    = SH - insets.top - insets.bottom;
+  const usableH = SH - insets.top - insets.bottom;
   // padBot: safe area + breathing room at the bottom
-  const padBot     = insets.bottom + rs(16);
+  const padBot = insets.bottom + rs(16);
 
   // ── Sizes ──────────────────────────────────────────────────────────────────
   const logoH = isLandscape
@@ -42,62 +42,62 @@ const LoginScreen = () => {
     ? Math.min(SW * 0.70, 400)
     : isTablet ? Math.min(SW * 0.95, 580) : SW * 1.0;
 
-  const logoTopM    = rs(isLandscape ? 8  : isTablet ? 40 : 24);
-  const logoBottomM = rs(isLandscape ? 4  : 8);
-  const formTopM    = rs(12);
+  const logoTopM = rs(isLandscape ? 8 : isTablet ? 40 : 24);
+  const logoBottomM = rs(isLandscape ? 4 : 8);
+  const formTopM = rs(12);
 
-  const INPUT_H    = rs(54);
-  const INPUT_GAP  = rs(14);
-  const PASS_GAP   = rs(20);
-  const BUTTON_H   = rs(54);
+  const INPUT_H = rs(54);
+  const INPUT_GAP = rs(14);
+  const PASS_GAP = rs(20);
+  const BUTTON_H = rs(54);
   const BUTTON_GAP = rs(16);
-  const TERMS_H    = rs(44);
+  const TERMS_H = rs(44);
 
   // Total height the form occupies (including its top margin)
   const formAreaH =
-    formTopM   +
-    INPUT_H    + INPUT_GAP  +
-    INPUT_H    + PASS_GAP   +
-    BUTTON_H   + BUTTON_GAP +
+    formTopM +
+    INPUT_H + INPUT_GAP +
+    INPUT_H + PASS_GAP +
+    BUTTON_H + BUTTON_GAP +
     TERMS_H;
-  const topSectionH  = usableH - padBot - formAreaH;
-  const logoAreaH    = isLandscape ? 0 : logoTopM + logoH + logoBottomM; // No logo area in landscape
-  const lottieBoost  = Platform.OS === 'ios' ? rs(100) : rs(20);
+  const topSectionH = usableH - padBot - formAreaH;
+  const logoAreaH = isLandscape ? 0 : logoTopM + logoH + logoBottomM; // No logo area in landscape
+  const lottieBoost = Platform.OS === 'ios' ? rs(100) : rs(20);
   const lottieNormal = Math.max(topSectionH - logoAreaH - rs(4) + lottieBoost, isLandscape ? rs(80) : rs(130));
 
   const calcLottieKeyboard = (kbH) => Math.max(usableH - kbH - formAreaH - rs(8) + (Platform.OS === 'ios' ? rs(60) : 0), isLandscape ? rs(80) : rs(130));
 
   // ── Animated values ────────────────────────────────────────────────────────
-  const slideAnim      = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(0)).current;
   const logoHeightAnim = useRef(new Animated.Value(logoH)).current;
   const logoMarginAnim = useRef(new Animated.Value(logoBottomM)).current;
-  const logoOpacAnim   = useRef(new Animated.Value(1)).current;
+  const logoOpacAnim = useRef(new Animated.Value(1)).current;
 
   const animateLogo = (show, dur) =>
     Animated.parallel([
-      Animated.timing(logoHeightAnim, { toValue: show ? logoH       : 0,          duration: dur,       easing: KB_EASING, useNativeDriver: false }),
-      Animated.timing(logoMarginAnim, { toValue: show ? logoBottomM : 0,          duration: dur,       easing: KB_EASING, useNativeDriver: false }),
-      Animated.timing(logoOpacAnim,   { toValue: show ? 1           : 0,          duration: dur * 0.8, easing: KB_EASING, useNativeDriver: false }),
+      Animated.timing(logoHeightAnim, { toValue: show ? logoH : 0, duration: dur, easing: KB_EASING, useNativeDriver: false }),
+      Animated.timing(logoMarginAnim, { toValue: show ? logoBottomM : 0, duration: dur, easing: KB_EASING, useNativeDriver: false }),
+      Animated.timing(logoOpacAnim, { toValue: show ? 1 : 0, duration: dur * 0.8, easing: KB_EASING, useNativeDriver: false }),
     ]).start();
 
   // ── State ──────────────────────────────────────────────────────────────────
-  const [kbVisible,          setKbVisible]          = useState(false);
-  const [lottieSize,         setLottieSize]         = useState(lottieNormal);
-  const [identifier,         setIdentifier]         = useState('');
-  const [password,           setPassword]           = useState('');
-  const [loading,            setLoading]            = useState(false);
-  const [secureTextEntry,    setSecureTextEntry]    = useState(true);
-  const [deviceInfo,         setDeviceInfo]         = useState(null);
-  const [showDevicesModal,   setShowDevicesModal]   = useState(false);
-  const [devicesData,        setDevicesData]        = useState([]);
+  const [kbVisible, setKbVisible] = useState(false);
+  const [lottieSize, setLottieSize] = useState(lottieNormal);
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [secureTextEntry, setSecureTextEntry] = useState(true);
+  const [deviceInfo, setDeviceInfo] = useState(null);
+  const [showDevicesModal, setShowDevicesModal] = useState(false);
+  const [devicesData, setDevicesData] = useState([]);
   const [pendingCredentials, setPendingCredentials] = useState(null);
 
-  const toastRef       = useRef(null);
-  const identifierRef  = useRef(null);
-  const passwordRef    = useRef(null);
+  const toastRef = useRef(null);
+  const identifierRef = useRef(null);
+  const passwordRef = useRef(null);
   const activeInputRef = useRef(null);
-  const isFocusing     = useRef(false);
-  const hideTimer      = useRef(null);
+  const isFocusing = useRef(false);
+  const hideTimer = useRef(null);
 
   // ── Keyboard listeners ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -150,12 +150,12 @@ const LoginScreen = () => {
   }, [lottieNormal, isLandscape]);
 
   // ── Store ──────────────────────────────────────────────────────────────────
-  const login                = useStore((s) => s.login);
-  const setProfile           = useStore((s) => s.setProfile);
-  const setFcmToken          = useStore((s) => s.setFcmToken);
+  const login = useStore((s) => s.login);
+  const setProfile = useStore((s) => s.setProfile);
+  const setFcmToken = useStore((s) => s.setFcmToken);
   const setDeviceFingerprint = useStore((s) => s.setDeviceFingerprint);
-  const pendingToast         = useStore((s) => s.pendingToast);
-  const clearPendingToast    = useStore((s) => s.clearPendingToast);
+  const pendingToast = useStore((s) => s.pendingToast);
+  const clearPendingToast = useStore((s) => s.clearPendingToast);
 
   const showToast = (msg, type = 'info', duration = 3500) =>
     toastRef.current?.show({ message: msg, type, duration });
@@ -171,7 +171,7 @@ const LoginScreen = () => {
 
   useEffect(() => {
     const t = setTimeout(async () => {
-      const info  = await getDeviceInfo();
+      const info = await getDeviceInfo();
       setDeviceInfo(info);
       const token = await getFCMToken();
       if (token) await setFcmToken(token);
@@ -192,47 +192,79 @@ const LoginScreen = () => {
     setLoading(true);
     try {
       const storedToken = useStore.getState().fcmToken;
-      const fcmToken    = storedToken ?? (await getFCMToken());
+      const fcmToken = storedToken ?? (await getFCMToken());
       if (fcmToken && !storedToken) await setFcmToken(fcmToken);
-
       const response = await authAPI.login({
         [determineLoginType(credId)]: credId,
         password: credPw, type: 'App', fcmToken: fcmToken ?? '',
         deviceFingerprint: deviceInfo?.deviceFingerprint || 'unknown-' + Date.now(),
         deviceInfo: {
-          platform:    deviceInfo?.deviceInfo?.platform    || Platform.OS,
-          deviceName:  deviceInfo?.deviceInfo?.deviceName  || 'Unknown Device',
+          platform: deviceInfo?.deviceInfo?.platform || Platform.OS,
+          deviceName: deviceInfo?.deviceInfo?.deviceName || 'Unknown Device',
           deviceModel: deviceInfo?.deviceInfo?.deviceModel || 'Unknown Model',
-          osVersion:   deviceInfo?.deviceInfo?.osVersion   || Platform.Version,
-          appVersion:  deviceInfo?.deviceInfo?.appVersion  || '1.0.0',
-          userAgent:   deviceInfo?.deviceInfo?.userAgent   || 'Alfennzo Partner App',
+          osVersion: deviceInfo?.deviceInfo?.osVersion || Platform.Version,
+          appVersion: deviceInfo?.deviceInfo?.appVersion || '1.0.0',
+          userAgent: deviceInfo?.deviceInfo?.userAgent || 'Alfennzo Partner App',
         },
       });
 
       if (response.status === 200) {
         const { data } = response.data;
         if (data) {
-          const userData = { id: data.Id, restaurantId: data.decryptedId, encryptedId: data.Id, phone: credId };
+          const userData = {
+            id: data.Id,
+            restaurantId: data.decryptedId,
+            encryptedId: data.Id,
+            phone: data.phone || credId,
+            name: data.name,
+            role: data.role,
+            staffId: data.staffId,
+            permissions: data.permissions || [],
+            restaurant: data.restaurant ? {
+              id: data.restaurant.Id,
+              name: data.restaurant.restaurantName,
+              type: data.restaurant.type,
+              location: data.restaurant.Location,
+              cuisine: data.restaurant.cuisine,
+              foodType: data.restaurant.foodType,
+              openingTime: data.restaurant.OpeningTime,
+              closingTime: data.restaurant.ClosingTime,
+              workingDays: data.restaurant.WorkingDays,
+              logo: data.restaurant.Logo,
+              qrOrdering: data.restaurant.qrOrdering,
+              waiterService: data.restaurant.waiterService,
+            } : null,
+          };
+
           await login(userData, data.accessToken, data.refreshToken);
+
           try {
             const profileRes = await authAPI.getProfile(userData.id);
             const enc = profileRes?.data?.data;
             if (enc) await setProfile(decryptData(enc));
-          } catch {}
+          } catch { }
+
           showToast(response.message || 'Login successful!', 'success');
           setPendingCredentials(null);
-        } else { showToast('Invalid response structure', 'error'); }
-      } else { showToast(response.message || 'Invalid credentials', 'error'); }
+        } else {
+          showToast('Invalid response structure', 'error');
+        }
+      } else {
+        showToast(response.message || 'Invalid credentials', 'error');
+      }
     } catch (error) {
       let msg = 'Login failed. Please try again.';
       if (error.response?.data?.message === 'Maximum device login limit reached') {
         try {
           const res = await getLogedinDevices({ identifier: credentials.phone || credentials.username || credId, password: credPw });
           if (res?.data?.sessions) { setDevicesData(res.data.sessions); setPendingCredentials(credentials); setShowDevicesModal(true); return; }
-        } catch { msg = 'Failed to fetch device sessions'; }
+        } catch (err) {
+          msg = 'Failed to fetch device sessions';
+        }
       } else if (error.response) {
         msg = error.response.data?.message || error.response.data?.error || `Server error: ${error.response.status}`;
-      } else if (error.request) { msg = 'No response from server. Check your internet connection.';
+      } else if (error.request) {
+        msg = 'No response from server. Check your internet connection.';
       } else { msg = error.message || 'An unexpected error occurred'; }
       showToast(msg, 'error');
     } finally { setLoading(false); }
@@ -243,7 +275,7 @@ const LoginScreen = () => {
     await performLogin({ identifier, password });
   };
 
-  const openTerms   = () => Linking.openURL('https://www.alfennzo.com/terms-and-conditions');
+  const openTerms = () => Linking.openURL('https://www.alfennzo.com/terms-and-conditions');
   const openPrivacy = () => Linking.openURL('https://www.alfennzo.com/privacy-policy');
 
   // Show logo only when NOT in landscape mode
@@ -279,13 +311,13 @@ const LoginScreen = () => {
             {/* Logo — Only shown when NOT in landscape mode */}
             {shouldShowLogo && (
               <Animated.View style={{
-                width:        '100%',
-                height:       logoHeightAnim,
-                marginTop:    logoTopM,
+                width: '100%',
+                height: logoHeightAnim,
+                marginTop: logoTopM,
                 marginBottom: logoMarginAnim,
-                opacity:      logoOpacAnim,
-                overflow:     'hidden',
-                alignItems:   'center',
+                opacity: logoOpacAnim,
+                overflow: 'hidden',
+                alignItems: 'center',
                 justifyContent: 'center',
               }}>
                 <Image
@@ -315,7 +347,7 @@ const LoginScreen = () => {
             s.formWrap,
             {
               marginTop: formTopM,
-              width:     isTablet ? Math.min(SW, 520) : '100%',
+              width: isTablet ? Math.min(SW, 520) : '100%',
               alignSelf: isTablet ? 'center' : 'stretch',
             },
           ]}>
@@ -384,7 +416,7 @@ const LoginScreen = () => {
               onPress={handleLogin}
               disabled={loading}
               style={[s.loginBtn, {
-                height:       BUTTON_H,
+                height: BUTTON_H,
                 borderRadius: rs(13),
                 marginBottom: kbVisible ? 0 : BUTTON_GAP,
               }]}
@@ -392,8 +424,8 @@ const LoginScreen = () => {
               {loading
                 ? <ActivityIndicator color="#FFFFFF" size="small" />
                 : <Text style={{ color: '#FFFFFF', fontSize: nz(17), fontWeight: '700', letterSpacing: 0.3 }} allowFontScaling={false}>
-                    Continue
-                  </Text>
+                  Continue
+                </Text>
               }
             </SpringButton>
 
@@ -429,14 +461,14 @@ const LoginScreen = () => {
 };
 
 const s = StyleSheet.create({
-  root:       { flex: 1, backgroundColor: '#FFFFFF' },
-  flex:       { flex: 1 },
-  container:  { flex: 1, alignItems: 'center', paddingHorizontal: 24 },
+  root: { flex: 1, backgroundColor: '#FFFFFF' },
+  flex: { flex: 1 },
+  container: { flex: 1, alignItems: 'center', paddingHorizontal: 24 },
   // topSection: fills all space above the form.
   // justifyContent:'flex-end' keeps logo+lottie glued to the BOTTOM of this
   // section (= top of form) so translateY never pushes lottie off screen.
   topSection: { flex: 1, justifyContent: 'flex-end', alignItems: 'center', width: '100%' },
-  formWrap:   { width: '100%' },
+  formWrap: { width: '100%' },
   inputRow: {
     flexDirection: 'row', alignItems: 'center',
     borderWidth: 1.5, borderColor: '#7c7c7c',
@@ -451,7 +483,7 @@ const s = StyleSheet.create({
     shadowColor: '#03954E', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35, shadowRadius: 10, elevation: 6,
   },
-  terms:     { color: '#555555', textAlign: 'left', lineHeight: 22, width: '100%', paddingBottom: 8 },
+  terms: { color: '#555555', textAlign: 'left', lineHeight: 22, width: '100%', paddingBottom: 8 },
   termsLink: { color: '#1A9EDE', fontWeight: '500' },
 });
 
