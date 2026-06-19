@@ -7,7 +7,7 @@ import {
 } from 'react-native';
 import { TabView } from 'react-native-tab-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
+import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import LottieView from 'lottie-react-native';
 import { HapticTouchable } from '../components/GlobalHaptic';
@@ -62,6 +62,7 @@ const normaliseOrder = (o) => {
     })),
     total: (() => { const n = Number(o.TotalAmount); return n == null ? '0' : Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, ''); })(),
     note: 'Please ensure the invoice is provided to the customer at the time of food delivery, as the order is already entered in POS.',
+    foodnote: o.foodNote,
     AcceptOrder: o.AcceptOrder,
     isDelivered: o.isDelivered,
     isCancelled: o.isCancelled,
@@ -410,12 +411,53 @@ const HistoryOrderCard = React.memo(({ item, rs, nz, cardW }) => {
 
           <View style={{ height: 1, backgroundColor: '#F2F2F2', marginVertical: rs(12) }} />
           <Text style={{ fontSize: nz(13), color: '#AAAAAA', marginBottom: rs(8) }}>Order ID: {item.orderId}</Text>
-
+          {/* Note section - Replace the existing noteBox */}
+          {item.foodnote && (
+            <View style={{
+              flexDirection: 'column',
+              alignItems: 'flex-start',
+              borderRadius: rs(10),
+              padding: rs(12),
+              gap: rs(8),
+              backgroundColor: '#FFF8E1',
+              borderWidth: 1,
+              borderColor: '#FFD54F',
+              marginTop: rs(8),
+            }}>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                <MaterialIcons
+                  name="restaurant-menu"
+                  size={nz(16)}
+                  color="#F57F17"
+                  style={{ marginRight: rs(6), marginTop: rs(1) }}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text style={{
+                    fontSize: nz(11),
+                    fontWeight: '700',
+                    color: '#F57F17',
+                    marginBottom: rs(4),
+                  }}>
+                    Special Instructions
+                  </Text>
+                  <Text style={{
+                    fontSize: nz(12),
+                    color: '#4E342E',
+                    lineHeight: nz(18),
+                    fontWeight: '500',
+                  }}>
+                    {item.foodnote}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
           {item.note && (
             <View style={{
               flexDirection: 'row', backgroundColor: '#fff5e6a9',
               borderRadius: rs(10), padding: rs(10), gap: rs(6),
               alignItems: 'flex-start', borderWidth: 1, borderColor: '#ffdd0343',
+              marginTop: rs(8)
             }}>
               <Feather name="info" size={nz(15)} color="#666" />
               <Text style={{ flex: 1, fontSize: nz(13), color: '#885500', lineHeight: nz(19) }}>{item.note}</Text>

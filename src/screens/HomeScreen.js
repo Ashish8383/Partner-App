@@ -31,6 +31,7 @@ const ROUTES = [
   { key: 'pending', title: 'Pending', icon: 'clock' },
 ];
 
+
 const isNotificationGranted = async () => {
   try { const { status } = await Notifications.getPermissionsAsync(); return status === 'granted'; }
   catch { return false; }
@@ -269,7 +270,6 @@ const OrderCard = React.memo(({
   const maxHeight = useRef(new Animated.Value(1200)).current;
   const marginBottom = useRef(new Animated.Value(rs(14))).current;
   const entranceScale = useRef(new Animated.Value(0.95)).current;
-
   useEffect(() => {
     Animated.spring(entranceScale, { toValue: 1, damping: 20, stiffness: 260, mass: 0.45, useNativeDriver: true }).start();
   }, []);
@@ -364,11 +364,45 @@ const OrderCard = React.memo(({
           <View style={ocS.divider} />
           <Text style={{ fontSize: nz(10), color: '#AAAAAA', marginBottom: rs(8) }}>Order ID: {item.orderId}</Text>
 
-          <View style={[ocS.noteBox, { borderRadius: rs(10), padding: rs(10), gap: rs(6) }]}>
+          {item?.foodnote && <View style={[ocS.noteBox, {
+            borderRadius: rs(10),
+            padding: rs(12),
+            gap: rs(8),
+            backgroundColor: '#FFF8E1', // Light yellow background
+            borderWidth: 1,
+            borderColor: '#FFD54F',
+          }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+              <MaterialIcons
+                name="restaurant-menu"
+                size={nz(16)}
+                color="#F57F17"
+                style={{ marginRight: rs(6), marginTop: rs(1) }}
+              />
+              <View style={{ flex: 1 }}>
+                <Text style={{
+                  fontSize: nz(11),
+                  fontWeight: '700',
+                  color: '#F57F17',
+                  marginBottom: rs(4),
+                }}>
+                  Special Instructions
+                </Text>
+                <Text style={{
+                  fontSize: nz(12),
+                  color: '#4E342E',
+                  lineHeight: nz(18),
+                  fontWeight: '500',
+                }}>
+                  {item.foodnote}
+                </Text>
+              </View>
+            </View>
+          </View>}
+          <View style={[ocS.noteBox, { borderRadius: rs(10), padding: rs(10), gap: rs(6), marginTop: rs(8) }]}>
             <MaterialIcons name="warning-amber" size={nz(15)} color="#CC8800" />
             <Text style={{ flex: 1, fontSize: nz(10.5), color: '#885500', lineHeight: nz(16) }}>{item.note}</Text>
           </View>
-
           {/* ── Action ───────────────────────────────────────────────────── */}
           {tab === 'live' && (
             <SlideToAccept
@@ -436,7 +470,9 @@ const normaliseOrder = (o) => {
       price: (() => { const n = Number(it.amount * it.quantity); return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, ''); })(),
     })),
     total: (() => { const n = Number(o.TotalAmount); return n == null ? '0' : Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, ''); })(),
+    // Only change this line - use foodNote if available, otherwise default message
     note: 'Please ensure the invoice is provided to the customer at the time of food delivery, as the order is already entered in POS.',
+    foodnote: o.foodNote,
     AcceptOrder: o.AcceptOrder,
     isDelivered: o.isDelivered,
     isCancelled: o.isCancelled,
@@ -473,7 +509,6 @@ const TabScene = React.memo(({
 
   const rows = [];
   for (let i = 0; i < list.length; i += cols) rows.push(list.slice(i, i + cols));
-
   return (
     <FlatList
       data={rows}
