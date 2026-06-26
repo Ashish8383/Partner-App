@@ -24,7 +24,6 @@ const resetBadgeCount = async () => {
     }
     await Notifications.dismissAllNotificationsAsync();
   } catch (error) {
-    console.error('Failed to reset badge:', error);
   }
 };
 
@@ -61,7 +60,6 @@ export const playCustomSound = async () => {
       }
     });
   } catch (error) {
-    console.error('Play sound error:', error);
   }
 };
 
@@ -165,7 +163,6 @@ export const setupNotificationChannel = async () => {
     );
     await Notifications.getNotificationChannelsAsync();
   } catch (error) {
-    console.error('Channel setup error:', error);
   }
 };
 
@@ -212,7 +209,6 @@ export const getFCMToken = async () => {
     }
 
   } catch (error) {
-    console.error('FCM token error:', error);
     return null;
   }
 };
@@ -224,14 +220,14 @@ let responseListener = null;
 export const setupBadgeManagement = () => {
   // Reset badge immediately when called
   resetBadgeCount();
-  
+
   // Reset badge when app comes to foreground
   appStateSubscription = AppState.addEventListener('change', (nextAppState) => {
     if (nextAppState === 'active') {
       resetBadgeCount();
     }
   });
-  
+
   // Reset badge when notification is tapped
   responseListener = Notifications.addNotificationResponseReceivedListener(() => {
     resetBadgeCount();

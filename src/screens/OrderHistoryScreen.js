@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   View, Text, StyleSheet, FlatList, RefreshControl,
@@ -49,6 +48,7 @@ const normaliseOrder = (o) => {
     id: o._id,
     orderRef: o.Id,
     orderId: o.OrderId,
+    orderSerialNumber: o.orderSerialNumber,
     initials,
     customerName: (o.fullname ?? '').trim() || 'Customer',
     phone: o.phone,
@@ -83,7 +83,6 @@ const SkeletonPulse = ({ style }) => {
   return <Animated.View style={[{ backgroundColor: '#E8E8E8', borderRadius: 6 }, style, { opacity: anim }]} />;
 };
 
-// cardW: width of the card — matches the real card so skeletons are accurate.
 const SkeletonCard = ({ rs, nz, cardW }) => (
   <View style={{
     width: cardW,
@@ -91,6 +90,7 @@ const SkeletonCard = ({ rs, nz, cardW }) => (
     padding: rs(16), marginBottom: rs(14),
     borderWidth: 1, borderColor: '#F0F0F0',
   }}>
+    <SkeletonPulse style={{ height: rs(44), marginBottom: rs(12), borderRadius: rs(8) }} />
     <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
       <SkeletonPulse style={{ width: rs(42), height: rs(42), borderRadius: rs(21), marginRight: rs(10) }} />
       <View style={{ flex: 1, gap: rs(7) }}>
@@ -133,12 +133,10 @@ const CustomTabBar = React.memo(({ position, jumpTo, customLabel, SW, rs, nz }) 
             style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: rs(10), zIndex: 1 }}
           >
             <Animated.View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-              {/* Inactive */}
               <Animated.View style={[{ flexDirection: 'row', alignItems: 'center' }, { opacity: inactiveOp }]}>
                 <Feather name={route.icon} size={nz(11)} color="#1A1A1A" style={{ marginRight: rs(4) }} />
                 <Text style={{ fontSize: nz(12), fontWeight: '700', color: '#1A1A1A' }} numberOfLines={1}>{label}</Text>
               </Animated.View>
-              {/* Active */}
               <Animated.View style={[{
                 flexDirection: 'row', alignItems: 'center',
                 position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'center',
@@ -280,7 +278,6 @@ const HistoryOrderCard = React.memo(({ item, rs, nz, cardW }) => {
   const statusColor = item.isDelivered ? '#4CAF50' : item.isCancelled ? '#F44336' : '#FF9800';
   const statusText = item.isDelivered ? 'Delivered' : item.isCancelled ? 'Cancelled' : 'Completed';
 
-  // Show only first item, plus count of remaining items
   const firstItem = item.items[0];
   const remainingCount = item.items.length - 1;
   const hasMultipleItems = item.items.length > 1;
@@ -292,11 +289,10 @@ const HistoryOrderCard = React.memo(({ item, rs, nz, cardW }) => {
         backgroundColor: '#01690509', borderRadius: rs(16),
         marginBottom: rs(14),
         borderWidth: 1, borderColor: '#14131336',
-        overflow: 'hidden', // Ensures the seat banner corners match card
+        overflow: 'hidden',
       }}>
 
-
-        {/* ── SEAT NUMBER - Full Width Banner at Top ── */}
+        {/* ── SEAT NUMBER & ORDER NUMBER - Full Width Banner at Top ── */}
         {item.seat ? (
           <View style={{
             backgroundColor: GREEN,
@@ -304,26 +300,85 @@ const HistoryOrderCard = React.memo(({ item, rs, nz, cardW }) => {
             paddingVertical: rs(12),
             flexDirection: 'row',
             alignItems: 'center',
-            justifyContent: 'center',
+            justifyContent: 'space-between',
           }}>
-            <Feather name="map-pin" size={nz(16)} color="#FFFFFF" style={{ marginRight: rs(8) }} />
-            <Text style={{
-              fontSize: nz(14),
-              fontWeight: '800',
-              color: '#FFFFFF',
-              letterSpacing: 0.5,
-            }} numberOfLines={1}>
-              {item.seat}
-              {item.seatCode ? ` / ${item.seatCode}` : ''}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+              <Feather name="map-pin" size={nz(16)} color="#FFFFFF" style={{ marginRight: rs(8) }} />
+              <Text style={{
+                fontSize: nz(14),
+                fontWeight: '800',
+                color: '#FFFFFF',
+                letterSpacing: 0.5,
+              }} numberOfLines={1}>
+                {item.seat}
+                {item.seatCode ? ` / ${item.seatCode}` : ''}
+              </Text>
+            </View>
+            {/* Order Number Badge */}
+            {item.orderSerialNumber && (
+              <View style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: 'rgba(255,255,255,0.2)',
+                paddingHorizontal: rs(10),
+                paddingVertical: rs(4),
+                borderRadius: rs(6),
+                marginLeft: rs(8),
+              }}>
+                <MaterialIcons name="receipt" size={nz(12)} color="#fff" style={{ marginRight: rs(4) }} />
+                <Text style={{
+                  fontSize: nz(11),
+                  fontWeight: '600',
+                  color: 'rgba(255,255,255,0.9)',
+                }}>
+                  Order No :
+                </Text>
+                <Text style={{
+                  fontSize: nz(13),
+                  fontWeight: '800',
+                  color: '#fff',
+                  marginLeft: rs(4),
+                }}>
+                  {item.orderSerialNumber}
+                </Text>
+              </View>
+            )}
           </View>
-        ) : null}
+        ) : (
+          /* If no seat, show Order Number in a separate banner */
+          item.orderSerialNumber && (
+            <View style={{
+              backgroundColor: GREEN,
+              paddingHorizontal: rs(14),
+              paddingVertical: rs(10),
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <MaterialIcons name="receipt" size={nz(14)} color="#fff" style={{ marginRight: rs(6) }} />
+              <Text style={{
+                fontSize: nz(12),
+                fontWeight: '600',
+                color: 'rgba(255,255,255,0.9)',
+              }}>
+                Order No :
+              </Text>
+              <Text style={{
+                fontSize: nz(14),
+                fontWeight: '800',
+                color: '#fff',
+                marginLeft: rs(5),
+              }}>
+                {item.orderSerialNumber}
+              </Text>
+            </View>
+          )
+        )}
 
         {/* ── Card Content ── */}
         <View style={{ padding: rs(14) }}>
           {/* ── Top row ── */}
           <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-            {/* Avatar */}
             <View style={{
               width: rs(46), height: rs(46), borderRadius: rs(23),
               backgroundColor: '#F0F0F0', justifyContent: 'center',
@@ -332,9 +387,7 @@ const HistoryOrderCard = React.memo(({ item, rs, nz, cardW }) => {
               <Text style={{ fontSize: nz(15), fontWeight: '700', color: '#555' }}>{item.initials}</Text>
             </View>
 
-            {/* Name + date + time */}
             <View style={{ flex: 1, flexShrink: 1, marginRight: rs(6) }}>
-              {/* Customer Name - full width, larger */}
               <Text style={{ fontSize: nz(16), fontWeight: '700', color: '#1A1A1A', marginBottom: rs(4) }} numberOfLines={2}>
                 {item.customerName}
               </Text>
@@ -349,7 +402,6 @@ const HistoryOrderCard = React.memo(({ item, rs, nz, cardW }) => {
               </View>
             </View>
 
-            {/* Status badge */}
             <View style={{
               flexDirection: 'row', alignItems: 'center',
               paddingHorizontal: rs(8), paddingVertical: rs(4),
@@ -363,13 +415,12 @@ const HistoryOrderCard = React.memo(({ item, rs, nz, cardW }) => {
 
           <View style={{ height: 1, backgroundColor: '#F2F2F2', marginVertical: rs(12) }} />
 
-          {/* ── Items - Show only first item with "Show All" button if multiple ── */}
+          {/* ── Items ── */}
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: rs(8) }}>
             <View style={{ width: rs(14), height: rs(14), borderRadius: rs(3), backgroundColor: GREEN, marginRight: rs(6) }} />
             <Text style={{ fontSize: nz(14), fontWeight: '700', color: '#1A1A1A' }}>Ordered Items :</Text>
           </View>
 
-          {/* First item */}
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingBottom: rs(12) }}>
             <Text style={{ fontSize: nz(13), color: '#444', flex: 1, paddingRight: rs(4) }} numberOfLines={2}>
               {firstItem?.name}
@@ -377,7 +428,6 @@ const HistoryOrderCard = React.memo(({ item, rs, nz, cardW }) => {
             <Text style={{ fontSize: nz(13), color: '#1A1A1A', fontWeight: '600' }}>{firstItem?.price}/-</Text>
           </View>
 
-          {/* Show All button if multiple items */}
           {hasMultipleItems ? (
             <TouchableOpacity
               style={{
@@ -411,7 +461,7 @@ const HistoryOrderCard = React.memo(({ item, rs, nz, cardW }) => {
 
           <View style={{ height: 1, backgroundColor: '#F2F2F2', marginVertical: rs(12) }} />
           <Text style={{ fontSize: nz(13), color: '#AAAAAA', marginBottom: rs(8) }}>Order ID: {item.orderId}</Text>
-          {/* Note section - Replace the existing noteBox */}
+
           {item.foodnote && (
             <View style={{
               flexDirection: 'column',
@@ -452,6 +502,7 @@ const HistoryOrderCard = React.memo(({ item, rs, nz, cardW }) => {
               </View>
             </View>
           )}
+
           {item.note && (
             <View style={{
               flexDirection: 'row', backgroundColor: '#fff5e6a9',
@@ -466,7 +517,6 @@ const HistoryOrderCard = React.memo(({ item, rs, nz, cardW }) => {
         </View>
       </View>
 
-      {/* Items Modal */}
       <ItemsModal
         visible={modalVisible}
         items={item.items}
@@ -478,6 +528,7 @@ const HistoryOrderCard = React.memo(({ item, rs, nz, cardW }) => {
     </>
   );
 }, (prev, next) => prev.item.id === next.item.id && prev.cardW === next.cardW);
+
 // ─── Tab Scene ────────────────────────────────────────────────────────────────
 const makeTabState = () => ({ data: [], page: 1, totalDocs: 0, exhausted: false, fetching: false });
 
@@ -505,7 +556,6 @@ const TabScene = React.memo(({
       ? <Text style={{ textAlign: 'center', color: '#CCCCCC', fontSize: nz(11), paddingVertical: rs(16) }}>— All orders loaded —</Text>
       : null;
 
-  // ── Custom tab — no range selected yet ──────────────────────────────────
   if (isCustom && !hasCustomRange) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'flex-start', paddingHorizontal: rs(40), gap: rs(8), paddingTop: rs(10) }}>
@@ -526,11 +576,9 @@ const TabScene = React.memo(({
     );
   }
 
-  // ── Custom tab — range selected ──────────────────────────────────────────
   if (isCustom && hasCustomRange) {
     return (
       <View style={{ flex: 1 }}>
-        {/* Range strip */}
         <View style={{
           flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
           marginHorizontal: rs(14), marginTop: rs(10), marginBottom: rs(4),
@@ -595,7 +643,6 @@ const TabScene = React.memo(({
     );
   }
 
-  // ── Today / Yesterday tabs ───────────────────────────────────────────────
   return (
     <View style={{ flex: 1 }}>
       {loading
@@ -649,7 +696,6 @@ export default function OrderHistoryScreen() {
 
   const { SW, nz, rs, isTablet } = useResponsive();
 
-  // ── Responsive grid ────────────────────────────────────────────────────────
   const COLS = isTablet ? 2 : 1;
   const H_PAD = rs(14);
   const GAP = isTablet ? rs(12) : 0;
@@ -796,7 +842,6 @@ export default function OrderHistoryScreen() {
     makeEndReached, customStart, customEnd, COLS, CARD_W, GAP, rs, nz,
   ]);
 
-  // renderTabBar: NO DateFilterBar here — moved to root level (see below)
   const renderTabBar = useCallback((props) => (
     <View style={{ backgroundColor: '#fff', paddingTop: rs(12), paddingBottom: rs(6) }}>
       <CustomTabBar {...props} customLabel={customLabel} SW={SW} rs={rs} nz={nz} />
@@ -807,7 +852,6 @@ export default function OrderHistoryScreen() {
     <View style={[s.root, { paddingTop: insets.top }]}>
       <StatusBar backgroundColor="#FFFFFF" barStyle="dark-content" translucent={false} />
 
-      {/* ── Header ─────────────────────────────────────────────────────── */}
       <View style={[s.header, { paddingHorizontal: rs(16), paddingVertical: rs(12) }]}>
         <HapticTouchable onPress={() => navigation.goBack()} style={{ padding: rs(4) }}>
           <Feather name="arrow-left" size={nz(20)} color="#1A1A1A" />
@@ -816,7 +860,6 @@ export default function OrderHistoryScreen() {
         <View style={{ width: rs(28) }} />
       </View>
 
-      {/* ── Tab view ────────────────────────────────────────────────────── */}
       <TabView
         navigationState={{ index: tabIndex, routes: ROUTES }}
         renderScene={renderScene}
@@ -829,7 +872,6 @@ export default function OrderHistoryScreen() {
         style={{ flex: 1 }}
       />
 
-      {/* DateFilterBar - Fixed visibility in landscape */}
       <DateFilterBar
         activeChip="custom"
         startDate={customStart ?? undefined}

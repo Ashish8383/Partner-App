@@ -259,7 +259,51 @@ const SlideToAccept = React.memo(({ onAccepted, onSlideActiveChange, cardW, rs, 
   prev.cardW === next.cardW
 );
 
-// ─── Order Card ───────────────────────────────────────────────────────────────
+const ocS = StyleSheet.create({
+  wrap: { backgroundColor: '#01690509', borderWidth: 1, borderColor: '#14131336' },
+  topRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  avatar: { backgroundColor: '#F0F0F0', justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
+  nameBlock: { flex: 1, flexShrink: 1, marginRight: 4 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 2, flexShrink: 1 },
+  seatBadge: { borderWidth: 1, borderColor: GREEN, backgroundColor: 'rgba(245,197,24,0.2)', alignItems: 'center', flexShrink: 0, alignSelf: 'flex-start' },
+  divider: { height: 1, backgroundColor: '#F2F2F2', marginVertical: 10 },
+  noteBox: { flexDirection: 'row', backgroundColor: '#fff5e6a9', alignItems: 'flex-start', borderWidth: 1, borderColor: '#ffdd0343' },
+  deliverBtn: { flexDirection: 'row', backgroundColor: GREEN, alignItems: 'center', justifyContent: 'center' },
+});
+
+// ─── Data helpers ─────────────────────────────────────────────────────────────
+const makeTabState = () => ({ data: [], page: 1, totalDocs: 0, exhausted: false, fetching: false });
+
+// Update the normaliseOrder function to include orderSerialNumber
+const normaliseOrder = (o) => {
+  const seatParts = (o.seatNo ?? '').split('/');
+  const parts = (o.fullname ?? '').trim().split(' ').filter(Boolean);
+  const initials = (parts.length >= 2 ? parts[0][0] + parts[1][0] : (parts[0]?.[0] ?? '?')).toUpperCase();
+  const d = o.OrderPlacedAt ? new Date(o.OrderPlacedAt) : null;
+  return {
+    id: o._id,
+    orderRef: o.Id,
+    orderId: o.OrderId,
+    orderSerialNumber: o.orderSerialNumber, // Add this line
+    initials,
+    customerName: (o.fullname ?? '').trim() || 'Customer',
+    phone: o.phone,
+    receivedAt: d ? d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '—',
+    date: d ? d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : '—',
+    seat: seatParts[0]?.trim() ?? '',
+    seatCode: seatParts[1]?.trim() ?? '',
+    items: (o.order ?? []).map((it) => ({
+      name: `${it.quantity}x ${it.foodName}`,
+      price: (() => { const n = Number(it.amount * it.quantity); return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, ''); })(),
+    })),
+    total: (() => { const n = Number(o.TotalAmount); return n == null ? '0' : Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, ''); })(),
+    note: 'Please ensure the invoice is provided to the customer at the time of food delivery, as the order is already entered in POS.',
+    foodnote: o.foodNote,
+    AcceptOrder: o.AcceptOrder,
+    isDelivered: o.isDelivered,
+    isCancelled: o.isCancelled,
+  };
+};
 const OrderCard = React.memo(({
   item, tab, onAccepted, onDelivered, onSlideActiveChange,
   cardW, SW, rs, nz,
@@ -270,6 +314,7 @@ const OrderCard = React.memo(({
   const maxHeight = useRef(new Animated.Value(1200)).current;
   const marginBottom = useRef(new Animated.Value(rs(14))).current;
   const entranceScale = useRef(new Animated.Value(0.95)).current;
+
   useEffect(() => {
     Animated.spring(entranceScale, { toValue: 1, damping: 20, stiffness: 260, mass: 0.45, useNativeDriver: true }).start();
   }, []);
@@ -296,7 +341,7 @@ const OrderCard = React.memo(({
   return (
     <Animated.View style={{ maxHeight, marginBottom, overflow: 'hidden', borderRadius: rs(17), width: cardW }}>
       <Animated.View style={{ transform: [{ scale: entranceScale }] }}>
-        <Animated.View style={[ocS.wrap, { borderRadius: rs(16), padding: rs(16), opacity, transform: [{ translateX }] }]}>
+        <Animated.View style={[ocS.wrap, { borderRadius: rs(16), padding: rs(12), opacity, transform: [{ translateX }] }]}>
 
           {/* Flash overlay */}
           <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, {
@@ -306,12 +351,51 @@ const OrderCard = React.memo(({
             <MaterialIcons name="check-circle" size={nz(48)} color="#fff" />
           </Animated.View>
 
-          {/* ── Top row ─────────────────────────────────────────────────── */}
-          <View style={ocS.topRow}>
+          {/* ── Order Number - Highlighted ───────────────────────────────── */}
+          {item.orderSerialNumber && (
+            <View style={{
+              backgroundColor: GREEN,
+              marginBottom: rs(12),
+              paddingVertical: rs(6),
+              paddingHorizontal: rs(14),
+              borderRadius: rs(10),
+              borderTopLeftRadius: rs(14),
+              borderBottomRightRadius: rs(14),
+              elevation: 3,
+              shadowColor: GREEN,
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.3,
+              shadowRadius: 4,
+              flexDirection: 'row',
+              alignItems: 'center',
+              alignSelf: 'flex-start',
+            }}>
+              <MaterialIcons name="receipt" size={nz(14)} color="#fff" style={{ marginRight: rs(6) }} />
+              <Text style={{
+                fontSize: nz(11),
+                fontWeight: '600',
+                color: 'rgba(255,255,255,0.9)',
+              }}>
+                Order No :
+              </Text>
+              <Text style={{
+                fontSize: nz(16),
+                fontWeight: '900',
+                color: '#fff',
+                marginLeft: rs(5),
+                letterSpacing: 0.5,
+              }}>
+                {item.orderSerialNumber}
+              </Text>
+            </View>
+          )}
+
+          {/* ── Customer Info Row ────────────────────────────────────────── */}
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
             <View style={[ocS.avatar, { width: rs(40), height: rs(40), borderRadius: rs(20), marginRight: rs(8) }]}>
               <Text style={{ fontSize: nz(13), fontWeight: '700', color: '#555' }}>{item.initials}</Text>
             </View>
-            <View style={ocS.nameBlock}>
+            <View style={[ocS.nameBlock, { flex: 1 }]}>
               <Text style={{ fontSize: nz(13), fontWeight: '700', color: '#1A1A1A', marginBottom: rs(3) }} numberOfLines={2}>
                 {item.customerName}
               </Text>
@@ -327,6 +411,7 @@ const OrderCard = React.memo(({
             <View style={[ocS.seatBadge, {
               width: SEAT_W, borderRadius: rs(10),
               paddingHorizontal: rs(6), paddingVertical: rs(6),
+              marginLeft: rs(6),
             }]}>
               <Text style={{ fontSize: nz(9), fontWeight: '600', color: '#1A1A1A', marginBottom: rs(2), textAlign: 'center', width: '100%' }}
                 numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.7}>
@@ -368,7 +453,7 @@ const OrderCard = React.memo(({
             borderRadius: rs(10),
             padding: rs(12),
             gap: rs(8),
-            backgroundColor: '#FFF8E1', // Light yellow background
+            backgroundColor: '#FFF8E1',
             borderWidth: 1,
             borderColor: '#FFD54F',
           }]}>
@@ -399,10 +484,12 @@ const OrderCard = React.memo(({
               </View>
             </View>
           </View>}
+
           <View style={[ocS.noteBox, { borderRadius: rs(10), padding: rs(10), gap: rs(6), marginTop: rs(8) }]}>
             <MaterialIcons name="warning-amber" size={nz(15)} color="#CC8800" />
             <Text style={{ flex: 1, fontSize: nz(10.5), color: '#885500', lineHeight: nz(16) }}>{item.note}</Text>
           </View>
+
           {/* ── Action ───────────────────────────────────────────────────── */}
           {tab === 'live' && (
             <SlideToAccept
@@ -433,52 +520,6 @@ const OrderCard = React.memo(({
   prev.tab === next.tab &&
   prev.cardW === next.cardW
 );
-
-const ocS = StyleSheet.create({
-  wrap: { backgroundColor: '#01690509', borderWidth: 1, borderColor: '#14131336' },
-  topRow: { flexDirection: 'row', alignItems: 'flex-start' },
-  avatar: { backgroundColor: '#F0F0F0', justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
-  nameBlock: { flex: 1, flexShrink: 1, marginRight: 4 },
-  metaRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 2, flexShrink: 1 },
-  seatBadge: { borderWidth: 1, borderColor: GREEN, backgroundColor: 'rgba(245,197,24,0.2)', alignItems: 'center', flexShrink: 0, alignSelf: 'flex-start' },
-  divider: { height: 1, backgroundColor: '#F2F2F2', marginVertical: 10 },
-  noteBox: { flexDirection: 'row', backgroundColor: '#fff5e6a9', alignItems: 'flex-start', borderWidth: 1, borderColor: '#ffdd0343' },
-  deliverBtn: { flexDirection: 'row', backgroundColor: GREEN, alignItems: 'center', justifyContent: 'center' },
-});
-
-// ─── Data helpers ─────────────────────────────────────────────────────────────
-const makeTabState = () => ({ data: [], page: 1, totalDocs: 0, exhausted: false, fetching: false });
-
-const normaliseOrder = (o) => {
-  const seatParts = (o.seatNo ?? '').split('/');
-  const parts = (o.fullname ?? '').trim().split(' ').filter(Boolean);
-  const initials = (parts.length >= 2 ? parts[0][0] + parts[1][0] : (parts[0]?.[0] ?? '?')).toUpperCase();
-  const d = o.OrderPlacedAt ? new Date(o.OrderPlacedAt) : null;
-  return {
-    id: o._id,
-    orderRef: o.Id,
-    orderId: o.OrderId,
-    initials,
-    customerName: (o.fullname ?? '').trim() || 'Customer',
-    phone: o.phone,
-    receivedAt: d ? d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '—',
-    date: d ? d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : '—',
-    seat: seatParts[0]?.trim() ?? '',
-    seatCode: seatParts[1]?.trim() ?? '',
-    items: (o.order ?? []).map((it) => ({
-      name: `${it.quantity}x ${it.foodName}`,
-      price: (() => { const n = Number(it.amount * it.quantity); return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, ''); })(),
-    })),
-    total: (() => { const n = Number(o.TotalAmount); return n == null ? '0' : Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, ''); })(),
-    // Only change this line - use foodNote if available, otherwise default message
-    note: 'Please ensure the invoice is provided to the customer at the time of food delivery, as the order is already entered in POS.',
-    foodnote: o.foodNote,
-    AcceptOrder: o.AcceptOrder,
-    isDelivered: o.isDelivered,
-    isCancelled: o.isCancelled,
-  };
-};
-
 // ─── Tab Scene ────────────────────────────────────────────────────────────────
 const TabScene = React.memo(({
   tabKey, loading, list, refreshing, onRefresh,
