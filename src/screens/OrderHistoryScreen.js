@@ -66,6 +66,12 @@ const normaliseOrder = (o) => {
     AcceptOrder: o.AcceptOrder,
     isDelivered: o.isDelivered,
     isCancelled: o.isCancelled,
+    // Commission breakdown fields
+    sharedCommissionWithCinemaConvienveFeesBreakDown: o.sharedCommissionWithCinemaConvienveFeesBreakDown,
+    sharedCommissionWithCinema: o.sharedCommissionWithCinema,
+    restaurantId: o.restaurantId,
+    FoodAmount: o.FoodAmount,
+    TotalAmount: o.TotalAmount,
   };
 };
 
@@ -210,6 +216,148 @@ const ItemsModal = ({ visible, items, total, onClose, rs, nz }) => (
   </Modal>
 );
 
+// ─── Commission Breakdown Modal ──────────────────────────────────────────────
+const CommissionBreakdownModal = ({ visible, order, onClose, rs, nz }) => {
+  const breakdown = order?.sharedCommissionWithCinemaConvienveFeesBreakDown;
+  const isOwner = order?.sharedCommissionWithCinema !== 0;
+
+  if (!isOwner || !breakdown) return null;
+
+  const formatCurrency = (amount) => {
+    if (amount == null) return 'N/A';
+    return `₹${amount}`;
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <View style={commissionS.overlay}>
+        <View style={[commissionS.modalContainer, { borderRadius: rs(20), padding: rs(24) }]}>
+          <View style={commissionS.header}>
+            <View>
+              <Text style={[commissionS.title, { fontSize: nz(18) }]}>Commission Breakdown</Text>
+              <Text style={[commissionS.subtitle, { fontSize: nz(12) }]}>Order #{order?.orderId}</Text>
+            </View>
+            <TouchableOpacity onPress={onClose} style={commissionS.closeBtn}>
+              <Feather name="x" size={nz(24)} color="#666" />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {/* Food Amount */}
+            <View style={[commissionS.row, { paddingVertical: rs(14) }]}>
+              <View style={commissionS.rowLeft}>
+                <View style={[commissionS.iconCircle, { backgroundColor: '#E3F2FD' }]}>
+                  <Feather name="coffee" size={nz(16)} color="#1976D2" />
+                </View>
+                <View>
+                  <Text style={[commissionS.rowLabel, { fontSize: nz(14) }]}>Food Amount</Text>
+                  <Text style={[commissionS.rowSub, { fontSize: nz(11) }]}>Total food value</Text>
+                </View>
+              </View>
+              <Text style={[commissionS.rowValue, { fontSize: nz(14), fontWeight: '600' }]}>
+                {formatCurrency(order?.FoodAmount)}
+              </Text>
+            </View>
+
+            <View style={commissionS.divider} />
+
+            {/* Cinema / Restaurant Fee */}
+            <View style={[commissionS.row, { paddingVertical: rs(14) }]}>
+              <View style={commissionS.rowLeft}>
+                <View style={[commissionS.iconCircle, { backgroundColor: '#FFF3E0' }]}>
+                  <Feather name="home" size={nz(16)} color="#E65100" />
+                </View>
+                <View>
+                  <Text style={[commissionS.rowLabel, { fontSize: nz(14) }]}>Cinema / Restaurant Fee</Text>
+                  <Text style={[commissionS.rowSub, { fontSize: nz(11) }]}>Fee going to restaurant</Text>
+                </View>
+              </View>
+              <Text style={[commissionS.rowValue, { fontSize: nz(14), fontWeight: '600', color: '#E65100' }]}>
+                {formatCurrency(breakdown?.convienveFeesGoesToRestaurant)}
+              </Text>
+            </View>
+
+            {/* Cinema / Restaurant Fee GST */}
+            <View style={[commissionS.row, { paddingVertical: rs(14) }]}>
+              <View style={commissionS.rowLeft}>
+                <View style={[commissionS.iconCircle, { backgroundColor: '#FCE4EC' }]}>
+                  <Feather name="percent" size={nz(16)} color="#C62828" />
+                </View>
+                <View>
+                  <Text style={[commissionS.rowLabel, { fontSize: nz(14) }]}>Cinema / Restaurant Fee GST</Text>
+                  <Text style={[commissionS.rowSub, { fontSize: nz(11) }]}>GST on restaurant fee</Text>
+                </View>
+              </View>
+              <Text style={[commissionS.rowValue, { fontSize: nz(14), fontWeight: '600', color: '#C62828' }]}>
+                {formatCurrency(breakdown?.gstOnConvienveFeesGoesToRestaurant)}
+              </Text>
+            </View>
+
+            <View style={commissionS.divider} />
+
+            {/* Platform Fee */}
+            <View style={[commissionS.row, { paddingVertical: rs(14) }]}>
+              <View style={commissionS.rowLeft}>
+                <View style={[commissionS.iconCircle, { backgroundColor: '#E8F5E9' }]}>
+                  <Feather name="layers" size={nz(16)} color="#2E7D32" />
+                </View>
+                <View>
+                  <Text style={[commissionS.rowLabel, { fontSize: nz(14) }]}>Platform Fee</Text>
+                  <Text style={[commissionS.rowSub, { fontSize: nz(11) }]}>Fee going to platform</Text>
+                </View>
+              </View>
+              <Text style={[commissionS.rowValue, { fontSize: nz(14), fontWeight: '600', color: '#2E7D32' }]}>
+                {formatCurrency(breakdown?.convienveFeesGoesToAlfennzo)}
+              </Text>
+            </View>
+
+            {/* Platform Fee GST */}
+            <View style={[commissionS.row, { paddingVertical: rs(14) }]}>
+              <View style={commissionS.rowLeft}>
+                <View style={[commissionS.iconCircle, { backgroundColor: '#F3E5F5' }]}>
+                  <Feather name="percent" size={nz(16)} color="#6A1B9A" />
+                </View>
+                <View>
+                  <Text style={[commissionS.rowLabel, { fontSize: nz(14) }]}>Platform Fee GST</Text>
+                  <Text style={[commissionS.rowSub, { fontSize: nz(11) }]}>GST on platform fee</Text>
+                </View>
+              </View>
+              <Text style={[commissionS.rowValue, { fontSize: nz(14), fontWeight: '600', color: '#6A1B9A' }]}>
+                {formatCurrency(breakdown?.gstOnConvienveFeesGoesToAlfennzo)}
+              </Text>
+            </View>
+
+            <View style={commissionS.divider} />
+
+            {/* Total Amount */}
+            <View style={[commissionS.totalRow, { paddingVertical: rs(16) }]}>
+              <View>
+                <Text style={[commissionS.totalLabel, { fontSize: nz(16), fontWeight: '700' }]}>Total Amount</Text>
+                <Text style={[commissionS.totalSub, { fontSize: nz(11), color: '#888' }]}>Grand total including all fees</Text>
+              </View>
+              <Text style={[commissionS.totalValue, { fontSize: nz(20), fontWeight: '800', color: GREEN }]}>
+                {formatCurrency(order?.TotalAmount)}
+              </Text>
+            </View>
+          </ScrollView>
+
+          <TouchableOpacity
+            style={[commissionS.closeButton, { backgroundColor: GREEN, borderRadius: rs(25), paddingVertical: rs(14), marginTop: rs(16) }]}
+            onPress={onClose}
+          >
+            <Text style={[commissionS.closeButtonText, { fontSize: nz(14), color: '#fff', fontWeight: '600' }]}>Close</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
 const modalS = StyleSheet.create({
   overlay: {
     flex: 1,
@@ -272,15 +420,104 @@ const modalS = StyleSheet.create({
   },
 });
 
+const commissionS = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    backgroundColor: '#fff',
+    width: '92%',
+    maxHeight: '80%',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  title: {
+    fontWeight: '700',
+    color: '#1A1A1A',
+  },
+  subtitle: {
+    color: '#888',
+    marginTop: 2,
+  },
+  closeBtn: {
+    padding: 4,
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  rowLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  iconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  rowLabel: {
+    color: '#1A1A1A',
+    fontWeight: '500',
+  },
+  rowSub: {
+    color: '#888',
+    marginTop: 2,
+  },
+  rowValue: {
+    color: '#1A1A1A',
+    marginLeft: 8,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#F0F0F0',
+  },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  totalLabel: {
+    color: '#1A1A1A',
+  },
+  totalSub: {
+    marginTop: 2,
+  },
+  totalValue: {},
+  closeButton: {
+    alignItems: 'center',
+  },
+  closeButtonText: {
+    fontWeight: '600',
+  },
+});
+
 // ─── History Order Card ───────────────────────────────────────────────────────
-const HistoryOrderCard = React.memo(({ item, rs, nz, cardW }) => {
-  const [modalVisible, setModalVisible] = useState(false);
+const HistoryOrderCard = React.memo(({ item, rs, nz, cardW, userProfile }) => {
+  const [itemsModalVisible, setItemsModalVisible] = useState(false);
+  const [commissionModalVisible, setCommissionModalVisible] = useState(false);
+
   const statusColor = item.isDelivered ? '#4CAF50' : item.isCancelled ? '#F44336' : '#FF9800';
   const statusText = item.isDelivered ? 'Delivered' : item.isCancelled ? 'Cancelled' : 'Completed';
 
   const firstItem = item.items[0];
   const remainingCount = item.items.length - 1;
   const hasMultipleItems = item.items.length > 1;
+
+  // Check if user is OWNER and has commission data
+  const isOwner = userProfile?.RestaurantType === 'OWNER';
+  const hasCommissionData = userProfile?.sharedCommissionWithCinema !== 0;
 
   return (
     <>
@@ -439,8 +676,9 @@ const HistoryOrderCard = React.memo(({ item, rs, nz, cardW }) => {
                 marginBottom: rs(10),
                 borderWidth: 1,
                 borderColor: `${GREEN}30`,
+                paddingVertical: rs(6),
               }}
-              onPress={() => setModalVisible(true)}
+              onPress={() => setItemsModalVisible(true)}
               activeOpacity={0.8}
             >
               <Feather name="list" size={nz(12)} color={GREEN} style={{ marginRight: rs(4) }} />
@@ -461,6 +699,29 @@ const HistoryOrderCard = React.memo(({ item, rs, nz, cardW }) => {
 
           <View style={{ height: 1, backgroundColor: '#F2F2F2', marginVertical: rs(12) }} />
           <Text style={{ fontSize: nz(13), color: '#AAAAAA', marginBottom: rs(8) }}>Order ID: {item.orderId}</Text>
+
+          {/* ── View Details Button (OWNER only) ── */}
+          {isOwner && hasCommissionData && (
+            <TouchableOpacity
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: GREEN,
+                borderRadius: rs(10),
+                paddingVertical: rs(10),
+                marginTop: rs(8),
+                marginBottom: rs(4),
+              }}
+              onPress={() => setCommissionModalVisible(true)}
+              activeOpacity={0.8}
+            >
+              <Feather name="eye" size={nz(14)} color="#fff" style={{ marginRight: rs(6) }} />
+              <Text style={{ fontSize: nz(13), fontWeight: '600', color: '#fff' }}>
+                View Commission Details
+              </Text>
+            </TouchableOpacity>
+          )}
 
           {item.foodnote && (
             <View style={{
@@ -518,16 +779,24 @@ const HistoryOrderCard = React.memo(({ item, rs, nz, cardW }) => {
       </View>
 
       <ItemsModal
-        visible={modalVisible}
+        visible={itemsModalVisible}
         items={item.items}
         total={item.total}
-        onClose={() => setModalVisible(false)}
+        onClose={() => setItemsModalVisible(false)}
+        rs={rs}
+        nz={nz}
+      />
+
+      <CommissionBreakdownModal
+        visible={commissionModalVisible}
+        order={item}
+        onClose={() => setCommissionModalVisible(false)}
         rs={rs}
         nz={nz}
       />
     </>
   );
-}, (prev, next) => prev.item.id === next.item.id && prev.cardW === next.cardW);
+}, (prev, next) => prev.item.id === next.item.id && prev.cardW === next.cardW && prev.userProfile?.Id === next.userProfile?.Id);
 
 // ─── Tab Scene ────────────────────────────────────────────────────────────────
 const makeTabState = () => ({ data: [], page: 1, totalDocs: 0, exhausted: false, fetching: false });
@@ -536,12 +805,12 @@ const TabScene = React.memo(({
   tabKey, loading, list, refreshing, onRefresh,
   isLoadingMore, isExhausted, onEndReached,
   isCustom, hasCustomRange, customStart, customEnd,
-  onOpenDatePicker, cols, cardW, gap, rs, nz,
+  onOpenDatePicker, cols, cardW, gap, rs, nz, userProfile,
 }) => {
   const rowKeyExtractor = useCallback((_, i) => String(i), []);
   const renderCard = useCallback(({ item }) => (
-    <HistoryOrderCard item={item} rs={rs} nz={nz} cardW={cardW} />
-  ), [rs, nz, cardW]);
+    <HistoryOrderCard item={item} rs={rs} nz={nz} cardW={cardW} userProfile={userProfile} />
+  ), [rs, nz, cardW, userProfile]);
 
   const listContent = { paddingTop: rs(6), paddingBottom: rs(24) };
 
@@ -692,7 +961,7 @@ const TabScene = React.memo(({
 export default function OrderHistoryScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
-  const { user } = useStore();
+  const { user, profile } = useStore();
 
   const { SW, nz, rs, isTablet } = useResponsive();
 
@@ -834,12 +1103,13 @@ export default function OrderHistoryScreen() {
         gap={GAP}
         rs={rs}
         nz={nz}
+        userProfile={profile}
       />
     );
   }, [
     todayList, yesterdayList, customList, loadingMap,
     refreshing, loadingMoreMap, exhaustedMap, onRefresh,
-    makeEndReached, customStart, customEnd, COLS, CARD_W, GAP, rs, nz,
+    makeEndReached, customStart, customEnd, COLS, CARD_W, GAP, rs, nz, profile,
   ]);
 
   const renderTabBar = useCallback((props) => (

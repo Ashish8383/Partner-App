@@ -218,7 +218,6 @@ let appStateSubscription = null;
 let responseListener = null;
 
 export const setupBadgeManagement = () => {
-  // Reset badge immediately when called
   resetBadgeCount();
 
   // Reset badge when app comes to foreground

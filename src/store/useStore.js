@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { storage } from '../utils/storage';
 import { authAPI } from '../utils/api';
+import { decryptData } from '../utils/decrypt';
 
 const useStore = create((set, get) => ({
   isAuthenticated: false,
@@ -14,6 +15,7 @@ const useStore = create((set, get) => ({
   staffRole: null,           // Staff role (e.g., "ORDER_MANAGER")
   staffPermissions: [],      // Staff permissions array
   restaurant: null,          // Full restaurant object
+  profile: null,             // Profile object - initially null
   _isLoggingOut: false,
   fcmToken: null,
   deviceFingerprint: null,
@@ -34,25 +36,88 @@ const useStore = create((set, get) => ({
     return staffName || restaurantName || restaurant?.name || null;
   },
 
+  // ── Fetch profile from API ──────────────────────────────────────────────────
+  fetchProfile: async (restaurantId) => {
+    try {
+
+      // If restaurantId not provided, get it from current user
+      const user = get().user;
+      // Use restaurantId from user data (this is the encrypted ID from login)
+      const id = user?.encryptedId;
+
+      if (!id) {
+        return null;
+      }
+
+      // Get the current token to ensure it's available
+      const token = get().token;
+
+      const profileRes = await authAPI.getProfile(id);
+      const responseData = profileRes?.data?.data || profileRes?.data;
+
+      if (responseData) {
+        let decryptedProfile;
+
+        if (typeof responseData === 'string') {
+          decryptedProfile = decryptData(responseData);
+        } else {
+          // If it's already decrypted
+          decryptedProfile = responseData;
+        }
+
+        if (!decryptedProfile) {
+          return null;
+        }
+
+        // Store profile in state
+        set({ profile: decryptedProfile });
+
+        // Also update restaurantName and restaurantLogo if present in profile
+        if (decryptedProfile) {
+          const restaurantName = decryptedProfile?.restaurantName ??
+            decryptedProfile?.name ??
+            decryptedProfile?.restaurant?.name ?? null;
+          const restaurantLogo = decryptedProfile?.Logo ??
+            decryptedProfile?.logo ??
+            decryptedProfile?.restaurant?.logo ?? null;
+
+          if (restaurantName) {
+            await storage.setItem('restaurantName', restaurantName);
+          }
+          if (restaurantLogo) {
+            await storage.setItem('restaurantLogo', restaurantLogo);
+          }
+
+          const { staffName } = get();
+          set({
+            restaurantName: staffName ? get().restaurantName : restaurantName,
+            restaurantLogo: restaurantLogo || get().restaurantLogo,
+          });
+        }
+
+        return decryptedProfile;
+      }
+      return null;
+    } catch (error) {
+      if (error.response) {
+      }
+      return null;
+    }
+  },
+
   login: async (userData, token, refreshToken = null) => {
+
     await storage.setItem('user', userData);
     await storage.setItem('token', token);
     if (refreshToken) await storage.setItem('refreshToken', refreshToken);
-
-    // Extract and store staff/restaurant data
     const staffName = userData?.name ?? null;
     const staffRole = userData?.role ?? null;
     const staffPermissions = userData?.permissions ?? [];
     const restaurant = userData?.restaurant ?? null;
-
-    // Store individual values
     if (staffName) await storage.setItem('staffName', staffName);
     if (staffRole) await storage.setItem('staffRole', staffRole);
     if (staffPermissions.length > 0) await storage.setItem('staffPermissions', JSON.stringify(staffPermissions));
     if (restaurant) await storage.setItem('restaurant', JSON.stringify(restaurant));
-
-    // If staff is present, use staff name as the display name
-    // Otherwise fall back to restaurant name
     const displayName = staffName || restaurant?.name || null;
     if (displayName) await storage.setItem('displayName', displayName);
 
@@ -61,27 +126,48 @@ const useStore = create((set, get) => ({
       user: userData,
       token,
       refreshToken,
-      restaurantName: restaurant?.name || null,  // Store restaurant name separately
-      restaurantLogo: restaurant?.logo || null,   // Store restaurant logo
+      restaurantName: restaurant?.name || null,
+      restaurantLogo: restaurant?.logo || null,
       staffName,
       staffRole,
       staffPermissions,
       restaurant,
+      profile: null, // Reset profile - will be fetched separately
     });
+
+    // Fetch profile after login - use the restaurant ID (encrypted ID from login)
+    const restaurantId = userData?.id;
+    if (restaurantId) {
+      try {
+        const profile = await get().fetchProfile(restaurantId);
+      } catch (error) {
+      }
+    } else {
+    }
   },
 
   setProfile: async (profileData) => {
     const restaurantName = profileData?.restaurantName ?? null;
     const restaurantLogo = profileData?.Logo ?? null;
-    await storage.setItem('restaurantName', restaurantName);
-    await storage.setItem('restaurantLogo', restaurantLogo);
+
+    // Store profile data
+    if (profileData) {
+      await storage.setItem('profile', JSON.stringify(profileData));
+    }
+    if (restaurantName) {
+      await storage.setItem('restaurantName', restaurantName);
+    }
+    if (restaurantLogo) {
+      await storage.setItem('restaurantLogo', restaurantLogo);
+    }
 
     // Only update restaurantName if no staff name exists
     // This prevents overwriting staff name with restaurant name
     const { staffName } = get();
     set({
-      restaurantName: staffName ? get().restaurantName : restaurantName,  // Keep restaurant name for reference
-      restaurantLogo
+      profile: profileData || null,
+      restaurantName: staffName ? get().restaurantName : restaurantName,
+      restaurantLogo: restaurantLogo || get().restaurantLogo,
     });
   },
 
@@ -156,6 +242,7 @@ const useStore = create((set, get) => ({
     await storage.removeItem('staffRole');
     await storage.removeItem('staffPermissions');
     await storage.removeItem('restaurant');
+    await storage.removeItem('profile');
     await storage.removeItem('fcmToken');
     await storage.removeItem('deviceFingerprint');
     await storage.removeItem('notificationsEnabled');
@@ -172,6 +259,7 @@ const useStore = create((set, get) => ({
       staffRole: null,
       staffPermissions: [],
       restaurant: null,
+      profile: null,
       fcmToken: null,
       deviceFingerprint: null,
       notificationsEnabled: false,
@@ -198,6 +286,7 @@ const useStore = create((set, get) => ({
       const staffRole = await storage.getItem('staffRole');
       const staffPermissionsStr = await storage.getItem('staffPermissions');
       const restaurantStr = await storage.getItem('restaurant');
+      const profileStr = await storage.getItem('profile');
       const fcmToken = await storage.getItem('fcmToken');
       const deviceFingerprint = await storage.getItem('deviceFingerprint');
       const notificationsEnabled = await storage.getItem('notificationsEnabled');
@@ -205,6 +294,7 @@ const useStore = create((set, get) => ({
       // Parse JSON strings back to objects/arrays
       const staffPermissions = staffPermissionsStr ? JSON.parse(staffPermissionsStr) : [];
       const restaurant = restaurantStr ? JSON.parse(restaurantStr) : null;
+      const profile = profileStr ? JSON.parse(profileStr) : null;
 
       if (user && token) {
         set({
@@ -218,16 +308,88 @@ const useStore = create((set, get) => ({
           staffRole: staffRole ?? null,
           staffPermissions: staffPermissions,
           restaurant: restaurant,
+          profile: profile,
           fcmToken: fcmToken ?? null,
           deviceFingerprint: deviceFingerprint ?? null,
           notificationsEnabled: notificationsEnabled ?? false,
         });
+
+        // After loading persisted state, fetch fresh profile from API
+        // Use the restaurant ID (encrypted ID from login)
+        const restaurantId = user?.id;
+        if (restaurantId) {
+          setTimeout(() => {
+            get().fetchProfile(restaurantId);
+          }, 1000);
+        }
       }
 
       if (savedTheme) set({ themeMode: savedTheme });
-    } catch { }
+    } catch (error) {
+    }
     finally {
       set({ isHydrated: true });
+    }
+  },
+
+  // store/useStore.js - Add this method
+
+  // Add this to your store
+  refreshProfile: async () => {
+    const { user, isAuthenticated } = get();
+    if (!isAuthenticated || !user?.encryptedId) {
+      return null;
+    }
+
+    try {
+      const token = get().token;
+      const profileRes = await authAPI.getProfile(user.encryptedId);
+      const responseData = profileRes?.data?.data || profileRes?.data;
+
+      if (responseData) {
+        let decryptedProfile;
+
+        if (typeof responseData === 'string') {
+          decryptedProfile = decryptData(responseData);
+        } else {
+          decryptedProfile = responseData;
+        }
+
+        if (!decryptedProfile) {
+          return null;
+        }
+
+        // Store profile in state
+        set({ profile: decryptedProfile });
+
+        // Update restaurantName and restaurantLogo if present
+        if (decryptedProfile) {
+          const restaurantName = decryptedProfile?.restaurantName ??
+            decryptedProfile?.name ??
+            decryptedProfile?.restaurant?.name ?? null;
+          const restaurantLogo = decryptedProfile?.Logo ??
+            decryptedProfile?.logo ??
+            decryptedProfile?.restaurant?.logo ?? null;
+
+          if (restaurantName) {
+            await storage.setItem('restaurantName', restaurantName);
+          }
+          if (restaurantLogo) {
+            await storage.setItem('restaurantLogo', restaurantLogo);
+          }
+
+          const { staffName } = get();
+          set({
+            restaurantName: staffName ? get().restaurantName : restaurantName,
+            restaurantLogo: restaurantLogo || get().restaurantLogo,
+          });
+        }
+
+        return decryptedProfile;
+      }
+      return null;
+    } catch (error) {
+      return null;
     }
   },
 
@@ -242,7 +404,7 @@ const useStore = create((set, get) => ({
       liveOrders: state.liveOrders.map((order) =>
         order.id === orderId ? { ...order, status } : order
       ),
-    })),
+    }))
 }));
 
 export default useStore;

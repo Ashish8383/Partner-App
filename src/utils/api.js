@@ -46,10 +46,20 @@ export const authAPI = {
     const deviceFingerprint = useStore.getState().deviceFingerprint ?? '';
     return api.post('/restaurant/logout', { deviceFingerprint });
   },
-  getProfile: (restaurantId) =>
-    api.get('/restaurant/zxwyqohytzecats/1bf370ed4805a68bc295ef2143484170:2788bb54abac0ace8e476fb92487add368d5eb895916312b94c900632c8c50e3:bd7a7d687e0765719b7d33c30e10ded8e032875e8888d383ca2ef898135aba17', {
-      params: { restaurantId },
-    }),
+  getProfile: (restaurantid) => {
+    if (!restaurantid) {
+      return Promise.reject(new Error('Restaurant ID is required'));
+    }
+
+    return api.get(
+      `/restaurant/zxwyqohytzecats/1bf370ed4805a68bc295ef2143484170:2788bb54abac0ace8e476fb92487add368d5eb895916312b94c900632c8c50e3:bd7a7d687e0765719b7d33c30e10ded8e032875e8888d383ca2ef898135aba17`,
+      {
+        params: {
+          restaurantId: restaurantid
+        }
+      }
+    );
+  },
 };
 
 export const getLogedinDevices = async (data) => {

@@ -236,13 +236,8 @@ const LoginScreen = () => {
             } : null,
           };
 
+          // The login method now automatically fetches profile
           await login(userData, data.accessToken, data.refreshToken);
-
-          try {
-            const profileRes = await authAPI.getProfile(userData.id);
-            const enc = profileRes?.data?.data;
-            if (enc) await setProfile(decryptData(enc));
-          } catch { }
 
           showToast(response.message || 'Login successful!', 'success');
           setPendingCredentials(null);

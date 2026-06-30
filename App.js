@@ -1,3 +1,5 @@
+// App.js - Updated version
+
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar, View, AppState } from 'react-native';
@@ -25,17 +27,42 @@ export default function App() {
   const [inAppNotif, setInAppNotif] = useState(null);
   const [isOnline, setIsOnline] = useState(null);
   const navigationRef = useRef(null);
+
   const setNotificationsEnabled = useStore((s) => s.setNotificationsEnabled);
   const liveOrderCount = useStore((s) => s.liveOrderCount);
+  const isAuthenticated = useStore((s) => s.isAuthenticated);
+  const isHydrated = useStore((s) => s.isHydrated);
+  const profile = useStore((s) => s.profile);
+
   const { updateRequired, checking: checkingVersion, currentVersion, checkVersion } = useAppVersion();
 
+  // Get store methods
+  const loadPersistedState = useStore((s) => s.loadPersistedState);
+  const refreshProfile = useStore((s) => s.refreshProfile);
+  const fetchProfile = useStore((s) => s.fetchProfile);
+  const user = useStore((s) => s.user);
+
+  // ─── Load persisted state on mount ──────────────────────────────────────
+  useEffect(() => {
+    loadPersistedState();
+  }, []);
+
+  // ─── Log profile state changes ──────────────────────────────────────────
+  useEffect(() => {
+    if (isHydrated) {
+      if (profile) {
+      }
+    }
+  }, [isHydrated, profile, isAuthenticated]);
+
+  // ─── Load sounds ─────────────────────────────────────────────────────────
   useEffect(() => {
     loadSound('accept', require('./assets/slide.mp3'));
     loadSound('deliver', require('./assets/deliver.mp3'));
     loadSound('order_auto_sound', require('./assets/notification.mp3'));
   }, []);
 
-  // ── Fix goToHomeLiveTab — safe navigation ───────────────────────────────
+  // ─── Fix goToHomeLiveTab — safe navigation ───────────────────────────────
   const goToHomeLiveTab = useCallback(() => {
     const nav = navigationRef.current;
     if (!nav || !nav.isReady()) return;
@@ -53,9 +80,10 @@ export default function App() {
         },
       });
     } catch (e) {
-      // ✅ silently ignore navigation errors
+      // silently ignore navigation errors
     }
   }, []);
+
   // ── Sound: strictly tied to liveOrderCount ──────────────────────────────
   useEffect(() => {
     if (liveOrderCount > 0) {
@@ -65,23 +93,47 @@ export default function App() {
     }
   }, [liveOrderCount]);
 
-  // ── AppState: resume/stop sound based on current count ─────────────────
+  // ── AppState: resume/stop sound & REFRESH PROFILE ─────────────────────────
   useEffect(() => {
-    const sub = AppState.addEventListener('change', (state) => {
+    const sub = AppState.addEventListener('change', async (state) => {
       if (state === 'active') {
+
+        // 1. Handle sound
         if (liveOrderCount > 0) {
           playLoopSound('order_auto_sound');
         } else {
           stopSound('order_auto_sound');
         }
+
+        // 2. ✅ REFRESH PROFILE when app comes back to foreground
+        if (isAuthenticated) {
+          try {
+            const result = await refreshProfile();
+            if (result) {
+            } else {
+            }
+          } catch (error) {
+          }
+        } else {
+        }
+
+        // 3. Check internet connection
+        checkConnection();
       } else if (state === 'background' || state === 'inactive') {
         stopSound('order_auto_sound');
       }
     });
     return () => sub.remove();
-  }, [liveOrderCount]);
+  }, [liveOrderCount, isAuthenticated, refreshProfile]);
 
-  // ── Internet check ──────────────────────────────────────────────────────
+  // ─── Also refresh profile when hydration completes ──────────────────────
+  useEffect(() => {
+    if (isHydrated && isAuthenticated && !profile) {
+      refreshProfile();
+    }
+  }, [isHydrated, isAuthenticated, profile, refreshProfile]);
+
+  // ─── Internet check ──────────────────────────────────────────────────────
   const checkConnection = useCallback(async () => {
     try {
       const res = await fetch('https://www.google.com/generate_204', {
@@ -133,14 +185,25 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    // Initialize badge management
     const cleanup = initBadgeManagement();
-
     return () => {
-      // Cleanup on app unmount
       if (cleanup) cleanup();
     };
   }, []);
+
+  // ─── Show loading while hydrating ──────────────────────────────────────
+  if (!isHydrated) {
+    return (
+      <ThemeProvider>
+        <SafeAreaProvider>
+          <StatusBar backgroundColor={COLORS.primary} barStyle="light-content" />
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+            {/* You can add a loading spinner here */}
+          </View>
+        </SafeAreaProvider>
+      </ThemeProvider>
+    );
+  }
 
   if (!checkingVersion && updateRequired) {
     return (
