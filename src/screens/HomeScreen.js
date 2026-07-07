@@ -399,6 +399,12 @@ const OrderCard = React.memo(({
               <Text style={{ fontSize: nz(13), fontWeight: '700', color: '#1A1A1A', marginBottom: rs(3) }} numberOfLines={2}>
                 {item.customerName}
               </Text>
+              {item.phone ? (
+                <View style={ocS.metaRow}>
+                  <Feather name="phone" size={nz(10)} color="#999" />
+                  <Text style={{ fontSize: nz(10), color: '#666', flexShrink: 1 }} numberOfLines={1}> {item.phone}</Text>
+                </View>
+              ) : null}
               <View style={ocS.metaRow}>
                 <Feather name="clock" size={nz(10)} color="#999" />
                 <Text style={{ fontSize: nz(10), color: '#666', flexShrink: 1 }} numberOfLines={1}> {item.receivedAt}</Text>
@@ -650,7 +656,7 @@ export default function HomeScreen() {
   const [exhaustedMap, setExhaustedMap] = useState({ live: false, pending: false });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-
+  console.log(liveList, "live list")
   const setLiveOrderCount = useStore((s) => s.setLiveOrderCount);
   const blinkAnim = useRef(new Animated.Value(1)).current;
   const blinkLoopRef = useRef(null);
