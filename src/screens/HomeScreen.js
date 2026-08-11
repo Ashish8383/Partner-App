@@ -656,7 +656,6 @@ export default function HomeScreen() {
   const [exhaustedMap, setExhaustedMap] = useState({ live: false, pending: false });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  console.log(liveList, "live list")
   const setLiveOrderCount = useStore((s) => s.setLiveOrderCount);
   const blinkAnim = useRef(new Animated.Value(1)).current;
   const blinkLoopRef = useRef(null);

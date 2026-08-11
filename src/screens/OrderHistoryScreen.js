@@ -72,6 +72,7 @@ const normaliseOrder = (o) => {
     restaurantId: o.restaurantId,
     FoodAmount: o.FoodAmount,
     TotalAmount: o.TotalAmount,
+    movieInfo: o.movieInfo ?? null,
   };
 };
 
@@ -420,6 +421,212 @@ const modalS = StyleSheet.create({
   },
 });
 
+// ─── Movie Details Modal ─────────────────────────────────────────────────────
+const MovieDetailsModal = ({ visible, movieInfo, onClose, rs, nz }) => {
+  if (!movieInfo) return null;
+
+  const { movie, show, venue, interval } = movieInfo;
+
+  const formatDuration = (mins) => {
+    if (!mins) return '';
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return h > 0 ? `${h}h ${m}m` : `${m}m`;
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={movieS.overlay}>
+        <View style={[movieS.modalContainer, { borderRadius: rs(20), padding: rs(20) }]}>
+          <View style={movieS.header}>
+            <View style={{ flex: 1 }}>
+              <Text style={[movieS.title, { fontSize: nz(18) }]}>Movie Details</Text>
+              <Text style={[movieS.subtitle, { fontSize: nz(12) }]}>{venue?.name}</Text>
+            </View>
+            <TouchableOpacity onPress={onClose} style={movieS.closeBtn}>
+              <Feather name="x" size={nz(22)} color="#666" />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {/* Movie Name & Info */}
+            <View style={[movieS.section, { padding: rs(14), borderRadius: rs(12), marginBottom: rs(12) }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: rs(10) }}>
+                <View style={[movieS.iconCircle, { backgroundColor: '#E8F5E9' }]}>
+                  <MaterialIcons name="movie" size={nz(18)} color={GREEN} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: nz(16), fontWeight: '700', color: '#1A1A1A' }}>{movie?.movieName}</Text>
+                  <Text style={{ fontSize: nz(12), color: '#888', marginTop: rs(2) }}>
+                    {movie?.language} • {movie?.dimension} • {movie?.censor}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: rs(6), marginBottom: rs(8) }}>
+                {movie?.genre?.map((g, i) => (
+                  <View key={i} style={{ backgroundColor: `${GREEN}15`, paddingHorizontal: rs(10), paddingVertical: rs(4), borderRadius: rs(12) }}>
+                    <Text style={{ fontSize: nz(11), fontWeight: '600', color: GREEN }}>{g}</Text>
+                  </View>
+                ))}
+              </View>
+
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Feather name="clock" size={nz(12)} color="#888" />
+                <Text style={{ fontSize: nz(12), color: '#666', marginLeft: rs(4) }}>Duration: {formatDuration(movie?.duration)}</Text>
+              </View>
+            </View>
+
+            {/* Show Details */}
+            <View style={[movieS.section, { padding: rs(14), borderRadius: rs(12), marginBottom: rs(12) }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: rs(10) }}>
+                <View style={[movieS.iconCircle, { backgroundColor: '#E3F2FD' }]}>
+                  <MaterialIcons name="schedule" size={nz(18)} color="#1976D2" />
+                </View>
+                <Text style={{ fontSize: nz(14), fontWeight: '700', color: '#1A1A1A' }}>Show Details</Text>
+              </View>
+
+              <View style={{ gap: rs(8) }}>
+                <View style={movieS.detailRow}>
+                  <Text style={movieS.detailLabel}>Screen</Text>
+                  <Text style={movieS.detailValue}>{show?.screen}</Text>
+                </View>
+                <View style={movieS.detailRow}>
+                  <Text style={movieS.detailLabel}>Show Time</Text>
+                  <Text style={movieS.detailValue}>{show?.showTime}</Text>
+                </View>
+                <View style={movieS.detailRow}>
+                  <Text style={movieS.detailLabel}>Time Slot</Text>
+                  <Text style={movieS.detailValue}>{show?.startTimeLabel} – {show?.endTimeLabel}</Text>
+                </View>
+                {show?.attributes ? (
+                  <View style={movieS.detailRow}>
+                    <Text style={movieS.detailLabel}>Format</Text>
+                    <Text style={movieS.detailValue}>{show.attributes}</Text>
+                  </View>
+                ) : null}
+              </View>
+            </View>
+
+            {/* Interval Info */}
+            {interval?.isInterval && (
+              <View style={[movieS.section, { padding: rs(14), borderRadius: rs(12), marginBottom: rs(12) }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: rs(10) }}>
+                  <View style={[movieS.iconCircle, { backgroundColor: '#FFF3E0' }]}>
+                    <MaterialIcons name="pause-circle-outline" size={nz(18)} color="#E65100" />
+                  </View>
+                  <Text style={{ fontSize: nz(14), fontWeight: '700', color: '#1A1A1A' }}>Interval</Text>
+                </View>
+                <View style={movieS.detailRow}>
+                  <Text style={movieS.detailLabel}>Interval Time</Text>
+                  <Text style={movieS.detailValue}>{interval.startTimeLabel} – {interval.endTimeLabel}</Text>
+                </View>
+              </View>
+            )}
+
+            {/* Venue */}
+            <View style={[movieS.section, { padding: rs(14), borderRadius: rs(12), marginBottom: rs(12) }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: rs(10) }}>
+                <View style={[movieS.iconCircle, { backgroundColor: '#FCE4EC' }]}>
+                  <MaterialIcons name="location-on" size={nz(18)} color="#C62828" />
+                </View>
+                <Text style={{ fontSize: nz(14), fontWeight: '700', color: '#1A1A1A' }}>Venue</Text>
+              </View>
+              <Text style={{ fontSize: nz(13), color: '#444', lineHeight: nz(19) }}>{venue?.address}</Text>
+            </View>
+
+            {/* Movie Status */}
+            <View style={{
+              flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+              backgroundColor: movieInfo.status === 'PLAYING' ? '#E8F5E9' : movieInfo.status === 'INTERVAL' ? '#FFF3E0' : '#F5F5F5',
+              paddingVertical: rs(10), borderRadius: rs(10), marginBottom: rs(8),
+            }}>
+              <View style={{
+                width: rs(8), height: rs(8), borderRadius: rs(4), marginRight: rs(6),
+                backgroundColor: movieInfo.status === 'PLAYING' ? '#4CAF50' : movieInfo.status === 'INTERVAL' ? '#FF9800' : '#999',
+              }} />
+              <Text style={{
+                fontSize: nz(13), fontWeight: '600',
+                color: movieInfo.status === 'PLAYING' ? '#2E7D32' : movieInfo.status === 'INTERVAL' ? '#E65100' : '#666',
+              }}>
+                {movieInfo.status}
+              </Text>
+            </View>
+          </ScrollView>
+
+          <TouchableOpacity
+            style={[movieS.closeButton, { backgroundColor: GREEN, borderRadius: rs(25), paddingVertical: rs(14), marginTop: rs(14) }]}
+            onPress={onClose}
+          >
+            <Text style={{ fontSize: nz(14), color: '#fff', fontWeight: '600' }}>Close</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+const movieS = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    backgroundColor: '#fff',
+    width: '92%',
+    maxHeight: '85%',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  title: {
+    fontWeight: '700',
+    color: '#1A1A1A',
+  },
+  subtitle: {
+    color: '#888',
+    marginTop: 2,
+  },
+  closeBtn: {
+    padding: 4,
+  },
+  section: {
+    backgroundColor: '#F9F9F9',
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
+  },
+  iconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  detailLabel: {
+    fontSize: 13,
+    color: '#888',
+  },
+  detailValue: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1A1A1A',
+  },
+  closeButton: {
+    alignItems: 'center',
+  },
+});
+
 const commissionS = StyleSheet.create({
   overlay: {
     flex: 1,
@@ -507,6 +714,7 @@ const commissionS = StyleSheet.create({
 const HistoryOrderCard = React.memo(({ item, rs, nz, cardW, userProfile }) => {
   const [itemsModalVisible, setItemsModalVisible] = useState(false);
   const [commissionModalVisible, setCommissionModalVisible] = useState(false);
+  const [movieModalVisible, setMovieModalVisible] = useState(false);
 
   const statusColor = item.isDelivered ? '#4CAF50' : item.isCancelled ? '#F44336' : '#FF9800';
   const statusText = item.isDelivered ? 'Delivered' : item.isCancelled ? 'Cancelled' : 'Completed';
@@ -523,10 +731,15 @@ const HistoryOrderCard = React.memo(({ item, rs, nz, cardW, userProfile }) => {
     <>
       <View style={{
         width: cardW,
-        backgroundColor: '#01690509', borderRadius: rs(16),
-        marginBottom: rs(14),
-        borderWidth: 1, borderColor: '#14131336',
+        backgroundColor: '#fff', borderRadius: rs(16),
+        marginBottom: rs(20),
+        borderWidth: 1, borderColor: '#E8E8E8',
         overflow: 'hidden',
+        elevation: 4,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
       }}>
 
         {/* ── SEAT NUMBER & ORDER NUMBER - Full Width Banner at Top ── */}
@@ -723,6 +936,52 @@ const HistoryOrderCard = React.memo(({ item, rs, nz, cardW, userProfile }) => {
             </TouchableOpacity>
           )}
 
+          {/* ── Movie Info Row ── */}
+          {item.movieInfo && (
+            <TouchableOpacity
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                backgroundColor: `${GREEN}08`,
+                borderRadius: rs(10),
+                paddingVertical: rs(10),
+                paddingHorizontal: rs(12),
+                marginTop: rs(8),
+                borderWidth: 1,
+                borderColor: `${GREEN}25`,
+              }}
+              onPress={() => setMovieModalVisible(true)}
+              activeOpacity={0.8}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                <View style={{
+                  width: rs(32), height: rs(32), borderRadius: rs(8),
+                  backgroundColor: `${GREEN}15`, justifyContent: 'center', alignItems: 'center',
+                  marginRight: rs(10),
+                }}>
+                  <MaterialIcons name="movie" size={nz(16)} color={GREEN} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: nz(12), fontWeight: '700', color: '#1A1A1A' }} numberOfLines={1}>
+                    {item.movieInfo.movie?.movieName}
+                  </Text>
+                  <Text style={{ fontSize: nz(11), color: '#888', marginTop: rs(1) }} numberOfLines={1}>
+                    {item.movieInfo.show?.showTime} • {item.movieInfo.show?.screen}
+                  </Text>
+                </View>
+              </View>
+              <View style={{
+                flexDirection: 'row', alignItems: 'center',
+                paddingHorizontal: rs(8), paddingVertical: rs(4),
+                borderRadius: rs(6), backgroundColor: `${GREEN}12`,
+              }}>
+                <Text style={{ fontSize: nz(11), fontWeight: '600', color: GREEN, marginRight: rs(3) }}>Details</Text>
+                <Feather name="chevron-right" size={nz(12)} color={GREEN} />
+              </View>
+            </TouchableOpacity>
+          )}
+
           {item.foodnote && (
             <View style={{
               flexDirection: 'column',
@@ -791,6 +1050,14 @@ const HistoryOrderCard = React.memo(({ item, rs, nz, cardW, userProfile }) => {
         visible={commissionModalVisible}
         order={item}
         onClose={() => setCommissionModalVisible(false)}
+        rs={rs}
+        nz={nz}
+      />
+
+      <MovieDetailsModal
+        visible={movieModalVisible}
+        movieInfo={item.movieInfo}
+        onClose={() => setMovieModalVisible(false)}
         rs={rs}
         nz={nz}
       />
