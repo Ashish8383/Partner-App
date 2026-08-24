@@ -295,6 +295,7 @@ const normaliseOrder = (o) => {
     items: (o.order ?? []).map((it) => ({
       name: `${it.quantity}x ${it.foodName}`,
       price: (() => { const n = Number(it.amount * it.quantity); return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, ''); })(),
+      customization: (it.customization ?? []).map((c) => ({ name: c.name, price: c.price })),
     })),
     total: (() => { const n = Number(o.TotalAmount); return n == null ? '0' : Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, ''); })(),
     note: 'Please ensure the invoice is provided to the customer at the time of food delivery, as the order is already entered in POS.',
@@ -439,9 +440,24 @@ const OrderCard = React.memo(({
           </View>
 
           {item.items.map((it, i) => (
-            <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: rs(5) }}>
-              <Text style={{ fontSize: nz(11), color: '#444', flex: 1, paddingRight: rs(4) }} numberOfLines={2}>{it.name}</Text>
-              <Text style={{ fontSize: nz(11), color: '#1A1A1A', fontWeight: '600' }}>{it.price}/-</Text>
+            <View key={i} style={{ marginBottom: rs(8) }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <Text style={{ fontSize: nz(11), color: '#444', flex: 1, paddingRight: rs(4) }} numberOfLines={2}>{it.name}</Text>
+                <Text style={{ fontSize: nz(11), color: '#1A1A1A', fontWeight: '600' }}>{it.price}/-</Text>
+              </View>
+              {it.customization?.length > 0 && (
+                <View style={{ marginTop: rs(4), paddingLeft: rs(14), backgroundColor: '#F7F7F7', borderRadius: rs(6), paddingVertical: rs(4), paddingRight: rs(8) }}>
+                  {it.customization.map((c, j) => (
+                    <View key={j} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginVertical: rs(2) }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Text style={{ fontSize: nz(9), color: GREEN, marginRight: rs(4) }}>{'•'}</Text>
+                        <Text style={{ fontSize: nz(10), color: '#555', fontWeight: '500' }}>{c.name}</Text>
+                      </View>
+                      <Text style={{ fontSize: nz(10), color: '#555', fontWeight: '600' }}>+{c.price}/-</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
             </View>
           ))}
 
@@ -679,6 +695,7 @@ export default function HomeScreen() {
     Animated.timing(blinkAnim, { toValue: 1, duration: 150, useNativeDriver: true }).start();
   }, [blinkAnim]);
 
+  console.log('Live Order Count:', JSON.stringify(liveList, null, 2));
   useEffect(() => {
     setLiveOrderCount(liveList.length);
     liveList.length > 0 ? startBlink() : stopBlink();
@@ -698,6 +715,7 @@ export default function HomeScreen() {
     const id = user?.restaurantId ?? '';
     try {
       const res = await TAB_CONFIG[tab].fetcher({ page: 1, limit: LIMIT }, id);
+      if (tab === 'live') console.log('Raw API Response:', JSON.stringify(res?.data, null, 2));
       const meta = res?.data?.data?.orderData;
       const raw = Array.isArray(meta?.data) ? meta.data : [];
       const totalDocs = meta?.totalDocuments ?? 0;

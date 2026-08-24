@@ -59,6 +59,7 @@ const normaliseOrder = (o) => {
     items: (o.order ?? []).map((it) => ({
       name: `${it.quantity}x ${it.foodName}`,
       price: (() => { const n = Number(it.amount * it.quantity); return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, ''); })(),
+      customization: (it.customization ?? []).map((c) => ({ name: c.name, price: c.price })),
     })),
     total: (() => { const n = Number(o.TotalAmount); return n == null ? '0' : Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, ''); })(),
     note: 'Please ensure the invoice is provided to the customer at the time of food delivery, as the order is already entered in POS.',
@@ -192,9 +193,24 @@ const ItemsModal = ({ visible, items, total, onClose, rs, nz }) => (
 
         <ScrollView showsVerticalScrollIndicator={false}>
           {items.map((item, idx) => (
-            <View key={idx} style={[modalS.itemRow, { paddingVertical: rs(12) }]}>
-              <Text style={[modalS.itemName, { fontSize: nz(14) }]} numberOfLines={2}>{item.name}</Text>
-              <Text style={[modalS.itemPrice, { fontSize: nz(14), fontWeight: '600' }]}>₹{item.price}</Text>
+            <View key={idx} style={{ paddingVertical: rs(12) }}>
+              <View style={[modalS.itemRow]}>
+                <Text style={[modalS.itemName, { fontSize: nz(14) }]} numberOfLines={2}>{item.name}</Text>
+                <Text style={[modalS.itemPrice, { fontSize: nz(14), fontWeight: '600' }]}>₹{item.price}</Text>
+              </View>
+              {item.customization?.length > 0 && (
+                <View style={{ marginTop: rs(4), paddingLeft: rs(14), backgroundColor: '#F7F7F7', borderRadius: rs(6), paddingVertical: rs(4), paddingRight: rs(8) }}>
+                  {item.customization.map((c, j) => (
+                    <View key={j} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginVertical: rs(2) }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Text style={{ fontSize: nz(9), color: GREEN, marginRight: rs(4) }}>{'•'}</Text>
+                        <Text style={{ fontSize: nz(10), color: '#555', fontWeight: '500' }}>{c.name}</Text>
+                      </View>
+                      <Text style={{ fontSize: nz(10), color: '#555', fontWeight: '600' }}>+₹{c.price}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
             </View>
           ))}
 
@@ -871,11 +887,26 @@ const HistoryOrderCard = React.memo(({ item, rs, nz, cardW, userProfile }) => {
             <Text style={{ fontSize: nz(14), fontWeight: '700', color: '#1A1A1A' }}>Ordered Items :</Text>
           </View>
 
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingBottom: rs(12) }}>
-            <Text style={{ fontSize: nz(13), color: '#444', flex: 1, paddingRight: rs(4) }} numberOfLines={2}>
-              {firstItem?.name}
-            </Text>
-            <Text style={{ fontSize: nz(13), color: '#1A1A1A', fontWeight: '600' }}>{firstItem?.price}/-</Text>
+          <View style={{ paddingBottom: rs(12) }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <Text style={{ fontSize: nz(13), color: '#444', flex: 1, paddingRight: rs(4) }} numberOfLines={2}>
+                {firstItem?.name}
+              </Text>
+              <Text style={{ fontSize: nz(13), color: '#1A1A1A', fontWeight: '600' }}>{firstItem?.price}/-</Text>
+            </View>
+            {firstItem?.customization?.length > 0 && (
+              <View style={{ marginTop: rs(4), paddingLeft: rs(14), backgroundColor: '#F7F7F7', borderRadius: rs(6), paddingVertical: rs(4), paddingRight: rs(8) }}>
+                {firstItem.customization.map((c, j) => (
+                  <View key={j} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginVertical: rs(2) }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Text style={{ fontSize: nz(9), color: GREEN, marginRight: rs(4) }}>{'•'}</Text>
+                      <Text style={{ fontSize: nz(10), color: '#555', fontWeight: '500' }}>{c.name}</Text>
+                    </View>
+                    <Text style={{ fontSize: nz(10), color: '#555', fontWeight: '600' }}>+{c.price}/-</Text>
+                  </View>
+                ))}
+              </View>
+            )}
           </View>
 
           {hasMultipleItems ? (
